@@ -1,0 +1,6 @@
+<RCC>
+  <qresource prefix="titlebg">
+    <file>scroll_down.png</file>
+    <file>Icons/importTitle.jpg</file>
+  </qresource>
+</RCC>

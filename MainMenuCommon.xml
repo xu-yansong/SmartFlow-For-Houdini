@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mainMenu>
+  <menuBar>
+    <subMenu id="smartflow_menu">
+      <label>SmartFlow</label>
+      <modifyItem>
+        <insertBefore>help_menu</insertBefore>
+      </modifyItem>
+
+      <scriptItem id = 'hipfile_resource_manager'>
+        <label>HipFile Asset Manager</label>
+        <scriptCode>
+          <![CDATA[
+from imp import reload
+import hou
+import assetmanager.asset_manager_main as rms
+reload(rms)
+rms.initWindow()
+          ]]>
+        </scriptCode>
+      </scriptItem>
+      <scriptItem id = 'project_collect'>
+        <label>Project Collect</label>
+        <scriptCode>
+          <![CDATA[
+from imp import reload
+import hou
+import projectcollect.project_collect as pc
+reload(pc)
+pc.initWindow()
+          ]]>
+        </scriptCode>
+      </scriptItem>
+    </subMenu>
+  </menuBar>
+</mainMenu>

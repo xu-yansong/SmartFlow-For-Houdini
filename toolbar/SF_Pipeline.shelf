@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<shelfDocument>
+  <!-- This file contains definitions of shelves, toolbars, and tools.
+ It should not be hand-edited when it is being used by the application.
+ Note, that two definitions of the same element are not allowed in
+ a single file. -->
+
+  <toolshelf name="smartflow_pipeline" label="SmartFlow Pipeline">
+    <memberTool name="submit_deadline"/>
+    <memberTool name="color_node"/>
+    <memberTool name="copynode"/>
+    <memberTool name="pastenode"/>
+    <memberTool name="promote_render"/>
+    <memberTool name="quikfind"/>
+    <memberTool name="Merge_Tool"/>
+    <memberTool name="cache_promote"/>
+    <memberTool name="geo_import"/>
+    <memberTool name="fetch_camera"/>
+    <memberTool name="set_cam_res"/>
+  </toolshelf>
+
+  <tool name="geo_import" label="Geo Import" icon="SOP_file">
+    <script scriptType="python"><![CDATA[import sf_soptools
+from imp import reload
+reload(sf_soptools)
+
+sf_soptools.BatchImport().createfileNode()
+]]></script>
+  </tool>
+
+  <tool name="debug_file" label="debug_file" icon="SOP_file">
+    <script scriptType="python"><![CDATA[import debug_file
+try:
+    debug_file.main()
+except:
+    pass]]></script>
+  </tool>
+
+  <tool name="submit_deadline" label="submit_deadline" icon="Deadline_Launcher.png">
+    <script scriptType="python"><![CDATA[import To_deadline
+
+reload(To_deadline)
+
+]]></script>
+  </tool>
+
+  <tool name="Merge_Tool" label="Merge Tool" icon="SOP_merge">
+    <script scriptType="python"><![CDATA[import sf_soptools
+from imp import reload
+reload(sf_soptools)
+
+sf_soptools.merge_node()
+]]></script>
+  </tool>
+
+  <tool name="fetch_camera" label="Fetch Camera" icon="OBJ_camera">
+    <script scriptType="python"><![CDATA[import sf_soptools
+from imp import reload
+reload(sf_soptools)
+
+sf_soptools.CameraFactory().fetch_camera()]]></script>
+  </tool>
+
+  <tool name="quikfind" label="Quik Find" icon="hicon:/SVGIcons.index?BUTTONS_cook2.svg">
+    <script scriptType="python"><![CDATA[import sf_soptools
+from imp import reload
+reload(sf_soptools)
+
+sf_soptools.quik_find()]]></script>
+  </tool>
+
+  <tool name="color_node" label="Color Node" icon="SOP_color">
+    <script scriptType="python"><![CDATA[import sf_soptools
+from imp import reload
+reload(sf_soptools)
+
+nodecolor = sf_soptools.NodeColoring()
+nodecolor.setColor()
+]]></script>
+  </tool>
+
+  <tool name="copynode" label="Copy Node" icon="SOP_polyexpand2d">
+    <script scriptType="python"><![CDATA[import sf_soptools
+from imp import reload
+reload(sf_soptools)
+
+sf_soptools.copy_node()
+
+]]></script>
+  </tool>
+
+  <tool name="pastenode" label="Paste Node" icon="SOP_polyexpand2d">
+    <script scriptType="python"><![CDATA[import sf_soptools
+from imp import reload
+reload(sf_soptools)
+
+sf_soptools.paste_node()
+
+]]></script>
+  </tool>
+
+  <tool name="promote_render" label="Promote Render" icon="OBJ_geo">
+    <script scriptType="python"><![CDATA[import sf_soptools
+from imp import reload
+reload(sf_soptools)
+
+sf_soptools.promote_render()
+]]></script>
+  </tool>
+
+  <tool name="set_cam_res" label="Set Cam Res" icon="OBJ_stereocamera">
+    <script scriptType="python"><![CDATA[import sf_soptools
+from imp import reload
+reload(sf_soptools)
+
+sf_soptools.CameraFactory().set_camera_res()]]></script>
+  </tool>
+
+  <tool name="cache_promote" label="Cache Promote" icon="NETWORKS_rop">
+    <script scriptType="python"><![CDATA[import Rop2out
+try:
+    Rop2out.main()
+except:
+    pass]]></script>
+  </tool>
+</shelfDocument>

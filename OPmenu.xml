@@ -1,0 +1,121 @@
+<menuDocument>
+	<menu>
+        <scriptItem id="smartflow_show_in_explorer">
+        <label>SmartFlow Show HDA In Explorer</label>
+        <insertAtIndex>0</insertAtIndex>
+        <context>
+            <expression>
+                <![CDATA[
+import hou
+import sf_assettools as assettools
+
+node = kwargs["node"]
+if assettools.isVHDA(node) or assettools.isHDA(node):
+    return 1
+else:
+    return 0
+                ]]>
+            </expression>
+        </context>
+        <scriptCode>
+            <![CDATA[
+import sf_utils
+from imp import reload
+reload(sf_utils)
+sf_utils.showhdainexplorer(kwargs["node"])
+            ]]>
+        </scriptCode>
+        </scriptItem>
+	</menu>
+    <menu>
+        <subMenu id = "smartflow_pdg_options">
+            <label>SmartFlow PDG</label>
+            <insertAtIndex>0</insertAtIndex>
+            <context>
+            <expression>
+        <![CDATA[
+import hou
+node = kwargs["node"]
+if node.type().category().name() == "Top" or node.type().name() == "topnet":
+    return 1
+else:
+    return 0
+        ]]>
+            </expression>
+            </context>
+            <scriptItem id="smartflow_pdg_debug">
+            <label>SmartFlow Create PDG Debug File</label>
+            <context>
+                <expression>
+                <![CDATA[
+import hou
+import sf_assettools as assettools
+
+node = kwargs["node"]
+if assettools.isVHDA(node) or assettools.isHDA(node):
+    return 1
+else:
+    return 0
+                ]]>
+                </expression>
+                </context>
+                    <scriptCode>
+                    <![CDATA[
+from importlib import reload
+import sf_pdgtools
+reload(sf_pdgtools)
+sf_pdgtools.createPDGDebugFile(kwargs["node"])
+                    ]]>
+                    </scriptCode>
+            </scriptItem>
+            <scriptItem id="smartflow_show_outputfile">
+            <label>SmartFlow Show Output In Explorer</label>
+            <context>
+                <expression>
+                    <![CDATA[
+import hou
+
+node = kwargs["node"]
+if node.type().name() == "hdaprocessor" or node.type().name() == "topnet":
+    return 1
+else:
+    return 0
+                    ]]>
+                </expression>
+                </context>
+                    <scriptCode>
+                    <![CDATA[
+from importlib import reload
+import sf_pdgtools
+reload(sf_pdgtools)
+sf_pdgtools.showOutputInExplorer(kwargs["node"])
+                    ]]>
+                    </scriptCode>
+            </scriptItem>
+            <scriptItem id="smartflow_quick_preview">
+            <label>SmartFlow Output Quick Preview</label>
+            <context>
+                <expression>
+                    <![CDATA[
+import hou
+
+node = kwargs["node"]
+if node.type().name() == "hdaprocessor" or node.type().name() == "topnet":
+    return 1
+else:
+    return 0
+                    ]]>
+                </expression>
+                </context>
+                    <scriptCode>
+                    <![CDATA[
+from importlib import reload
+import sf_pdgtools
+reload(sf_pdgtools)
+sf_pdgtools.outquickpreview(kwargs["node"])
+                    ]]>
+                    </scriptCode>
+            </scriptItem>
+        </subMenu>
+    </menu>
+</menuDocument>

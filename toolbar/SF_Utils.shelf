@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<shelfDocument>
+  <!-- This file contains definitions of shelves, toolbars, and tools.
+ It should not be hand-edited when it is being used by the application.
+ Note, that two definitions of the same element are not allowed in
+ a single file. -->
+
+  <toolshelf name="smartflow_utils" label="SmartFlow Utils">
+    <memberTool name="sep_by_mat"/>
+    <memberTool name="focus_mat"/>
+    <memberTool name="focus_obj"/>
+    <memberTool name="hda_rename"/>
+  </toolshelf>
+
+  <tool name="sep_by_mat" label="sep_by_mat" icon="SOP_split">
+    <script scriptType="python"><![CDATA[import sf_soptools
+from imp import reload
+reload(sf_soptools)
+
+sf_soptools.NodeFactory().seperate_by_attribute("shop_materialpath","prim")
+]]></script>
+  </tool>
+
+  <tool name="focus_mat" label="Focus Mat" icon="NETWORKS_mat">
+    <script scriptType="python"><![CDATA[import sf_soptools
+from imp import reload
+reload(sf_soptools)
+
+sf_soptools.FindFactory().jump_to_material()
+]]></script>
+  </tool>
+
+  <tool name="focus_obj" label="Focus Obj" icon="OBJ_geo">
+    <script scriptType="python"><![CDATA[import sf_soptools
+from imp import reload
+reload(sf_soptools)
+
+sf_soptools.FindFactory().jump_to_object()]]></script>
+  </tool>
+
+  <tool name="hda_rename" label="HDA Rename" icon="SOP_name">
+    <script scriptType="python"><![CDATA[import sf_assettools
+from imp import reload
+reload(sf_assettools)
+
+sf_assettools.HDAFactory("D:/SmartFlowForHoudini/otls").run()]]></script>
+  </tool>
+</shelfDocument>

@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<shelfDocument>
+  <!-- This file contains definitions of shelves, toolbars, and tools.
+ It should not be hand-edited when it is being used by the application.
+ Note, that two definitions of the same element are not allowed in
+ a single file. -->
+
+  <toolshelf name="smartflow_doptools" label="SmartFlow Dop">
+    <memberTool name="fragment"/>
+    <memberTool name="Shatter"/>
+    <memberTool name="initial_rbddop"/>
+    <memberTool name="addtodop"/>
+    <memberTool name="create_glue"/>
+    <memberTool name="add_collision"/>
+    <memberTool name="add_ground"/>
+    <memberTool name="Sparse_Smoke"/>
+  </toolshelf>
+
+  <tool name="fragment" label="Fragment" icon="SOP_voronoifracturepoints">
+    <script scriptType="python"><![CDATA[import sf_doptools
+from imp import reload
+reload(sf_doptools)
+
+sf_doptools.RBDFactory().create_simgle_fragment()
+
+]]></script>
+  </tool>
+
+  <tool name="Shatter" label="Shatter" icon="SOP_shatter">
+    <script scriptType="python"><![CDATA[import sf_doptools
+from imp import reload
+reload(sf_doptools)
+
+sf_doptools.RBDFactory().create_complex_fragment()]]></script>
+  </tool>
+
+  <tool name="create_glue" label="Create Glue" icon="PARTS_glue">
+    <script scriptType="python"><![CDATA[import sf_doptools
+from imp import reload
+reload(sf_doptools)
+
+sf_doptools.RBDFactory().create_glue()]]></script>
+  </tool>
+
+  <tool name="addtodop" label="AddToDop" icon="VOP_add">
+    <script scriptType="python"><![CDATA[import sf_doptools
+from imp import reload
+reload(sf_doptools)
+
+sf_doptools.RBDFactory().add_top_rbd()]]></script>
+  </tool>
+
+  <tool name="add_collision" label="add_collision" icon="DOP_staticobject">
+    <script scriptType="python"><![CDATA[import sf_doptools
+from imp import reload
+reload(sf_doptools)
+
+sf_doptools.RBDFactory().add_collision()]]></script>
+  </tool>
+
+  <tool name="Sparse_Smoke" label="Sparse_Smoke" icon="SHELF_smoke_heavy">
+    <script scriptType="python"><![CDATA[import sf_doptools
+from imp import reload
+reload(sf_doptools)
+
+sf_doptools.SparseSmokeFactory().smoke_quik_create()]]></script>
+  </tool>
+
+  <tool name="initial_rbddop" label="Initial RbdDop" icon="NETWORKS_dop">
+    <script scriptType="python"><![CDATA[import sf_doptools
+from imp import reload
+reload(sf_doptools)
+
+sf_doptools.RBDFactory().init_rbd_network()]]></script>
+  </tool>
+
+  <tool name="add_ground" label="add_ground" icon="DOP_groundplane">
+    <script scriptType="python"><![CDATA[import sf_doptools
+from imp import reload
+reload(sf_doptools)
+
+sf_doptools.RBDFactory().add_ground()]]></script>
+  </tool>
+</shelfDocument>

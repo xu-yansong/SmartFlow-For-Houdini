@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mainMenu>
+    <menuBar>
+        <subMenu id="smartflow_network_view_menu">
+        <modifyItem>
+            <insertBefore>help_menu</insertBefore>
+        </modifyItem>
+    <label>SmartFlow</label>
+    <scriptItem id="smartflow_example">
+        <label>Test Example</label>
+        <scriptCode>
+            <![CDATA[
+print("hello smart-flow!!!")
+            ]]>
+        </scriptCode>
+    </scriptItem>
+
+    <subMenu id="smartflow_more">
+    <label>More</label>
+    <scriptItem id="smartflow_submenu">
+        <label>Example SubMenu</label>
+        <scriptCode>
+            <![CDATA[
+print("hello smart-flow submenu!!!")
+            ]]>
+        </scriptCode>
+    </scriptItem>
+    </subMenu>
+    </subMenu>
+    </menuBar>
+</mainMenu>

@@ -1,0 +1,9 @@
+### 说明
+
+用于生成SmartFlowInstall.exe程序的脚本。
+
+### 参考
+
+pyinstaller打包py文件为.exe：https://zhuanlan.zhihu.com/p/162237978
+
+

@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<shelfDocument>
+  <!-- This file contains definitions of shelves, toolbars, and tools.
+ It should not be hand-edited when it is being used by the application.
+ Note, that two definitions of the same element are not allowed in
+ a single file. -->
+
+  <toolshelf name="smartflow_rendertools" label="SmartFlow Render">
+    <memberTool name="Quick_Shader"/>
+    <memberTool name="id_pass"/>
+    <memberTool name="Mv_Mat"/>
+    <memberTool name="Mv_Mantra"/>
+    <memberTool name="vol_pass"/>
+    <memberTool name="mantra_vol"/>
+  </toolshelf>
+
+  <tool name="Quick_Shader" label="Quick_Shader" icon="SOP_material">
+    <script scriptType="python"><![CDATA[import sf_rendertools
+from imp import reload
+reload(sf_rendertools)
+
+sf_rendertools.QuikShader().create_shader()]]></script>
+  </tool>
+
+  <tool name="Mv_Mantra" label="Mv_Mantra" icon="hicon:/SVGIcons.index?COP2_streak.svg">
+    <script scriptType="python"><![CDATA[import sf_rendertools
+from imp import reload
+reload(sf_rendertools)
+
+sf_rendertools.MotionVectorFactory().add_mvlayer_to_mantra()]]></script>
+  </tool>
+
+  <tool name="Mv_Mat" label="Mv_Mat" icon="hicon:/SVGIcons.index?COP2_streak.svg">
+    <script scriptType="python"><![CDATA[import sf_rendertools
+from imp import reload
+reload(sf_rendertools)
+
+sf_rendertools.MotionVectorFactory().create_motionvector_node()]]></script>
+  </tool>
+
+  <tool name="vol_pass" label="vol_pass" icon="SHELF_smoke_heavy">
+    <script scriptType="python"><![CDATA[import sf_rendertools
+from imp import reload
+reload(sf_rendertools)
+
+sf_rendertools.VolumeRenderFactory().create_node_to_material()]]></script>
+  </tool>
+
+  <tool name="id_pass" label="id_pass" icon="hicon:/SVGIcons.index?BUTTONS_colors.svg">
+    <script scriptType="python"><![CDATA[import sf_rendertools
+from imp import reload
+reload(sf_rendertools)
+
+sf_rendertools.IdPassFactory().create_id_pass()]]></script>
+  </tool>
+
+  <tool name="mantra_vol" label="mantra_vol" icon="hicon:/SVGIcons.index?VOP_rainbow.svg">
+    <script scriptType="python"><![CDATA[import sf_rendertools
+from imp import reload
+reload(sf_rendertools)
+
+sf_rendertools.VolumeRenderFactory().create_volume_layer()]]></script>
+  </tool>
+</shelfDocument>
