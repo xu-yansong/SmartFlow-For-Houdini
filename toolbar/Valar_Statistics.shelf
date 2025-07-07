@@ -1,0 +1,239 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<shelfDocument>
+  <!-- This file contains definitions of shelves, toolbars, and tools.
+ It should not be hand-edited when it is being used by the application.
+ Note, that two definitions of the same element are not allowed in
+ a single file. -->
+
+  <toolshelf name="valar_statistics" label="Valar Statistics">
+    <memberTool name="displayinfo"/>
+    <memberTool name="quikedisplay0"/>
+    <memberTool name="QuikFind"/>
+    <memberTool name="copynode"/>
+    <memberTool name="pastenode"/>
+    <memberTool name="mergetool"/>
+    <memberTool name="nodecount"/>
+    <memberTool name="hdaanalysis"/>
+    <memberTool name="hda_check"/>
+    <memberTool name="hda_dependency"/>
+    <memberTool name="list_embedded"/>
+  </toolshelf>
+
+  <tool name="quikedisplay" label="Quike Display" icon="SOP_visibility">
+    <script scriptType="python"><![CDATA[from imp import reload
+import valar_analysisutils
+reload(valar_analysisutils)
+
+try:
+    valar_analysisutils.quikefind()
+except:
+    print('node input valid...')]]></script>
+  </tool>
+
+  <tool name="displayinfo" label="Display Info" icon="hicon:/SVGIcons.index?BUTTONS_log.svg">
+    <script scriptType="python"><![CDATA[from imp import reload
+import valar_analysisutils
+reload(valar_analysisutils)
+
+try:
+    valar_analysisutils.displayinfo()
+except:
+    pass]]></script>
+  </tool>
+
+  <tool name="quikedisplay0" label="Quike Display" icon="SOP_visibility">
+    <script scriptType="python"><![CDATA[from imp import reload
+import valar_graphutils
+reload(valar_graphutils)
+
+valar_graphutils.quikedisplay()
+]]></script>
+  </tool>
+
+  <tool name="QuikFind" label="QuikFind" icon="hicon:/SVGIcons.index?BUTTONS_displayoptions.svg">
+    <script scriptType="python"><![CDATA[from imp import reload
+import valar_graphutils
+reload(valar_graphutils)
+
+try:
+    valar_graphutils.quikfind()
+except:
+    pass]]></script>
+  </tool>
+
+  <tool name="copynode" label="Copy Node" icon="SOP_topobuild">
+    <script scriptType="python"><![CDATA[from imp import reload
+import valar_graphutils
+reload(valar_graphutils)
+
+try:
+    valar_graphutils.copynode()
+except:
+    pass]]></script>
+  </tool>
+
+  <tool name="pastenode" label="Paste Node" icon="SOP_topobuild">
+    <script scriptType="python"><![CDATA[from imp import reload
+import valar_graphutils
+reload(valar_graphutils)
+
+try:
+    valar_graphutils.pastenode()
+except:
+    pass]]></script>
+  </tool>
+
+  <tool name="mergetool" label="Merge Tool" icon="SOP_merge">
+    <script scriptType="python"><![CDATA[from imp import reload
+import valar_graphutils
+reload(valar_graphutils)
+
+try:
+    valar_graphutils.mergenode()
+except:
+    pass]]></script>
+  </tool>
+
+  <tool name="nodecount" label="Node Count" icon="DOP_split">
+    <script scriptType="python"><![CDATA[from imp import reload
+import valar_graphutils
+reload(valar_graphutils)
+
+valar_graphutils.nodecount(False)]]></script>
+  </tool>
+
+  <tool name="hdaanalysis" label="HDA Analysis" icon="hicon:/SVGIcons.index?CHANNELS_show_all_handles.svg">
+    <script scriptType="python"><![CDATA[from imp import reload
+import valar_analysisutils
+reload(valar_analysisutils)
+
+otlpath = "X:/Valar_PCG_Tools/otls/Terrain/"
+valar_analysisutils.otlanalysis(otlpath)
+]]></script>
+  </tool>
+
+  <tool name="hda_check" label="HDA Check" icon="SOP_clean">
+    <script scriptType="python"><![CDATA[from imp import reload
+
+import valar_hda_checks
+reload(valar_hda_checks)
+
+valar_hda_checks.checkasset()]]></script>
+  </tool>
+
+  <tool name="hda_dependency" label="HDA Dependency" icon="SOP_convertline">
+    <script scriptType="python"><![CDATA[from imp import reload
+
+import valar_hda_checks
+reload(valar_hda_checks)
+
+devpath = "X:/Valar_PCG_Tools_Dev/otls"
+nodes = hou.selectedNodes()
+hdadep = valar_hda_checks.HDADependency(devpath)
+hdadep.listDependency(nodes)]]></script>
+  </tool>
+
+  <tool name="list_embedded" label="List Embedded" icon="DIALOG_error">
+    <script scriptType="python"><![CDATA[#!/usr/bin/env python
+# -*- encoding: utf-8 -*-
+'''
+@File        : __shelf_tool_list_embedded.py
+@Time        : 2022/12/30 09:19:12
+@Author      : xuyansong
+@Version     : 1.0
+@Description : None
+@Software    : Visual Studio Code
+'''
+
+import time
+import hou
+import sys
+import os
+import json
+
+class Check_Embedded():
+    def __init__(self, path) -> None:
+        super().__init__()
+        self.path = path
+
+    # get all .hda file from path
+    def getAllHDAFile(self, path) -> list:
+
+        otllists = list()
+        allfiles = os.walk(path)
+        num = len(path)
+        for folder in allfiles:
+            if len(folder[2]):
+                for eachfile in folder[2]:
+                    otlinfo = dict()
+                    name, extension = os.path.splitext(eachfile)
+                    if extension == ".hda":
+                        otlinfo['filename'] = eachfile
+                        otlinfo['subfolder'] = folder[0][num:]
+                        otlinfo['otlpath'] = folder[0] + "/" + eachfile
+                        otllists.append(otlinfo)
+        return otllists
+
+    # get dev definition
+    def getDevDefinition(self, path) -> list:
+        HDAfiles = self.getAllHDAFile(path)
+        deflib = list()
+        for hda in HDAfiles:
+            otlpath = hda['otlpath']
+            deflists = hou.hda.definitionsInFile(otlpath)
+            # print(otlpath)
+            for definition in deflists:
+                if definition.nodeTypeCategory().name() == "Sop":
+                    deflib.append(definition.nodeTypeName())
+        return deflib
+
+    # check embedded
+    def check_embedded(self) -> list:
+        result = list()
+        deflists = self.getDevDefinition(self.path)
+
+        deflists.sort()
+        obj = hou.node("/obj")
+        geo = obj.createNode("geo")
+        for definition in deflists:
+            geo.createNode(definition)
+            
+        for node in geo.children():
+            info = dict()
+            errordef = list()
+            node.allowEditingOfContents()
+            for child in node.allSubChildren():
+                sourcePath = child.type().sourcePath()
+                if (sourcePath != "Internal") and ("C:/PROGRA~1/SIDEEF~1" not in sourcePath):
+                    if child.type().definition().libraryFilePath() == "Embedded":
+                        errordef.append("-----------------------------")
+                        errordef.append("name : " + child.type().name())
+                        errordef.append("path : " + child.path())
+                        
+            if len(errordef)>0:
+                info['definition'] = node.type().name()
+                info['lost_dev'] = errordef
+                result.append(info)
+            
+        return result
+
+
+# *************** main ***************
+path = "X:/Valar_PCG_Tools_Dev/otls"
+check_instance = Check_Embedded(path)
+result = check_instance.check_embedded()
+
+js_file = json.dumps(result, indent=2)
+js_name = time.ctime(time.time()).replace(" ", "_").replace(":", "_")
+js_path = str(js_name) + ".json"
+
+with open(js_path, 'w') as f:
+    f.write(js_file)
+os.startfile(js_path)
+# for node in hou.selectedNodes():
+#     print(node.type().sourcePath())
+#     print("C:/PROGRA~1/SIDEEF~1" not in node.type().sourcePath())
+
+]]></script>
+  </tool>
+</shelfDocument>

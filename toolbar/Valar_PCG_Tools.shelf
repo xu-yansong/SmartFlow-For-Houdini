@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<shelfDocument>
+  <!-- This file contains definitions of shelves, toolbars, and tools.
+ It should not be hand-edited when it is being used by the application.
+ Note, that two definitions of the same element are not allowed in
+ a single file. -->
+
+  <tool name="ClampMask" label="ClampMask" icon="SOP_heightfield_layer">
+    <script scriptType="python"><![CDATA[from imp import reload
+import valar_graphutils
+reload(valar_graphutils)
+
+try:
+    valar_graphutils.clampmask()
+except:
+    pass]]></script>
+  </tool>
+
+  <tool name="definition_node" label="Definition Node" icon="hicon:/SVGIcons.index?BUTTONS_cook.svg">
+    <script scriptType="python"><![CDATA[from imp import reload
+import valar_graphutils
+reload(valar_graphutils)
+
+valar_graphutils.definition_nodes()
+]]></script>
+  </tool>
+
+  <toolshelf name="valar_pcg_tools" label="Valar PCG Tools">
+    <memberTool name="ue2h_asset"/>
+    <memberTool name="ue2h_level"/>
+    <memberTool name="ClampMask"/>
+    <memberTool name="definition_node"/>
+  </toolshelf>
+
+  <tool name="ue2h_asset" label="UE2H Asset" icon="hicon:/SVGIcons.index?VOP_subnetconnector.svg">
+    <script scriptType="python"><![CDATA[import valar_uasset2h
+from imp import reload
+reload(valar_uasset2h)
+valar_uasset2h.importContentAsset()
+]]></script>
+  </tool>
+
+  <tool name="ue2h_level" label="UE2H Level" icon="hicon:/SVGIcons.index?VOP_subnetconnector.svg">
+    <script scriptType="python"><![CDATA[import valar_uasset2h
+from importlib import reload
+reload(valar_uasset2h)
+valar_uasset2h.importlevelAsset()
+]]></script>
+  </tool>
+</shelfDocument>
