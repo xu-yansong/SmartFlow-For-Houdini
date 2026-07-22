@@ -9,9 +9,9 @@
 @Software    : Visual Studio Code
 '''
 
-from PySide2 import QtCore
-from PySide2 import QtGui
-from PySide2 import QtWidgets
+from PySide6 import QtCore
+from PySide6 import QtGui
+from PySide6 import QtWidgets
 import sys
 import os
 import hou
@@ -731,25 +731,25 @@ class ResManager(QtWidgets.QMainWindow):
         if item != None and rightclickedpos != None:
             if item.parent() == None:
                 RootMenu = QtWidgets.QMenu()
-                RootMenu.addAction(QtWidgets.QAction(u'添加类别', self))
-                RootMenu.addAction(QtWidgets.QAction(u'打开目录', self))
-                RootMenu.triggered[QtWidgets.QAction].connect(
+                RootMenu.addAction(QtGui.QAction(u'添加类别', self))
+                RootMenu.addAction(QtGui.QAction(u'打开目录', self))
+                RootMenu.triggered[QtGui.QAction].connect(
                     self.processtrigger)
                 RootMenu.exec_(QtGui.QCursor.pos())
             elif item.parent().parent() == None:
                 categoryMenu = QtWidgets.QMenu()
-                categoryMenu.addAction(QtWidgets.QAction(u'添加分组', self))
-                categoryMenu.addAction(QtWidgets.QAction(u'打开目录', self))
-                categoryMenu.addAction(QtWidgets.QAction(u'删除此类别', self))
-                categoryMenu.triggered[QtWidgets.QAction].connect(
+                categoryMenu.addAction(QtGui.QAction(u'添加分组', self))
+                categoryMenu.addAction(QtGui.QAction(u'打开目录', self))
+                categoryMenu.addAction(QtGui.QAction(u'删除此类别', self))
+                categoryMenu.triggered[QtGui.QAction].connect(
                     self.processtrigger)
                 categoryMenu.exec_(QtGui.QCursor.pos())
             elif item.parent().parent().parent() == None:
                 TypeMenu = QtWidgets.QMenu()
-                TypeMenu.addAction(QtWidgets.QAction(u'添加资产', self))
-                TypeMenu.addAction(QtWidgets.QAction(u'打开目录', self))
-                TypeMenu.addAction(QtWidgets.QAction(u'删除此分组', self))
-                TypeMenu.triggered[QtWidgets.QAction].connect(
+                TypeMenu.addAction(QtGui.QAction(u'添加资产', self))
+                TypeMenu.addAction(QtGui.QAction(u'打开目录', self))
+                TypeMenu.addAction(QtGui.QAction(u'删除此分组', self))
+                TypeMenu.triggered[QtGui.QAction].connect(
                     self.processtrigger)
                 TypeMenu.exec_(QtGui.QCursor.pos())
 
@@ -825,25 +825,25 @@ class ResManager(QtWidgets.QMainWindow):
         # add right click menu
         cell_frame.setContextMenuPolicy(QtCore.Qt.ActionsContextMenu)
         # new
-        newscene = QtWidgets.QAction(cell_frame)
+        newscene = QtGui.QAction(cell_frame)
         newscene.setText("Import As New Scene")
         newscene.triggered.connect(partial(self._importhip, assetpath))
         cell_frame.addAction(newscene)
 
         # merge
-        mergescene = QtWidgets.QAction(cell_frame)
+        mergescene = QtGui.QAction(cell_frame)
         mergescene.setText("Merge To Current Scene")
         mergescene.triggered.connect(partial(self._mergehip, assetpath))
         cell_frame.addAction(mergescene)
 
         # open
-        openscene = QtWidgets.QAction(cell_frame)
+        openscene = QtGui.QAction(cell_frame)
         openscene.setText("Show in Explorer")
         openscene.triggered.connect(partial(self._showinexplorer, assetfolder))
         cell_frame.addAction(openscene)
 
         # mark
-        markAsset = QtWidgets.QAction(cell_frame)
+        markAsset = QtGui.QAction(cell_frame)
         markAsset.setText("Mark As Favorite")
         markAsset.triggered.connect(partial(self._markAsFavorite, assetfolder))
         cell_frame.addAction(markAsset)
@@ -1082,11 +1082,11 @@ class ResManager(QtWidgets.QMainWindow):
 
         # 工具栏 ToolBar
         # tb_file = self.addToolBar('Open')
-        # new = QtWidgets.QAction(hou.qt.Icon('take.png', ICON_SIZE, ICON_SIZE),
+        # new = QtGui.QAction(hou.qt.Icon('take.png', ICON_SIZE, ICON_SIZE),
         #                         "new", self)
         # tb_file.addAction(new)
 
-        # exit = QtWidgets.QAction(hou.qt.Icon('exit.png', ICON_SIZE, ICON_SIZE),
+        # exit = QtGui.QAction(hou.qt.Icon('exit.png', ICON_SIZE, ICON_SIZE),
         #                          "exit", self)
         # tb_file.addAction(exit)
         # tb_file.setToolButtonStyle(QtGui.Qt.ToolButtonTextUnderIcon)

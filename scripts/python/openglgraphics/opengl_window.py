@@ -1,6 +1,6 @@
 import pyrr
 import numpy as np
-from PySide2 import QtCore, QtWidgets
+from PySide6 import QtCore, QtWidgets
 import hou
 py_gl_found = True
 

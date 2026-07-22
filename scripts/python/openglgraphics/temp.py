@@ -1,7 +1,7 @@
 import pyrr
 import numpy as np
 import math
-from PySide2 import QtCore, QtWidgets, QtGui
+from PySide6 import QtCore, QtWidgets, QtGui
 import sys
 import hou
 py_gl_found = True

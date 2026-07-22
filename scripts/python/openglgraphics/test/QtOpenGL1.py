@@ -16,7 +16,7 @@ from OpenGL.GL import shaders
 from OpenGL.GL import *
 import numpy as np
 import math
-from PySide2 import QtCore, QtGui, QtWidgets
+from PySide6 import QtCore, QtGui, QtWidgets
 from openglgraphics import Ui_myglwidget
 from imp import reload
 reload(Ui_myglwidget)

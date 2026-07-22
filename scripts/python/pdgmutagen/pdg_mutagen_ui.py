@@ -1,5 +1,5 @@
 # imports
-from PySide2 import QtWidgets, QtCore, QtGui, QtWebEngineWidgets
+from PySide6 import QtWidgets, QtCore, QtGui, QtWebEngineWidgets
 
 import hou
 import pdg
@@ -493,7 +493,7 @@ class ViewerInterface(QtWidgets.QWidget):
         # add right click menu / open in explorer / open in rv
         cell_frame.setContextMenuPolicy(QtCore.Qt.ActionsContextMenu)
 
-        open_sequence = QtWidgets.QAction(cell_frame)
+        open_sequence = QtGui.QAction(cell_frame)
         open_sequence.setText("Open Wedge Sequence in RV")
         open_sequence.triggered.connect(
             partial(
@@ -502,7 +502,7 @@ class ViewerInterface(QtWidgets.QWidget):
             ))
         cell_frame.addAction(open_sequence)
 
-        open_explorer = QtWidgets.QAction(cell_frame)
+        open_explorer = QtGui.QAction(cell_frame)
         open_explorer.setText("Open Wedge Sequence in Explorer")
         open_explorer.triggered.connect(
             partial(

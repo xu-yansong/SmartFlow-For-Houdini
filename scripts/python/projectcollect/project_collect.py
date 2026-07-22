@@ -20,7 +20,7 @@ from functools import partial
 
 import hou
 import numpy as np
-from PySide2 import QtCore, QtGui, QtWidgets
+from PySide6 import QtCore, QtGui, QtWidgets
 
 import cv2
 import projectcollect.ui_rc
@@ -203,20 +203,20 @@ class PrjCollect(QtWidgets.QMainWindow):
             cell_frame.setContextMenuPolicy(QtCore.Qt.ActionsContextMenu)
 
             # 定位到节点
-            newscene = QtWidgets.QAction(cell_frame)
+            newscene = QtGui.QAction(cell_frame)
             newscene.setText("Home To Node")
             newscene.triggered.connect(partial(self.homeToNode, assetpath))
             cell_frame.addAction(newscene)
 
             # open
-            openscene = QtWidgets.QAction(cell_frame)
+            openscene = QtGui.QAction(cell_frame)
             openscene.setText("Show in Explorer")
             openscene.triggered.connect(
                 partial(self._showinexplorer, assetfolder))
             cell_frame.addAction(openscene)
 
             # mark
-            markAsset = QtWidgets.QAction(cell_frame)
+            markAsset = QtGui.QAction(cell_frame)
             markAsset.setText("Mark As Favorite")
             # markAsset.triggered.connect(partial(self._markAsFavorite, assetfolder))
             cell_frame.addAction(markAsset)

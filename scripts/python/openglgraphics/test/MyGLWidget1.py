@@ -1,6 +1,6 @@
 import Ui_myglwidget
 
-from PySide2 import QtCore, QtGui, QtWidgets
+from PySide6 import QtCore, QtGui, QtWidgets
 from OpenGL.GL import shaders
 from OpenGL.GL import *
 
