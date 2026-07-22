@@ -243,7 +243,7 @@ class ViewerInterface(QtWidgets.QWidget):
 
         html_path = os.path.abspath(
             os.path.join(os.path.dirname(__file__),
-                         "../html/pdg_mutagen_webvideo_temp.html"))
+                         "../../html/pdg_mutagen_webvideo_temp.html"))
         base_url = QtCore.QUrl.fromLocalFile(html_path)
 
         html = codecs.open(html_path, 'r')
