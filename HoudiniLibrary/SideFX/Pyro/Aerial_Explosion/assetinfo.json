@@ -1,0 +1,10 @@
+{
+    "type": "VFX",
+    "category": "Explosion",
+    "Assetname": "Aerial_Explosion",
+    "houdiniversion": "'18.5.351'",
+    "Author": "xuyansong",
+    "createData": "Tue Oct 20 02:17:51 2020",
+    "hippath": "VFX/Explosion/Aerial_Explosion/Aerial_Explosion.hip",
+    "thumbpath": "VFX/Explosion/Aerial_Explosion/Aerial_Explosion.jpg"
+}

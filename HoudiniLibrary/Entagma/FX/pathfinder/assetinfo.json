@@ -1,0 +1,10 @@
+{
+    "type": "Entagma",
+    "category": "FX",
+    "Assetname": "pathfinder",
+    "houdiniversion": "'19.0.589'",
+    "Author": "Entagma",
+    "createData": "Sat Nov  5 16:39:46 2022",
+    "hippath": "Entagma/FX/pathfinder/pathfinder.hip",
+    "thumbpath": "Entagma/FX/pathfinder/pathfinder.jpg"
+}

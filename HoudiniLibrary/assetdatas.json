@@ -1,0 +1,30 @@
+{
+    "typeinfo": {
+        "Entagma": [
+            "FX",
+            "Render",
+            "Vex"
+        ],
+        "PCG": [
+            "Model"
+        ],
+        "Render": [
+            "Water",
+            "Particle",
+            "Pyro",
+            "Cloud"
+        ],
+        "SideFX": [
+            "Pyro",
+            "RBD"
+        ],
+        "VFX": [
+            "Explosion",
+            "Fire",
+            "Flip",
+            "Particle",
+            "RBD",
+            "Smoke"
+        ]
+    }
+}

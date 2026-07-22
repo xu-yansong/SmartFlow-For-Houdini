@@ -1,0 +1,10 @@
+{
+    "type": "VFX",
+    "category": "Particle",
+    "Assetname": "particleflow",
+    "houdiniversion": "'18.0.499'",
+    "Author": "xuyansong",
+    "createData": "Wed Oct 26 08:59:31 2022",
+    "hippath": "VFX/Particle/particleflow/particleflow.hip",
+    "thumbpath": "VFX/Particle/particleflow/particleflow.jpg"
+}

@@ -1,0 +1,11 @@
+{
+    "type": "VFX",
+    "category": "RBD",
+    "Assetname": "custom_fracture",
+    "houdiniversion": "'19.0.589'",
+    "Author": "GIH-D-30236",
+    "createData": "Tue Jul 12 20:57:55 2022",
+    "urlpath": "https://www.youtube.com/watch?v=kkGeOWYOFoA",
+    "hippath": "VFX/RBD/custom_fracture/custom_fracture.hip",
+    "thumbpath": "VFX/RBD/custom_fracture/custom_fracture.jpg"
+}

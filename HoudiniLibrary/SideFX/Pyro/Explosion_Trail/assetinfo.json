@@ -1,0 +1,10 @@
+{
+    "type": "VFX",
+    "category": "Explosion",
+    "Assetname": "Explosion_Trail",
+    "houdiniversion": "'19.5.303'",
+    "Author": "xuyansong",
+    "createData": "Tue Oct 25 09:05:48 2022",
+    "hippath": "VFX/Explosion/Explosion_Trail/Explosion_Trail.hip",
+    "thumbpath": "VFX/Explosion/Explosion_Trail/Explosion_Trail.jpg"
+}

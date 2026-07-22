@@ -1,0 +1,10 @@
+{
+    "type": "VFX",
+    "category": "Flip",
+    "Assetname": "JLB_Ocean",
+    "houdiniversion": "'18.0.287'",
+    "Author": "xuyansong",
+    "createData": "Wed Oct 26 08:58:09 2022",
+    "hippath": "VFX/Flip/JLB_Ocean/JLB_Ocean.hip",
+    "thumbpath": "VFX/Flip/JLB_Ocean/JLB_Ocean.jpg"
+}

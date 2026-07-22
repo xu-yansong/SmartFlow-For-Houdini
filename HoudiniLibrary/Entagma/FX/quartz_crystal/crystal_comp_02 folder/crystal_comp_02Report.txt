@@ -1,0 +1,43 @@
+Report created: 
+	25.02.2017	13:40:28
+
+Project name: crystal_comp_02.aep
+
+Source files collected to: 
+	Q:\Entagma\Season_02\HIP\crystal_comp_02 folder
+
+Source files collected: All
+
+Collected comps:  
+	crystal_precomp
+	AAA_Main
+	
+Number of collected files:  1
+
+Size of collected files:  10,0 MB
+
+Collected source files: 
+	Q:\Entagma\Season_02\HIP\render\quartz_crystal_04.mantra_ipr.0160.exr
+	
+Rendering plug-ins:
+	Advanced 3D
+	
+Effects used:  8
+
+Effect:  Channel Mixer
+	
+Effect:  Color Balance
+	
+Effect:  Curves
+	
+Effect:  Fast Blur
+	
+Effect:  Glow
+	
+Effect:  Optics Compensation
+	
+Effect:  Ramp
+	
+Effect:  Unsharp Mask
+	
+

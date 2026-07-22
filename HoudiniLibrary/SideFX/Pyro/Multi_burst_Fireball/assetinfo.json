@@ -1,0 +1,10 @@
+{
+    "type": "VFX",
+    "category": "Explosion",
+    "Assetname": "Multi_burst_Fireball",
+    "houdiniversion": "'18.5.351'",
+    "Author": "xuyansong",
+    "createData": "Tue Oct 20 00:23:05 2020",
+    "hippath": "VFX/Explosion/Multi_burst_Fireball/Multi_burst_Fireball.hip",
+    "thumbpath": "VFX/Explosion/Multi_burst_Fireball/Multi_burst_Fireball.jpg"
+}

@@ -1,0 +1,10 @@
+{
+    "type": "VFX",
+    "category": "Explosion",
+    "Assetname": "Ground_Explosion",
+    "houdiniversion": "'18.5.351'",
+    "Author": "xuyansong",
+    "createData": "Tue Oct 20 02:18:25 2020",
+    "hippath": "VFX/Explosion/Ground_Explosion/Ground_Explosion.hip",
+    "thumbpath": "VFX/Explosion/Ground_Explosion/Ground_Explosion.jpg"
+}

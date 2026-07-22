@@ -1,0 +1,11 @@
+{
+    "type": "VFX",
+    "category": "Particle",
+    "Assetname": "Houdini_oil_v14_005_006_SEND",
+    "houdiniversion": "'16.5.323'",
+    "Author": "oil",
+    "createData": "Sat Nov  5 18:23:50 2022",
+    "urlpath": "https://www.deko.lt/houdini-oil-in-water/",
+    "hippath": "VFX/Particle/Houdini_oil_v14_005_006_SEND/Houdini_oil_v14_005_006_SEND.hip",
+    "thumbpath": "VFX/Particle/Houdini_oil_v14_005_006_SEND/Houdini_oil_v14_005_006_SEND.jpg"
+}

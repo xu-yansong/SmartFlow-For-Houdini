@@ -1,0 +1,10 @@
+{
+    "type": "VFX",
+    "category": "Flip",
+    "Assetname": "saber_beach",
+    "houdiniversion": "'18.0.287'",
+    "Author": "xuyansong",
+    "createData": "Sun Apr  5 16:45:22 2020",
+    "hippath": "VFX/Flip/saber_beach/saber_beach.hip",
+    "thumbpath": "VFX/Flip/saber_beach/saber_beach.jpg"
+}

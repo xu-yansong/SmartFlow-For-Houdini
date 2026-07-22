@@ -1,0 +1,10 @@
+{
+    "type": "VFX",
+    "category": "Partice",
+    "Assetname": "ParticleCueve",
+    "houdiniversion": "'19.0.589'",
+    "Author": "GIH-D-30236",
+    "createData": "Tue Nov  1 19:54:54 2022",
+    "hippath": "VFX/Partice/ParticleCueve/ParticleCueve.hip",
+    "thumbpath": "VFX/Partice/ParticleCueve/ParticleCueve.jpg"
+}
