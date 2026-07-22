@@ -419,8 +419,8 @@ class ResManager(QtWidgets.QMainWindow):
 
     def __new__(cls, *args, **kw):
         if cls._instance is None:
-            cls._instance = super().__new__(cls, *args, **kw)
-            return cls._instance
+            cls._instance = super().__new__(cls)
+        return cls._instance
 
     def __init__(self, parent=None):
         if self._init_flag:
@@ -461,24 +461,59 @@ class ResManager(QtWidgets.QMainWindow):
             return libpath
         return None
 
+    # get the HoudiniLibrary path shipped with current package
+    def _packageLibraryPath(self):
+        try:
+            pkgroot = os.path.dirname(
+                os.path.dirname(
+                    os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+            return os.path.join(pkgroot, "HoudiniLibrary").replace("\\", "/")
+        except:
+            return None
+
+    # check whether a library path is legal
+    def _isValidLibrary(self, path):
+        return bool(path) and os.path.isdir(path)
+
     # init library
     def initlibrary(self):
         configpath = hou.homeHoudiniDirectory() + "/smartflow/config.json"
-        if not os.path.exists(configpath):
-            libpath = self.generateconfig(configpath, None)
-            if libpath:
-                self.libPath = libpath
-        else:
+        savedpath = None
+        if os.path.exists(configpath):
             try:
                 with open(configpath, "r", encoding='utf-8') as f:
-                    libpath = json.load(f)['path']
-                    if os.path.exists(libpath):
-                        self.libPath = libpath
+                    savedpath = json.load(f)['path']
             except:
-                path = self.generateconfig(configpath, None)
-                if path:
-                    self.libPath = path
+                savedpath = None
+        # user manually set path is legal --- keep it, do not force
+        if self._isValidLibrary(savedpath):
+            self.libPath = savedpath
+        else:
+            # not legal --- force to package HoudiniLibrary if it exists
+            pkglib = self._packageLibraryPath()
+            if self._isValidLibrary(pkglib):
+                self.libPath = pkglib
+                self.generateconfig(configpath, pkglib, False)
+            else:
+                # neither legal --- prompt user to pick one
+                libpath = self.generateconfig(configpath, None)
+                if libpath:
+                    self.libPath = libpath
         return self.libPath
+
+    # apply default library on every launch of the manager
+    def applyDefaultLibrary(self):
+        # user manually set path is legal --- do not force
+        if self._isValidLibrary(self.libPath):
+            return
+        # not legal --- force to package HoudiniLibrary if it exists
+        pkglib = self._packageLibraryPath()
+        if self._isValidLibrary(pkglib):
+            self.libPath = pkglib
+            self.loadconfig()
+        else:
+            QtWidgets.QMessageBox.warning(self, "提示",
+                                          "未找到默认的 HoudiniLibrary 目录，请手动指定仓库路径...")
 
     # get file category from os
     def getCategory(self):
@@ -1261,6 +1296,7 @@ class ResManager(QtWidgets.QMainWindow):
 def initWindow():
     import hou
     win = ResManager(hou.qt.mainWindow())
+    win.applyDefaultLibrary()
     win.show()
 
 
