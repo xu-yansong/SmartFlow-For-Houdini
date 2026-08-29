@@ -1,0 +1,11 @@
+{
+    "type": "VFX",
+    "category": "RBD",
+    "Assetname": "PathDeform",
+    "houdiniversion": "'21.0.440'",
+    "Author": "xuyansong",
+    "createData": "Sat Aug 29 11:20:47 2026",
+    "urlpath": "",
+    "hippath": "VFX/RBD/PathDeform/PathDeform.hip",
+    "thumbpath": "VFX/RBD/PathDeform/PathDeform.jpg"
+}
