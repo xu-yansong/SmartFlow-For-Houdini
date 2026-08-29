@@ -47,6 +47,15 @@ CATEGORYFOLDER = 1
 TYPEFOLDER = 2
 
 
+# convert urlpath field to a url list, old data saved a single string
+def normalizeUrlList(value):
+    if not value:
+        return []
+    if isinstance(value, str):
+        value = [value]
+    return [str(url).strip() for url in value if str(url).strip()]
+
+
 # import asset
 class importDiaglog(QtWidgets.QDialog):
 
@@ -78,7 +87,7 @@ class importDiaglog(QtWidgets.QDialog):
         self.houdiniversion = None
         self.Author = None
         self.createData = None
-        self.urlpath = None
+        self.urlpaths = list()
         # init menber
         self.initmenber()
         # init ui
@@ -186,6 +195,35 @@ class importDiaglog(QtWidgets.QDialog):
 
         self.liblineEdit.setText(path)
 
+    # url list operations
+    def geturllist(self):
+        urls = list()
+        for row in range(self.urllistWidget.count()):
+            url = self.urllistWidget.item(row).text().strip()
+            if url and url not in urls:
+                urls.append(url)
+        return urls
+
+    def addurlitem(self, url):
+        item = QtWidgets.QListWidgetItem(url)
+        item.setFlags(item.flags() | QtGui.Qt.ItemIsEditable)
+        self.urllistWidget.addItem(item)
+        return item
+
+    def addUrl(self):
+        url = self.urllineEdit.text().strip()
+        if not url:
+            return
+        if url in self.geturllist():
+            self.urllineEdit.clear()
+            return
+        self.addurlitem(url)
+        self.urllineEdit.clear()
+
+    def removeUrl(self):
+        for item in self.urllistWidget.selectedItems():
+            self.urllistWidget.takeItem(self.urllistWidget.row(item))
+
     # import asset
     def importAsset(self):
         self.hippath = self.pathlineEdit.text()
@@ -196,7 +234,9 @@ class importDiaglog(QtWidgets.QDialog):
         self.houdiniversion = self.verlineEdit.text()
         self.Author = self.authorlineEdit.text()
         self.createData = self.createlineEdit.text()
-        self.urlpath = self.urllineEdit.text()
+        # url still in the input box counts as a valid entry
+        self.addUrl()
+        self.urlpaths = self.geturllist()
 
         # check hip file path
         if self.hippath == "" or self.hippath == None or not os.path.exists(
@@ -216,7 +256,7 @@ class importDiaglog(QtWidgets.QDialog):
         assetinfo['houdiniversion'] = self.houdiniversion
         assetinfo['Author'] = self.Author
         assetinfo['createData'] = self.createData
-        assetinfo['urlpath'] = self.urlpath
+        assetinfo['urlpath'] = self.urlpaths
 
         assetpath = self.libpath + "/" + self.typename + \
             "/" + self.categoryname + "/" + self.assetname
@@ -257,6 +297,10 @@ class importDiaglog(QtWidgets.QDialog):
         self.categorycomboBox.currentIndexChanged.connect(self.categoryChanged)
         # asset name
         self.namelineEdit.textChanged.connect(self.nameChanged)
+        # url list
+        self.urladdbutton.clicked.connect(self.addUrl)
+        self.urlremovebutton.clicked.connect(self.removeUrl)
+        self.urllineEdit.returnPressed.connect(self.addUrl)
         # import button
         self.importButton.clicked.connect(self.importAsset)
 
@@ -355,9 +399,34 @@ class importDiaglog(QtWidgets.QDialog):
 
         # url path
         urllabel = QtWidgets.QLabel("Url Link")
+        urllayout = QtWidgets.QVBoxLayout()
+        urllayout.setContentsMargins(0, 0, 0, 0)
+
+        urlinputlayout = QtWidgets.QHBoxLayout()
         self.urllineEdit = QtWidgets.QLineEdit()
+        self.urllineEdit.setPlaceholderText(
+            "input a url, then press Enter or click +")
+        self.urladdbutton = QtWidgets.QPushButton("+")
+        self.urladdbutton.setFixedWidth(30)
+        self.urladdbutton.setToolTip("add url to the list")
+        self.urlremovebutton = QtWidgets.QPushButton("-")
+        self.urlremovebutton.setFixedWidth(30)
+        self.urlremovebutton.setToolTip("remove selected url")
+        urlinputlayout.addWidget(self.urllineEdit)
+        urlinputlayout.addWidget(self.urladdbutton)
+        urlinputlayout.addWidget(self.urlremovebutton)
+
+        self.urllistWidget = QtWidgets.QListWidget()
+        self.urllistWidget.setFixedHeight(hou.ui.scaledSize(80))
+        self.urllistWidget.setSelectionMode(
+            QtWidgets.QAbstractItemView.ExtendedSelection)
+        self.urllistWidget.setToolTip("double click to edit the url")
+
+        urllayout.addLayout(urlinputlayout)
+        urllayout.addWidget(self.urllistWidget)
+
         infolayout.addWidget(urllabel, 8, 0)
-        infolayout.addWidget(self.urllineEdit, 8, 1)
+        infolayout.addLayout(urllayout, 8, 1)
 
         # asset path preview
         liblabel = QtWidgets.QLabel("Lib Path Preview")
@@ -1009,10 +1078,14 @@ class ResManager(QtWidgets.QMainWindow):
                 self.verinfo_lineEdit.setText(info['houdiniversion'])
                 self.author_lineEdit.setText(info['Author'])
                 self.createdata_lineEdit.setText(info['createData'])
-                if 'urlpath' in info.keys():
-                    url = "<a href='" + info['urlpath'] + "'<b>" + info[
-                        'urlpath'] + "</b></a>"
-                    self.urlpath.setText(url)
+                urls = normalizeUrlList(info.get('urlpath'))
+                if urls:
+                    links = [
+                        "<a href='" + url +
+                        "' style='color:#4ea8ff; text-decoration:underline;'>"
+                        + url + "</a>" for url in urls
+                    ]
+                    self.urlpath.setText("<br>".join(links))
                     self.urlpath.setOpenExternalLinks(True)
                 else:
                     self.urlpath.setOpenExternalLinks(False)
@@ -1285,8 +1358,9 @@ class ResManager(QtWidgets.QMainWindow):
         # self.urlpath.setAlignment(QtGui.Qt.AlignLeft)
         # self.urlpath.setAlignment(QtGui.Qt.AlignCenter)
         self.urlpath.setStyleSheet(
-            "color: rgb(0, 170, 0);background-color: rgb(78, 186, 54)")
-        infolayout.addWidget(Url_label, 3, 0)
+            "QLabel { background-color: transparent; padding: 2px 4px; }")
+        self.urlpath.setAlignment(QtGui.Qt.AlignLeft | QtGui.Qt.AlignTop)
+        infolayout.addWidget(Url_label, 3, 0, QtGui.Qt.AlignTop)
         infolayout.addWidget(self.urlpath, 3, 1)
         # init
         self.initparameter()

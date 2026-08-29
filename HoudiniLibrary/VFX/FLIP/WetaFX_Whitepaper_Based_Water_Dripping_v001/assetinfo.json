@@ -1,0 +1,14 @@
+{
+    "type": "VFX",
+    "category": "Flip",
+    "Assetname": "WetaFX_Whitepaper_Based_Water_Dripping_v001",
+    "houdiniversion": "'21.0.440'",
+    "Author": "GIH-D-25246",
+    "createData": "Sat Aug 29 15:09:14 2026",
+    "urlpath": [
+        "https://alexey.stomakhin.com/research/drips.html",
+        "https://www.reddit.com/r/Houdini/comments/1vpyadd/rnd_project_based_on_the_wetafx_whitepaper_on/"
+    ],
+    "hippath": "VFX/Flip/WetaFX_Whitepaper_Based_Water_Dripping_v001/WetaFX_Whitepaper_Based_Water_Dripping_v001.hip",
+    "thumbpath": "VFX/Flip/WetaFX_Whitepaper_Based_Water_Dripping_v001/WetaFX_Whitepaper_Based_Water_Dripping_v001.jpg"
+}
