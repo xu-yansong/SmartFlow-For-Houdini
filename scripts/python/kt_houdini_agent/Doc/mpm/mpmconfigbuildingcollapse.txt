@@ -1,0 +1,47 @@
+= MPM Configure Building Collapse =
+
+
+There are several MPM Configure examples available through the [tab menu|/basics/tabmenu]. These are similar to [shelf tools|/shelf/index] that put down networks of nodes for learning purposes. The __MPM Configure Building Collapse__ example illustrates the use of the __Concrete__ material type. It puts down a simple network of nodes to simulate a building being hit by a meteorite and collapsing.
+
+:video:
+    #src: /videos/mpm/mpmconcrete.mp4
+    
+== Important nodes ==
+
+`building_model` and `meteorite`:
+    These are both [MPM Sources|Node:sop/mpmsource] using the __Concrete__ material preset. The __Density__ and __Stiffness__ on the `meteorite` node is multiplied by 10x and 2x, respectively, so that it's able to break through the building. It also has a strong initial __Velocity__ applied.
+    
+`noise_E_attribute`:
+    This is an [Attribute Wrangle|Node:sop/attribwrangle] node that adds some spatial variation to the stiffness of the building, causing it to collapse in a more interesting way.
+    
+`merge_sources`:
+    A [Merge|Node:sop/merge] node merges the two MPM sources before feeding them into the solver.
+
+`mpmcontainer`:
+    The [MPM Container|Node:sop/mpmcontainer] defines the resolution of the simulation using the __Particle Separation__ parameter. This parameter is increased slightly to increase the resolution of the whole simulation.
+
+`mpmsolver`:
+    On the __Visualize__ tab of the [MPM Solver|Node:sop/mpmsolver], the __Color From Attribute__ checkbox is turned on, and the `Jp` attribute is being visualized. This is the determinant of the plastic component of the deformation gradient. It basically highlights where things are either stretching (breaking) or compressing in a permanent way. The solver is not going to try to recover from the plastic deformation, as opposed to the elastic deformation. This `Jp` attribute can be used to trigger secondary emission like debris and dust. In this example, you will be able to see the cracks that are being highlighted as the meteorite hits the building.
+    
+`fractured_meteor`:
+    This [MPM Post-Fracture|Node:sop/mpmpostfracture] fractures the meteor geometry according to its final MPM state at the end of the MPM simulation, which is defined by the __End Frame__ parameter. In the __Fracture Points__ tab, __Align Fractures to Stretch Points__ is turned off to allow each stretching point to be used as a fracture centroid. The fillers' __Point Separation__ has been increased to reduce their amount and the __Maximum Distance__ has been reduced to only add filler points near MPM fracture points. In the __Cutter Geometry__ tab, the __Add Interior Details__ checkbox has been turned on to get more interesting fractures.
+
+`fractured_building`:
+    This [MPM Post-Fracture|Node:sop/mpmpostfracture] fractures the building according to it's final MPM state at the end of the MPM simulation, which is defined by the __End Frame__ parameter. In the __Fracture Points__ tab, __Align Fractures to Stretch Points__ is turned off to allow each stretching point to be used as a fracture centroid. The fillers' __Point Separation__ has been increased to reduce their amount and the __Maximum Distance__ has been reduced to only add filler points near MPM fracture points. In the __Cutter Geometry__ tab, the __Add Interior Details__ checkbox has been turned on to get more interesting fractures.
+
+`deformed_building`:
+    This [MPM Deform Pieces|Node:sop/mpmdeformpieces] takes the fractured pieces defined by the two upstream [MPM Post-Fractures|Node:sop/mpmpostfracture] feeding into its first input and deforms them using the MPM particles in the second input, applying the __Point + Piece__ __Retargeting Type__.
+
+== Learning from this example ==
+
+:task: Visualize the areas of varied stiffness in the concrete:
+    # Select the `noise_E_attribute` node and put the __Display__ flag on it.
+    # Remove the two backslashes in this line of code to bind the noise to the color attribute:
+        `//@Cd = noise;`
+        
+        The concrete is softer in the black areas stiffer in the lighter areas. This variation makes the concrete break apart in a more interesting way when the meteorite collides with it.
+        
+        [Image:/images/mpm/building_noise.jpg]
+        
+    TIP:
+        You can turn on the __Bypass__ flag on for this node to see how the addition of varied stiffness affects the way the concrete breaks apart.

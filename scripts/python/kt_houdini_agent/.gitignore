@@ -1,0 +1,56 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+
+# Build artifacts (PyInstaller test/variant builds + installer output)
+dist_*/
+dist_installer/
+*.exe
+# lib/ 里的依赖是随包分发的运行时资源（含 PySide6 自带的 Qt 工具和扩展模块），必须入库
+# 注意：上面的 *.py[cod] 会连 .pyd 一起忽略，这里必须反向放行
+!lib/**/*.exe
+!lib/**/*.pyd
+!lib/**/*.so
+
+# Runtime cache at the agent root.  Do not ignore dependency modules such as
+# lib/beartype/_util/cache, which are required by FastMCP.
+/cache/
+
+# IDE
+.idea/
+.vscode/
+.cursor/
+*.swp
+*.swo
+
+# Config (contains API keys)
+config/houdini_ai.ini
+
+# Training data (user-specific)
+trainData/
+
+# Temp/backup files
+*_backup.py
+*_new.py
+*.bak
+*.bak_*
+*.orig
+
+# Legacy directory (renamed to houdini_agent)
+HOUDINI_HIP_MANAGER/
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Local workspace marker (not for git)
+.workspace
+
+# 运行时用户数据 / 构建日志（不入库）
+config/templates.json
+build_*.log

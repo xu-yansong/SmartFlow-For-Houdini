@@ -1,0 +1,32 @@
+= Data Processing Strategies =
+
+You can use various approaches for generating and preprocessing synthetic data sets in Houdini. Each of these approaches relies on a different feature of SOP or TOP. The following features enable methods for processing data sets:
+* TOP work items
+* frames on the playbar
+* SOP invoke
+* SOP for-loop
+
+There is not a single best method to process data points for all applications of ML. Each approach has its own advantages and disadvantages when it comes to processing speed, memory use, intrusiveness, and setup simplicity.
+
+== TOP work items ==
+Each data point in the data set corresponds to a work item. A network in SOPs may be re-cooked in a separate process for each work item. This setup typically requires minimal changes to an existing procedural network. It may be enough to insert a single TOPs node that controls which input from a sample set is being cooked. 
+
+If a single data point is expensive, for example tens of seconds to generate, then the best apporach may be processing a single data point per work item. This approach can incorporate into an existing setup with minimal changes.
+
+If a single data point is fast to compute, then the overhead of starting a new process of each work item dominates the time it takes to prepare the data set. In that case, alternative approaches such as __SOP for-loops__ or __SOP for-loops on batches__ may work better.
+
+== Frames on the playbar ==
+Each frame corresponds to a frame and is the data point's index of the data set. It's also efficient for light-weight data point generation.
+
+This setup may not always apply. For example, it may not work when each data point involves a time-dependent simulatio which needs to work with frames. If there are a lot of data points, then working with frames becomes more cumbersome.
+
+== SOP Invoke == 
+A great way to set up data set generation and preprocessing. The processing of a single data point is put in a compiled block. This is limited only to SOP nodes that can be compiled.
+
+== SOP for loop ==
+Using __for begin/end constructs__ in SOPs is one of the fastest ways to process data points.
+However, there may be a disadvantage for memory use. When processing uncompressed (unpreprocessed) data, the entire uncompressed data set is held in memory at once, which may not be possible.
+
+== SOP for loop on batches ==
+This can amortize the overhead cost of cooking work items from TOPs by cooking multiple data points per work item; each work item activates a for begin/end construct in SOPs. This hybrid approach allows the amount of SOP data held in memory to be limited by not making the number of data points cooked in the for begin/end construct too large.
+

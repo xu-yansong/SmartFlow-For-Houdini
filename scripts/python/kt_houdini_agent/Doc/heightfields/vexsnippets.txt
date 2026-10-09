@@ -1,0 +1,252 @@
+= VEX scripts for heightfields =
+
+"""Customize terrains, masks, and layers through VEX."""
+
+This collection contains several useful VEX snippets as a starting point for more complex scripts. Most scripts let you create different types of masks, but you can also control the `height` layer. Before you start, please consider a couple of things.
+
+* Most scripts are based on the [Generating a height field from scratch|index#basegf] guide that consists of two nodes: a [HeightField SOP|Node:sop/heightfield] and a [HeightField Noise SOP|Node:sop/heightfield_noise].
+
+* To use the scripts you need a [HeightField Wrangle SOP|Node:sop/volumewrangle]. Then copy ((Ctrl + C)) and paste ((Ctrl + V)) the chosen script to the node's __VEXPression__ field.
+
+* Most of the scripts, presented below, use custom parameters introduced through a `ch` statement, e.g. `chf("radius")`. To add custom parameters to the UI, press the [Smallicon:BUTTONS/create_parm_from_ch] __Create spare parameter...__ button.
+
+* The mask scripts don't reset existing masks! If you want to empty the `mask` layer before you create a scripted mask, add a [HeightField Layer Clear SOP|Node:sop/heightfield_layerclear] _before_ the wrangle. Then set the layer clear node's __Layer 1__ to `mask`.
+
+* Scripted masks sometimes look jagged. Add a [HeightField Mask Blur SOP|Node:sop/heightfield_blur] _after_ the wrangle to soften the mask's borders.
+
+TIP:
+    The [Removing scatter points|scatterptremove] page also contains various VEX scripts and techniques you might find interesting.
+
+== Getting voxel values == (getvalues)
+
+The process of reading out a heightfield's voxel value is always the same. However, the type of data, returned by the function, depends on a layer's content. When you go over a `height` layer, fo example, you will get height values. If it's a `mask` layer, you'll get the intensity of the mask at each voxel, and so on.
+
+However, `height` and `mask` are special cases, because they're build-in layers and evaluated automatically just by calling them as attributes `@height` and `@mask`. But you can also read out the values of this layers manually. The following function reads the `mask` layer from input `0`, and through all voxels.
+
+{{{
+#!vex
+float mask_value = volumeindex(0, "mask", set(i@ix, i@iy, i@iz));
+}}}
+
+Here's a more generic form with `@P` instead of the grid's inidices.
+
+{{{
+#!vex
+signature layer_value = volumeindex(int input, "layer_name", @P);
+}}}
+
+== Circle mask == (circle)
+
+Circles are certainly one of the most often required shapes for masking, e.g. if you want to create craters, cut out a patch, and whatnot. Fortunately, it only takes a few lines of VEX code to create such a mask.
+
+{{{
+#!vex
+vector position = chv("position");
+vector offset = set(position.x, 0, position.z);
+
+if (length(v@P - offset) < chf("radius")) {
+    @mask = 1;
+}
+}}}
+
+The first line reads the values from a custom `position` vector. This vector defines the circle's center. The `offset` vector uses only the X and Z components of `position`, because heightfields don't have a Y value. If a voxel lies within the circle with a given custom `radius`, it'll be added to the mask,
+
+You can blur, invert, shrink or expand the result with appropriate nodes like any other mask.
+
+== Ring mask ==
+
+Instead of a circle, you can create a ring by defining a custom inner and outer radius.
+
+{{{
+#!vex
+vector position = chv("position");
+vector offset = set(position.x, 0, position.z);
+float midpoint = length(v@P - offset);
+
+if (midpoint > chf("inner_radius") && midpoint < chf("outer_radius")) {
+    @mask = 1;
+}
+}}}
+
+The code is very similar to the script from [Circle mask|#circle]. The main difference is that you compare against two values here, not just a single __Radius__. And, instead of writing `length(v@P - offset)` twice inside the if-clause, the term is now a separate `midpoint` variable.
+
+== Oval mask ==
+
+Instead of a circle you can also create an oval mask. You need two parameters to define the oval's X and Y dimensions. An offset defines the distance from the terrain's default origin at `[0,0]`, and you can also rotate the shape.
+
+{{{
+#!vex
+float a = chf("x_dimension");
+float b = chf("z_dimension");
+vector offset = chv("offset");
+float rotation = radians(chf("rotation")); // Degree -> radians
+
+// Position of the current voxel relative to its offset
+vector pos = set(@P.x - offset.x, @P.z - offset.z);
+
+// Rotate the ellipse
+vector rotated_pos;
+rotated_pos.x = cos(rotation) * pos.x - sin(rotation) * pos.y;
+rotated_pos.y = sin(rotation) * pos.x + cos(rotation) * pos.y;
+
+// Test ellipse equation with transformed coordinates
+float ellipse_equation = pow(rotated_pos.x / a, 2) + pow(rotated_pos.y / b, 2);
+
+if (ellipse_equation <= 1.0) {
+    @mask = 1.0;
+}    
+}}}
+
+The first four lines define the parameters for customizing the ellipse.
+
+Then, the script calculates a position vector with the offset. This vector determines the oval's center. The `rotated_pos` vector stores the rotated position values. The `ellipse_equation` defines the inner area of the ellipse and if this value is smaller than or equal to 1.0, a voxel is inside the ellipse and part of the mask.
+
+== Height mask ==
+
+You can achieve this effect with the [HeightField Mask by Feature SOP|Node:sop/heightfield_maskbyfeature], but here's a short and handy script for masking voxels inside a lower and an upper limit. You can, for example, add this snippet to other scripts or write your masking tool with custom parameters.
+
+{{{
+#!vex
+if (@height >= chf("lower_limit") && @height <= chf("upper_limit") ) {
+    @mask = 1;
+}
+}}}
+
+If the terrain's height is between the values of the custom channel for `lower_limit` and `upper_limit`, the voxel will be added to the mask.
+
+== Gradient mask ==
+
+Some of Houdini's heightfield nodes don't provide gradient masks, so they could be a good addition for your arsenal of tools.
+
+{{{
+#!vex
+vector gradient = volumegradient(0, "height", v@P);
+
+if (fit01(length(gradient), 0, 1) > chf("threshold")) {
+    @mask = 1;
+}
+}}}
+
+The first line reads the `volumegradient` from the `height` layer at the wrangle's first (`0`) input, using the voxel `@P` positions.
+
+The `length` of the `gradient`vector from line 1 is remapped to a `0, 1` range to make it easier to compare. If a voxel's `gradient` value is greater than a custom `threshold`, the voxel will be part of `@mask`.
+
+== Clipping ==
+
+This short script caps the heightfield above a custom `threshold`. If `height` is greater than or equal to the `threshold` value, the maximum height will be the adjusted value.
+
+{{{
+#!vex
+float threshold = chf("threshold");
+
+if (@height >= threshold) {
+    @height = threshold;
+}
+}}}
+
+== 3D Worley noise mask ==
+
+Houdini's VEX language provides a wide range of different noise types. You can use the different noise types to define masks, but also to create terrains. You can find an example for the latter case directly [below|#snoise].
+
+{{{
+#!vex
+// Variables
+vector frequency = chv("frequency");
+float amplitude = chf("amplitude");
+vector offset = chv("offset");
+int seed;
+float f1, f2, f3, f4;
+
+// Noise values
+wnoise(v@P * frequency + offset, seed, f1, f2, f3, f4);
+float noise_value = f1 * amplitude;
+
+// Create mask
+if (noise_value > chf("threshold")) {
+    @mask = 1;
+}  
+}}}
+
+== Applying masks to snoise == (snoise)
+
+In this script, the terrain's `height` is calculated through a [snoise|/vex/functions/snoise] function. An already existing `mask` layer attenuates the `height` values and the noise's element size.
+
+You can, for example, add an upstream [HeightField Mask Noise SOP|Node:sop/heightfield_noise] to create an initial mask.
+
+{{{
+#!vex
+float amplitude = chf("amplitude");
+float element_size = chf("element_size") * @mask;
+int turbulence = chi("turbulence");
+int period_x = chi("period_X");
+int period_y = chi("period_Y");
+int period_z = chi("period_Z");
+float attenuation = chf("attenuation");
+
+@height = snoise(@P * element_size, period_x ,period_y, period_z, turbulence, 0, attenuation) * amplitude * @mask;
+}}}
+
+The lines with leading `float` and `int` statements create the custom parameters for configuring the `snoise` function below.
+
+The script calculates the terrain's `height` values with a fully parametric `snoise` function. The noise is then multiplied with `amplitude * @mask` at the given position `@P`.
+
+== Ramp to heightfield ==
+
+This script converts a ramp into a heightfield. You can draw a curve through a ramp and the terrain will follow the curve's shape. You can also define a custom `height_factor` to scale the terrain.
+
+{{{
+#!vex
+vector bounding_box = relbbox(0, @P);
+float elevation = chramp("remap", bounding_box.z);
+
+@height += elevation * chf("height_factor");
+}}}
+
+The script creates a bounding box around the heightfield and samples the positions `@P` inside. The Z position is added to custom ramp to calculate the terrain's elevation.
+
+The final `@height` is summed up from the product of `elevation` and a custom `height_factor`.
+
+== Curve follows terrain ==
+
+You can transform a curve so that it follow a terrain. The script runs inside a HeightField Wrangle SOP. In fact, this method is pretty much what the [HeightField Project SOP|Node:sop/heightfield_project], when you [project|projection] geometry onto a terrain.
+
+# Inside the [Geometry OBJ|Node:obj/geo] with the terrain, add a [Curve SOP|Node:sop/curve]. You can also use one of the predefined tools for polygons, Bezier curves or splines. 
+# Hover the mouse cursor over the viewport and press ((Enter)) to turn on the node's drawing mode.
+# Also on the viewport, press ((1)) to change perspective to top and draw the curve in the XZ plane.
+# With polygons, ((LMB))-click to draw the curve points. With Bezier curves or splines, ((LMB))-click and drag the mouse to add curvature.
+# Once you're happy with the curve, press ((ESC)) to leave the drawing mode.
+# Lay down a [Resample SOP|Node:sop/resample] and connect its input with the output of the curve. This node increases the number of curve points to get a sufficient amount of sampling points. The default __Length__ should create enough resolution.
+# Connect the resample node's output to the wrangle's _first_ input and the heightfield to the _second_ input. The connection order is important to get correct results.
+
+{{{
+#!vex
+vector hit_pos, hit_uv;
+int prim = intersect(1, @P, {0, -1000, 0}, hit_pos, hit_uv);
+
+if (prim >= 0) {
+   @P = hit_pos; 
+   @N = prim(1, "N", prim)
+}
+}}}
+
+The centerpiece of the script is the `intersect` function. This function sends out a ray from the curve towards the heightfield at input `1`. Direction and maximum distance to search for intersections are defined in `{0, -1000}`. 
+
+If the ray hits the terrain, the `pos` vector will contain the position of the intersection. With a direction of `0`, the `pos` vector's Y component equals the terrain's height.
+
+The last line transfers the `pos` vector to a curve point's position `@P`. The `uv` vector is not used here, but it's a mandatory argument of the `intersect` function.
+
+== Combining masks ==
+
+You can combine various masks and apply a ramp to modify the result and create something entirely new.
+
+# Add a HeightField Wrangle SOP somewhere in your network, but downstream of the masks/layers you want to combine.
+# Use ((Ctrl + C)) and ((Ctrl + V)) to copy and paste the code below to the wrangle's __VEXpression__ field.
+
+    This example code below uses `@slope` and `@occlusion` layers. You must replace the layers with the actual names from your network. If you want to add more layers, just append them to the formula through multiplication: `@layer_1 * @layer_2 * ... * @layer_n`
+
+# Click the [Smallicon:BUTTONS/create_parm_from_ch] __Create spare parameter...__ button to create the ramp.
+
+{{{
+#!vex
+@mask = @slope * @occlusion; // Use your actual layer names here
+}}}

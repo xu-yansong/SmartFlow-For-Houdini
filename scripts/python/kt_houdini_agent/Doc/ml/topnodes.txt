@@ -1,0 +1,43 @@
+= Top nodes for ML =
+
+The TOP context, also referred to as PDG, allows you to create a process that includes all stages of machine learning, resulting in a fully automated ML pipeline. These stages include:
+* data set generation
+* preprocessing
+* writing data sets to disk
+* training using a data set written to disk
+* repated training using varying hyperparameters
+* applying a trained model for a set of unseen inputs.
+
+A TOP network allows you to lay out all these stages in a step-by-step process. By cooking the last TOP node, all the desired steps are taken automatically without having to manually go to various nodes and save their output to disk.
+
+== Useful TOP nodes ==
+
+A few TOP nodes stand out as being particularly useful for machine learning.
+
+[Geometry Import|Node:top/geometryimport] can perform a type of computation repeatedly, based on the number of primitives that exists in a specified geometry. Each primitive could correspond to a single data point of a data set to be generated or preprocessed. This provides a clean way to control the size of the data set near the source of the data in SOPs, without having to create custom expressions in TOPs. [Geometry Import|Node:top/geometryimport] generates a set of work items, one for each primitive. If the geometry referenced by [Geometry Import|Node:top/geometryimport] is created in an earlier stage of in TOP network, then make sure to set the parameter __Generate When__ to __All Upstream Items are Cooked__.
+
+Use [Attribute Create|Node:sop/attribcreate] to assign each work item a data-point index, which can be referenced from a SOP network to cook each data point. 
+
+A [ROP Fetch|Node:top/ropfetch] can be used to ensure that each invidual data point is generated and written out to disk. Afterwards, a separate [ROP Fetch|Node:top/ropfetch] can be used to ensure that the entire merged data set, consisting of all the data points, is written to a single file that can be read in by a training script.
+
+As an alternative to generating each data point of a data set as a single work item in PDG, the entire data set may be generated using a for-loop in SOP. With this approach, a [ROP Fetch|Node:top/ropfetch] can write the entire data set to a file.
+
+Alternatively, you can also use a batch approach where each work-item in TOPs corresponds to a batch of data points. Each batch can be cooked using a for-loop in SOPs.
+
+=== TOP nodes for training ===
+
+After the data has been written out, training may proceed using a combination of [Python Virtual Environment|Node:top/pythonvenv] and [Python Script|Node:top/pythonscript]. This helps run your own python training script that uses pytorch, exporting your model to ONNX. 
+
+For doing regression ML, it is recommend to use the more specialized node [ML Train Regression|Node:top/ml_trainregression], instead of writing your own script. Even if your ML application falls outside the scope of regression ML, the underlying scripts referenced by [ML Train Regression|Node:top/ml_trainregression], which are located in $HHP/hutil/ml/regression, may provide a useful starting point for writing an ML training script of your own that works with Houdini.
+
+You can use [ROP Geometry Raw Output|Node:sop/rop_geometryraw] to write your data set to a file that you can reference from your training script. The example-based ML toolset has its own, more specialized output node [ROP ML Example Raw Output|Node:sop/rop_ml_exampleraw].
+
+The ML training can be re-run for various hyperparameters such as the number of hidden layers and a weight decay parameter. There may be others depending on the script you write. To automatically repeat the training stage of the TOP process for various combinations of these hyperparameters, you can use one or more [Wedge|Node:top/wedge] nodes in TOP.
+
+== ML on a farm using HQueue ==
+
+You can do your entire data generation and training on a farm using the [HQueue Scheduler|Node:top/hqueuescheduler]. It's recommended that you change the following settings before you do this:
+* In Scheduler/HFS, set the Python parameter to __From HFS__. This ensures the python version that ships with Houdini runs the training script.
+
+
+

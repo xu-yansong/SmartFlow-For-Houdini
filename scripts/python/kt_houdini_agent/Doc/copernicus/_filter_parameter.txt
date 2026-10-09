@@ -1,0 +1,25 @@
+#type: include
+
+Filter ||
+    Example ||
+
+Point |
+    [Image:/images/nodes/cop/filter_point.jpg]
+
+Bilinear |
+    [Image:/images/nodes/cop/filter_bilinear.jpg]
+
+Box |
+    [Image:/images/nodes/cop/filter_box.jpg]
+
+Bartlett |
+    [Image:/images/nodes/cop/filter_bartlett.jpg]
+
+Catmull-Rom |
+    [Image:/images/nodes/cop/filter_catmullrom.jpg]
+
+Mitchell |
+    [Image:/images/nodes/cop/filter_mitchell.jpg]
+
+B-spline |
+    [Image:/images/nodes/cop/filter_bspline.jpg]

@@ -1,0 +1,49 @@
+= Auto sleep =
+
+:video:
+    #src: /videos/mpm/wolf_snow.mp4
+
+The [Auto Sleep|Node:sop/mpmsolver#enablesleep] feature on the solver instructs part of the simulation to be ignored when particles are not moving. This mechanism can speed up the simulation, especially in cases where most of the particles are static for a large portion of the sequence. You can choose whether the particles are initially asleep or awake. If you choose __Passive__, you can the define the __Velocity Threshold__ to get the particle active again (wake them up) and also the __Sleep Delay__ to go back to sleep.
+
+== Breach example ==
+
+In the following example, there is a spaceship rising up and breaching a surface made up of approximately 6 million particles. For simulation like this, you can get a 1.5x speed up for free when using the auto sleep mechanism.
+
+:col:
+    [Image:/images/mpm/sleep1.jpg]
+    
+:col:
+    [Image:/images/mpm/sleep2.jpg]
+
+As the spaceship rises, it hits the particles and you get a visualization of the state of the particles. There are 3 distinct colors that represent the point attribute state. You can find these controls in the __Color From Attribute__ section on the __Visualize__ tab of the [MPM Solver|Node:sop/mpmsolver#pointattribname]. Passive particles correspond to 0 and are represented as purple. Active particles correspond to 1 and are green. The third state corresponds to the number 1 and is the boundary state and is represented by red.
+
+NOTE: 
+    The third state is needed for this to work under the hood, but it's not something that users should manipulate themselves. It is a hybrid state between active and passive.
+
+== Impact activation example ==
+
+Activating the points based on collision allows you to easily simulate things that would otherwise collapse before impact. You can define the point state as either active or passive directly on the [MPM Source|Node:sop/mpmsolver#state].
+
+:col:
+    [Image:/images/mpm/crag1.jpg]
+    
+:col:
+    [Image:/images/mpm/crag2.jpg]
+
+:col:
+    [Image:/images/mpm/crag3.jpg]
+
+In this example, there's a collider going through the leg of Crag, which activates the whole character. This method prevents the particles from settling and starting to crumble before the the simulation actually starts. The reason this is possible in MPM is because of the high number of substeps. With any other solver, you might expect the first frame to activate the knee region, and then activate larger and larger regions of the character. However, since the material is so stiff, the simulation is running with over 200 substeps. This allows propagation all the way to the top of the of the character within a single frame. Once the particles settle, they go back to sleep.
+
+NOTE:
+    The __State__ parameter on the [MPM Source|Node:sop/mpmsolver#state] allows you to set the particles to be asleep or awake on emission. There is also an option for __None__, which doesn't define anything on the source and uses the default from the solver. If you set it to __Passive__ on the source, but __Active__ on the solver, the particles will be passive since the source settings take precedence over the solver ones. 
+
+== Use cases ==
+
+It's useful to set particles as passive when you have something like a building that's being hit by a meteorite. If particles are set to active, the building might jiggle as it settles before being hit. In this case, setting them to passive will prevent this. The Crag example is another similar use case. You want Crag to be perfectly still before any impact. Any reaching of equilibrium is hidden by the action of the of the simulation.
+
+Alternatively, if you have a car running through a puddle of water, you would want to set the particles to be initially active to allow the water to settle into a rest/stable state before having the wheel going through it. If you don't activate the particles until the wheel reaches the puddle, you might see the level of water drop as the wheel is going through and it, making it look unnatural. So in cases like this, you need the material to reach it equilibrium first.
+
+In other cases, like the concrete Crag Impact activation example above, you want the model to be perfectly still before any impact. Any reaching of equilibrium is hidden by the action of the of the simulation.
+
+

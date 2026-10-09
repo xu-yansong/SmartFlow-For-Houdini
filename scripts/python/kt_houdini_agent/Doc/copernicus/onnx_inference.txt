@@ -1,0 +1,54 @@
+= How to |> use ONNX Inference =
+
+"""Describes how to apply inference using a model in the ONNX Inference node."""
+
+== Overview ==
+
+The ONNX Inference COP lets you perform inference using a pre-trained model on the node's inputs to evaluate and then generate the outputs. The model also has inputs and outputs, which are known as tensors (multi-dimensional data). The following workflows outline how to use the ONNX Inference node to apply inference with one or more tensors.
+
+NOTE:
+    Model refers to the ONNX file and its inputs and outputs.
+
+For more details about the node and its parameters, see [ONNX Inference|Node:/cop/onnx].
+
+== How to apply inference with one tensor ==
+
+# Download an ONNX model and save it in your $HIP directory. This example uses [the Mosiac model|https://github.com/onnx/models/blob/main/validated/vision/style_transfer/fast_neural_style/model/mosaic-9.onnx].
+# Create an [ONNX Inference COP|Node:/cop/onnx] in your Copernicus network.
+# Set the __Model File__ parameter to the path of your ONNX model file (`mosaic-9.onnx` in this example).
+# Click __Setup Shapes from Model__. This populates most parameters in the node, such as the __Name__, __Data__ and __Tensor Shapes__ of the Model tab.
+# Add a [File COP|Node:/cop/file] in the network.
+# In the File COP, set __Channel Type__ to the input type that the model expects (`RGB` in this example).
+# Wire the File COP into the ONNX Inference COP.
+
+    NOTE:
+        A warning appears if the input image's size doesn't match the model's expected input size. You can resolve this issue in the ONNX Inference COP. Turn on __Resample Size__ in the Input & Output tab and set it to the model's expected size for an input image (`224, 224` in this example).
+
+# (Optional) If your model output is too bright, turn on the output's __Brightness Multiplier__ in the Input & Output tab and set it to `1/255`.
+
+== How to apply inference with multiple tensors ==
+
+# Download an ONNX model and save it in your $HIP directory. This example uses [the Mosiac model|https://github.com/onnx/models/blob/main/validated/vision/style_transfer/fast_neural_style/model/mosaic-9.onnx].
+# Create an [ONNX Inference COP|Node:/cop/onnx] in your Copernicus network.
+# Set the __Model File__ parameter to the path of your ONNX model file (`mosaic-9.onnx` in this example).
+# Click __Setup Shapes from Model__. This populates most parameters in the node, such as the __Name__, __Data__ and __Tensor Shapes__ of the Model tab.
+# Add a [File COP|Node:/cop/file] in the network.
+# In the File COP, set __Channel Type__ to the input type that the model expects (`RGB` in this example).
+# Add a [Channel Split COP|Node:/cop/channelsplit] in the network.
+# Wire the File COP into the Channel Split COP.
+# In the ONNX Inference COP's Input & Output tab, make sure there's an input for each channel using the __Number of Inputs__ parameter (three in this example).
+# Set the __Type__ for each input in the Input & Output tab to the data type the channels require (`Mono` in this example).
+# Set the __Name__ parameters for each input. In this example, set the following:
+    * first input to `inputR`
+    * second input to `inputG`
+    * third input to `inputB` 
+# Wire the Channel Split COP's outputs into the ONNX Inference COP's inputs. In this example:
+    * `red` into `inputR`
+    * `green` into `inputG`
+    *  `blue` into `inputB`
+    
+    NOTE:
+        A warning appears if the input image's size doesn't match the model's expected input size. You can resolve this issue in the ONNX Inference COP. Turn on __Resample Size__ for each input in the Input & Output tab and set them to the model's expected size for an input image (`224, 224` in this example).
+
+# In the ONNX Inference COP's Model tab, set __Data__ to the names of all inputs in the Input & Output tab (`inputR inputG inputB` in this example).
+# (Optional) If your model output is too bright, turn on the output's __Brightness Multiplier__ in the Input & Output tab and set it to `1/255`.

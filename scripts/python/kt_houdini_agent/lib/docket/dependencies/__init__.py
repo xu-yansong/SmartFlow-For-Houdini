@@ -1,0 +1,108 @@
+"""Dependency injection system for docket tasks.
+
+This module provides the dependency injection primitives used to inject
+resources, context, and behavior into task functions.
+"""
+
+from __future__ import annotations
+
+from ._base import (
+    AdmissionBlocked,
+    CompletionHandler,
+    Dependency,
+    FailureHandler,
+    Runtime,
+    TaskOutcome,
+    current_docket,
+    current_execution,
+    current_worker,
+    format_duration,
+)
+from ._concurrency import ConcurrencyBlocked, ConcurrencyLimit
+from ._cooldown import Cooldown
+from ._debounce import Debounce
+from ._ratelimit import RateLimit
+from ._cron import Cron
+from ._contextual import (
+    CurrentDocket,
+    CurrentExecution,
+    CurrentWorker,
+    TaskArgument,
+    TaskKey,
+    TaskLogger,
+)
+from ._functional import (
+    Depends,
+    DependencyFunction,
+    Shared,
+    SharedContext,
+    _Depends,
+    _parameter_cache,
+    get_dependency_parameters,
+)
+from ._perpetual import Perpetual
+from ._progress import Progress
+from uncalled_for import (
+    FailedDependency,
+    get_annotation_dependencies,
+    validate_dependencies,
+)
+
+from ._resolution import (
+    get_single_dependency_of_type,
+    get_single_dependency_parameter_of_type,
+    resolved_dependencies,
+)
+from ._retry import ExponentialRetry, ForcedRetry, Retry
+from ._timeout import Timeout
+
+__all__ = [
+    # Base
+    "Dependency",
+    "Runtime",
+    "FailureHandler",
+    "CompletionHandler",
+    "TaskOutcome",
+    "current_docket",
+    "current_execution",
+    "current_worker",
+    "format_duration",
+    # Contextual dependencies
+    "CurrentDocket",
+    "CurrentExecution",
+    "CurrentWorker",
+    "TaskArgument",
+    "TaskKey",
+    "TaskLogger",
+    # Functional dependencies
+    "Depends",
+    "DependencyFunction",
+    "Shared",
+    "SharedContext",
+    "get_annotation_dependencies",
+    "get_dependency_parameters",
+    # Retry
+    "ForcedRetry",
+    "Retry",
+    "ExponentialRetry",
+    # Other dependencies
+    "AdmissionBlocked",
+    "ConcurrencyBlocked",
+    "ConcurrencyLimit",
+    "Cooldown",
+    "Debounce",
+    "RateLimit",
+    "Cron",
+    "Perpetual",
+    "Progress",
+    "Timeout",
+    # Resolution helpers
+    "FailedDependency",
+    "get_single_dependency_of_type",
+    "get_single_dependency_parameter_of_type",
+    "resolved_dependencies",
+    "validate_dependencies",
+    # fastmcp uses these for its DI integration; do not remove
+    "_Depends",
+    "_parameter_cache",
+]

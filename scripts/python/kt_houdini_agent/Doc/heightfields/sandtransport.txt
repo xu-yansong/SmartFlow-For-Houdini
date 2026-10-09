@@ -1,0 +1,132 @@
+= Sand transport =
+
+"""Shape terrains with wind and sand."""
+
+The following script simulates the transport of sand through wind and is an example for a more complex VEX script. The script's mechanisms are just approximations and don't have a physical background. Nevertheless, you can achieve nice results with the adjustable parameters. The script also shows that you can realize ideas even without sophisticated numerical methods.
+
+[Image:/images/heightfields/sandtransport_result.jpg]
+
+== Terrain ==
+
+The terrain setup requires a [HeightField SOP|Node:sop/heightfield] to define the landscape's size and resolution. To increase surface detail, set __Grid Spacing__ to `1`. For the mountains and terrain structures, add a [HeightField Noise SOP|Node:sop/heightfield_noise] and connect its _first_ input to the output of the upstream heightfield node.
+
+You can leave most of the noise's default settings. The only modification affects the __Amplitude__ parameter. Change it to `300` to level the terrain and avoid extreme height differences.
+
+== Solver ==
+
+The simulation will be running inside a [Solver SOP|Node:sop/solver]. This node is very convenient, because it saves you from dealing with complex time step calculations and stability issues. You "only" have to add your VEX code and the solver will do the rest.
+
+# Lay down a Solver SOP and connect its _first_ input with the noise node's output. 
+# Double-click the solver to dive inside. There, add a [HeightField Wrangle SOP|Node:sop/volumewrangle] and place it between the `Pre Frame` and `OUT` nodes to connect its _first_ input.
+
+TIP:
+    You might want to add a [HeightField Distort by Noise SOP|Node:sop/heightfield_distort] to terminate the heightfield network. This will help to break regular patterns and add structures to the flattened terrain.
+
+[Image:/images/heightfields/sandtransport_solver.jpg]
+
+"""The eroded terrain without supplementary nodes after 50 frames."""
+
+== Code ==
+
+The following VEX code contains the solver's functionality. We won't go through each function separately, but you can find information in the script's comments. A `//` string introduces a comment.
+
+Use ((Ctrl + C)) to copy the code below. With ((Ctrl + V)) you can paste the script to the wrangle's __VEXpression__ field. The program contains definitions for six custom parameters. To add the parameters to the wrangle's UI, click the [Smallicon:BUTTONS/create_parm_from_ch] __Creates sparse parameter for each unique call of ch()__ button.
+
+{{{
+#!vex
+// Define the custom parameters
+
+float base_angle_deg = chf("wind_angle");
+float variation_pos_deg = chf("angle_variation_pos");
+float variation_neg_deg = chf("angle_variation_neg");
+float turbulence_strength = chf("turbulence_strength");
+float wind_strength = chf("wind_strength");
+float wind_shear_factor = chf("wind_shear_factor");
+
+// Calculate the wind direction with variance
+// This part converts the angle's degrees into radians.
+// The offset calculates a random value from time, position and an arbitrary vector. The result is then remapped to values between variation_neg_deg and variation_pos_deg.
+// The get final wind direction, the values are added.
+
+float base_angle_rad = radians(base_angle_deg + 180.0);
+float angle_offset = fit01(rand(@Time + dot(@P, set(12.345, 67.89, 0))), -variation_neg_deg, variation_pos_deg);
+float final_angle = base_angle_rad + radians(angle_offset);
+
+// Main wind vector with turbulence
+// The sine and cosine values of final_angle are assembled to a vector.
+// A curlnoise function adds small-scale turbulence to the wind.
+// The three vectors wind_dir_base, wind_turbulence, turbulence_strength are normalized to get a direction instead of a magnitude.
+
+vector wind_dir_base = set(cos(final_angle), 0.0, sin(final_angle));
+vector wind_turbulence = curlnoise(@P * 0.1 + @Time);
+vector wind_dir = normalize(wind_dir_base + wind_turbulence * turbulence_strength);
+
+// Wind shear
+// The wind shear has a 90° clockwise rotation in the XZ plane.
+// The wind shear strength is the product of wind_strength and wind_shear_factor.
+
+vector cross_wind_dir = normalize(set(-wind_dir.z, 0.0, wind_dir.x));
+float cross_strength  = wind_strength * wind_shear_factor;
+
+// target_pos determines the target position of the current voxel's sand
+
+vector target_pos = @P + wind_dir * wind_strength + cross_wind_dir * cross_strength;
+
+// Probability factor
+// To get a more random appearance, the script calculates a transport probability for each voxel.
+
+float prob_factor = fit01(rand(@Time + dot(@P, wind_dir)), 0.5, 1.0);
+float transport_prob = wind_strength * prob_factor;
+
+// This part samples the terrain's height values at the target position and the current voxel's position.
+
+float target_height = volumesample(0, "height", target_pos);
+float current_height = volumesample(0, "height", @P);
+
+// Set the terrain's height at the current voxel
+// The script checks if a voxel's sand will be moving based on the previous samples and calculations.
+// If the sand moves, the script determines if the sand is removed or accumulated.
+// If sand is removed, the amount of sand is directly converted into the terrain's actual height.
+
+if (current_height > target_height) {
+    if (rand(@P + @Time) < transport_prob) {
+        float sand_amount = current_height - target_height;
+
+        if (sand_amount > 0.0) {
+            current_height -= sand_amount;
+            target_height  += sand_amount;
+
+            @height = current_height;
+        }
+    }
+}
+}}}
+
+== Parameters ==
+
+The script provides a several parameters that let you customize the environmental consitions. Here's what they do.
+
+table width="100%">>
+    th width="20%">>Parameter
+    th width="80%">>Description
+
+    tr>>
+        td>>Wind Angle
+        td>>The wind direction in degrees. A value of `0` means that the wind blows from west to east. With `90` degrees, direction is exactly from north to south.
+    tr>>
+        td>>Angel Variation Pos
+        td>>The _positive_ variation of the wind direction in degrees. Higher values create more variation. The value is added to __Wind Angle__.
+    tr>>
+        td>>Angel Variation Neg
+        td>>The _negative_ variation of the wind direction in degrees. Higher values create more variation. The value is _subtracted_ from __Wind Angle__.
+    tr>>
+        td>>Turbulence Strength
+        td>>The amount of wind turbulence. Higher settings can create unwanted artifacts. Start with a value around `0.3`.
+    tr>>
+        td>>Wind Strength
+        td>>The wind speed. This parameter doesn't have a unit and is just a dimensionless factor. Higher values accelerate the sand transport. Good values range between `0.3` and `0.9`, but higher settings will work as well.
+    tr>>
+        td>>Wind Shear Factor
+        td>>The script also applies a wind shear that is perpendicular to the adjusted __Wind Angle__. The final value is calculated as `Wind Strength * Wind Shear Factor`.
+
+Once you've adjusted the parameters, you can go to the [Playbar|/anim/playbar] and click the [Smallicon:PLAYBAR/play_forward] __Play__ button to start the simulation. The script should be rather fast and in most cases you won't have to simulate for more than 50-70 frames.

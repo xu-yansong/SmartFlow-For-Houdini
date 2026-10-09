@@ -1,0 +1,183 @@
+# Houdini VEX 属性完整参考 (Geometry Attributes Reference)
+# 来源: https://www.sidefx.com/docs/houdini/model/attributes.html
+#        https://cg-td-course.readthedocs.io/zh-cn/latest/p_Houdini/houdini_vex_attributes.html
+
+## 属性简写类型前缀 (Attribute Type Shorthands)
+
+在 VEX 中可以用简写前缀声明和访问属性：
+
+    i@name   - int（整数）
+    f@name   - float（浮点数，默认类型）
+    u@name   - vector2（二维向量）
+    v@name   - vector（三维向量）
+    p@name   - vector4（四维向量/四元数）
+    2@name   - matrix2（2x2矩阵）
+    3@name   - matrix3（3x3矩阵）
+    4@name   - matrix（4x4矩阵）
+    s@name   - string（字符串）
+    d@name   - dict（字典）
+
+数组属性加 [] ：
+    i[]@name - int array
+    f[]@name - float array
+    s[]@name - string array
+    v[]@name - vector array
+
+注意：不指定类型前缀时，自定义属性默认为 float 类型。
+
+## 创建属性
+
+    // 方法1：完整类型声明
+    int @num = 100;
+    vector @up = {0, 1, 0};
+
+    // 方法2：简写（推荐，可使用表达式）
+    i@num = 100;
+    f@pi = 3.14;
+    v@up = set(0, 1, 0);
+    s@name = "hello";
+
+    // 数组属性
+    i[]@nums = {100, 200, 300};
+    f[]@weights = array(0.1, 0.5, 0.9);
+
+## 函数方式创建属性
+
+    addpointattrib(0, "Cd", {0, 0, 0});
+    addvertexattrib(0, "uv", {0, 0, 0});
+    addprimattrib(0, "name", "");
+    adddetailattrib(0, "total", 0);
+
+## 修改属性
+
+    setpointattrib(0, "Cd", ptnum, {1, 0, 0});
+    setvertexattrib(0, "uv", ptnum, vtxnum, {0.5, 0.5, 0});
+    setprimattrib(0, "name", primnum, "piece_0");
+    setdetailattrib(0, "count", value);
+
+## 获取属性
+
+    // 当前点属性
+    float y = @P.y;
+    vector color = @Cd;
+
+    // 第二输入的属性
+    float f2 = @opinput1_Cd.y;
+    vector c1 = point(1, "Cd", @ptnum);
+    vector c2 = prim(1, "Cd", 0);
+    vector c3 = vertex(1, "uv", 0);
+    vector c4 = detail(1, "total", 0);
+
+## 全局变量
+
+    @Frame    - 当前帧号 (float)
+    @Time     - 当前时间（秒）
+    @Timeinc  - 时间步长
+    @SimFrame - 仿真帧号
+    @SimTime  - 仿真时间
+    $PI       - 圆周率 3.14159...
+    $E        - 自然常数 2.71828...
+
+## 常用几何属性一览表
+
+### 位置和方向属性
+
+    @P        vector   - 点位置（最重要的属性）
+    @N        vector   - 法线方向
+    @up       vector   - 向上方向（配合 @N 确定朝向）
+    @v        vector   - 速度
+    @w        vector   - 角速度
+    @orient   vector4  - 四元数朝向（优先级高于 @N+@up）
+    @rot      vector4  - 额外旋转偏移（在 orient 之后应用）
+    @trans    vector   - 额外位移偏移（在其他变换之后应用）
+    @pivot    vector   - 局部旋转中心
+
+### 缩放属性
+
+    @scale    float    - 统一缩放
+    @pscale   float    - 点大小 / 粒子大小
+    @transform matrix  - 完整变换矩阵
+
+### 索引变量
+
+    @ptnum    int      - 当前点编号
+    @primnum  int      - 当前图元编号
+    @vtxnum   int      - 当前顶点编号
+    @numpt    int      - 总点数
+    @numprim  int      - 总图元数
+    @numvtx   int      - 总顶点数
+    @elemnum  int      - 当前元素编号（通用）
+    @numelem  int      - 总元素数（通用）
+
+### 外观属性
+
+    @Cd       vector   - 漫反射颜色 (RGB 0-1)
+    @Alpha    float    - 透明度 (0=透明, 1=不透明)
+    @Cs       vector   - 高光颜色
+    @Cr       vector   - 反射颜色
+    @Ce       vector   - 自发光颜色
+    @rough    float    - 粗糙度
+    @uv       vector   - UV 纹理坐标（前两个分量为 U, V）
+
+### 渲染属性
+
+    @material string   - 材质路径（覆盖物体材质）
+    @instance string   - 实例化几何体路径
+    @shop_materialpath string - 材质赋值路径
+
+### 粒子属性
+
+    @id       int      - 粒子唯一 ID（不随排序变化）
+    @age      float    - 粒子年龄
+    @life     float    - 粒子寿命
+    @pstate   int      - 粒子状态位字段
+                         0x01=主粒子, 0x02=即将死亡, 0x04=停止,
+                         0x08=已碰撞, 0x10=粘附, 0x40=活跃
+
+### 分组属性
+
+    @group_name  int   - 组成员标记（0 或 1）
+
+### 内在属性 (Intrinsic)
+
+内在属性仅存在于 prim 和 detail 层级：
+
+    // 读取
+    prim()
+    primintrinsic()
+    
+    // 设置
+    setprimintrinsic()
+
+常见内在属性：
+    measuredarea      - 图元面积
+    measuredperimeter - 图元周长
+    measuredvolume    - 体积
+    bounds            - 包围盒
+    typename          - 图元类型名
+    transform         - packed 几何体变换
+
+## 属性优先级（从高到低）
+
+    Vertex > Point > Primitive > Detail
+
+当同一属性存在于多个层级时，较低层级的属性会被覆盖。
+
+## 常见错误提示
+
+1. 自定义属性不加类型前缀默认为 float，不是 int！
+   错误: @count = 5;      // 这是 float，不是 int
+   正确: i@count = 5;     // 明确指定 int
+
+2. vector 常量用 {} 或 set()：
+   正确: v@up = {0, 1, 0};
+   正确: v@up = set(0, 1, 0);
+   错误: v@up = (0, 1, 0);   // 语法错误
+
+3. 访问第二输入时用 opinput1_ 前缀或 point(1, ...) 函数：
+   @opinput1_P  等价于  point(1, "P", @ptnum)
+
+4. @P 修改后不需要 setpointattrib()，VEX 会自动写回
+   @P += {0, 1, 0};  // 直接修改即可
+
+5. detail() 函数最后一个参数通常为 0（只有一个 detail 元素）

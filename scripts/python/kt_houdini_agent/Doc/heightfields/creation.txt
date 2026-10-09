@@ -1,0 +1,73 @@
+= Terrain creation =
+
+"""Fundamental workflows with Houdini's heightfields."""
+
+When you look at the examples of this guide, you'll notice that all workflow steps are applied to a high-resolution heightfield. This is actually just to give an instant view on the results and to see how certain nodes affect the terrain. In most cases, however, you'll start with a low-resolution heightfield. Then you add details and upsample the terrain. You create more details, do another upsampling path, and so on, until you've reached the final level of detail.
+
+Nevertheless it's totally up to you whether you want to resample the terrain to increase resolution or work directly on a high-resolution heightfield from the very beginning. What you should do in any case is to reapply the detailing process with each step. This means that you can erode your terrain multiple times and refine the intermediate result with distortion.
+
+A typical workflow involves several steps that fulfill certain "roles" to shape your terrain.
+
+== Massing ==
+
+Massing involves blocking out the large-scale structure of the terrain in three dimensions. For example, in a mountainous terrain, how much space the mountains will occupy, the shape of the space they enclose, where the mountains are higher and lower, etc.
+
+In heightfields, this means creating a basic, low-resolution field that has the general characteristics of the final terrain. The surfaces can be smooth or blocky at this stage. You'll add noise later. You outline the basic shape by 
+
+* [painting|painting] height values,
+* [projecting|projection] geometry,
+* [mapping|maps] image maps
+
+directly into the heightfield.
+
+==  Seeding ==
+
+Seeding is the process of adding small disturbances to smooth surfaces to make them more natural. The less smooth the surfaces, the more realistic erosion will be later. Simply adding overall noise to the field alone, or projecting large-scale geometry alone, often does not create enough "obstacles" (features that water and soil must move around) to create interesting erosion. Seeding is about adding those obstacles. You can add detail to the terrain with
+
+* [noise|index#noise]
+* [distortion|distortion].
+
+It's also possible to combine multiple noise [layers|layers] to achieve realistic and feature-rich landscapes.
+
+TIP:
+    One useful trick is to create a 3D model of a large field of random jagged rocky shapes (for example, using the [Mountain SOP|Node:sop/mountain]), then painting a mask on your heightfield (with falloff) and only projecting the rocky geometry into the masked area. Then add a [HeightField Distort by Layer SOP|Node:sop/heightfield_distortbylayer] or a [HeightField Distort by Noise|Node:sop/heightfield_distort] on top of that.
+
+==  Lobing ==
+
+Mountain formations are often broken into smaller sections, which can be thought of as lobes. Lobing is the process of taking a low resolution heightfield and using the [Heightfield Erode SOP|Node:sop/heightfield_erode] to cut a mountain into smaller sections.
+
+The HieghtField Erode SOP was rewritten from scratch in Houdini 21 to create better, more realistic results with lesser, bur more intuitive parameters.
+
+== Remapping ==
+
+Remapping involves repeating the massing/seeding/lobing steps multiple times to create different levels (for example foothills, low mountains, and high mountains).
+
+The trick is to build your terrain in “elevation passes”. After the previous Heightfield Erode SOP, add a [Heightfield Remap SOP|Node:sop/heightfield_remap] and remap the elevation, compressing the field vertically. Then repeat the massing/seeding/lobing step over top of the previous now-compressed contents.
+
+== Upsampling ==
+
+After finishing the lobing step you need to upsample the heightfield to a higher resolution. This will add more detail to the erosion.
+
+Use the [Heightfield Resample SOP|Node:sop/heightfield_resample] to double the field's resolution. You will probably want to iterate this process, so do not resample too high at first!
+
+==  Shaping ==
+
+This step involves adding geologic features using the [Heightfield Terrace SOP|node:sop/heightfield_terrace] and [Heightfield Clip SOP|Node:sop/heightfield_clip].
+
+With [masks|masking], you can clip to top off mountains, and add [terraces|terracing] to certain areas to create more interesting variations for the erosion process.
+
+== Re-seeding ==
+
+Re-seeding repeats the earlier seeding operation(s) at a higher resolution. The idea is to add more obstacles that will force erosion to change direction.
+
+==  Erosion ==
+
+Now use the full power of Heightfield Erode SOP to start getting the look you want. In fact, there are no "right" or "wrong" settings. All that matters is that the result looks interesting and natural. You will probably want iterate on this step a few times. You can also combine multiple erode nodes to create structures of different size.
+
+==  Final ==
+
+Once you have the terrain you want, you can move on to shading the terrain and scattering rocks and trees. The [Heightfield Quickshade SOP|Node:sop/heightfield_quickshade] gives you a simple material setup on your terrain quickly. The [Heightfield Scatter SOP|Node:sop/heightfield_scatter] lets you scatter points for instancing across the terrain. You can 
+
+* control the distribution of the scatter points with masks
+* do a hierarchical scatter that prevents overlap of different scales
+* add variant attributes to the points so, for example, they are instanced with different tree types or rock shapes.

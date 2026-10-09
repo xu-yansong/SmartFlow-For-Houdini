@@ -1,0 +1,13 @@
+= Sourcing debris =
+
+[Image:/images/mpm/snowball.jpg]
+
+[MPM Debris Source|Node:sop/mpmdebrissource] extracts points of potential emission for secondary simulations derived from a primary MPM simulation. It detects material stretch and creates source points where the material is breaking to emit secondary simulations such as debris. The output of this node will usually be passed to a [POP Solver|Node:dop/popsolver] to perform the secondary simulation using an SDF representation of the MPM simulation as a collider.
+
+The __Prune Points__ section allows you to determine which points you don't want to emit from. For example, the __Minimum Stretching__ parameter looks at the `jp` attribute, where things and breaking and stretching. The image below shows the visualization of the `jp` attribute on a simulation of a snowball rolling down a slope.
+
+[Image:/images/mpm/jpattribute.jpg]
+
+You can also set the __Minimum Speed__ so that if something is static, it won't be emitting. __Max Dist to Surface__ ensures that your emissions occur close to the surface for a more natural look of your secondary simulation. __Ratio to Keep__ lets you dial back the amount of emission, if there is too much, and only keep a portion of the points.
+
+The __ Replicate Points__ section looks at the stretching and speed to determine where you may want to generate more secondary points. For example, if something is breaking a lot or going very fast, you may want to generate more points. 

@@ -1,0 +1,36 @@
+= MPM Configure Water Glass =
+
+There are several MPM Configure examples available through the [tab menu|/basics/tabmenu]. These are similar to [shelf tools|/shelf/index] that put down networks of nodes for learning purposes. The __MPM Configure Water Glass__ example illustrates the use of the "liquid" __Water__ material type. It puts down a simple network of nodes to simulate water being poured from one glass into another.
+
+:video:
+    #src: /videos/mpm/mpmwater.mp4
+    
+== Important nodes ==
+`water`:
+    This is the [MPM Source|Node:sop/mpmsource] that uses the __Water__ material preset.
+
+`anim_glass`:
+    This is the [MPM Collider|Node:sop/mpmcollider], which uses the __Animated (Rigid)__ collider type. It allows for very precise interpolation of the collider by the solver, as it keeps only one VDB and interpolates between the transforms resulting in very accurate collisions and stickiness on the collider.  The __Voxel Size__ is also decreased to `0.001` in order to override the default resolution defined by the __Particle Separation__ parameter on the [MPM Container|Node:sop/mpmcontainer]. This increase in resolution will prevent the water from leaking through the thin walls of the glass. The __Friction__ has also been changed to `0`, so that the water moves over the surface freely.
+
+`static_glass`:
+    This is the [MPM Collider|Node:sop/mpmcollider], which uses the __Static__ collider type. It allows for very precise interpolation of the collider by the solver, as it keeps only one VDB and interpolates between the transforms resulting in very accurate collisions and stickiness on the collider.  The __Voxel Size__ is also decreased to `0.001` in order to override the default resolution of the __Particle Separation__ parameter on the [MPM Container|Node:sop/mpmcontainer]. This increase in resolution will prevent the water from leaking through the thin walls of the glass. The __Friction__ has also been changed to `0`, so that the water moves over the surface freely.
+
+`merge_colliders`:
+    This node merges the two colliders before feeding them into the [MPM Solver|Node:sop/mpmsolver].
+
+`mpmcontainer`:
+    This is the [MPM Container|Node:sop/mpmcontainer], which defines the resolution of the simulation using the __Particle Separation__ parameter.
+
+`mpmsolver`:
+    This is the [MPM Solver|Node:sop/mpmsolver], which does the work of solving the scene. It is important to note that __Enable Particle-Level Collisions__ is turned on in the __Collisions__ tab. This allows a second collision step to be performed directly on the material points. It adds some computation, but yields more accurate collisions. The __Material Condition__ is also decreased slightly to fix some instability where the material requires more substeps than what is provided by default.
+
+`water_mesh`:
+    This [MPM Surface|Node:sop/mpmsurface] generates the polysoup representation of the water that is suitable for rendering. The surface is generated using the [Neural Point Surface|Node:sop/neuralpointsurface] with the __Neural Model__ set to __Liquid__. The `Cd` attribute is transferred to the mesh from the MPM particles.
+
+== Learning from this example ==
+ 
+ * If you turn off __Voxel Size__ on the [MPM Collider|Node:sop/mpmcollider], you will see that the top of the glass disappears. This is because the glass is very thin, and requires a smaller __Voxel Size__ to be represented properly inside the solver.
+ 
+ * If you turn off __Enable Particle-Level Collisions__, you will see that the water goes right through the glass. The global resolution of the simulation is too coarse to properly capture the thin walls of the glass. The particle-level correction is the only thing preventing the particles from going through the glass in this case.
+
+* If you look on the __Visualize__ tab of the [MPM Solver|Node:sop/mpmsolver], you will see that __Color From Attribute__ is turned on, which looks at the speed attribute and shows you how fast the water is moving.

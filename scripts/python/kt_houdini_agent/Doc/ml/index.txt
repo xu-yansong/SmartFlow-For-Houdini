@@ -1,0 +1,52 @@
+= Machine Learning =
+
+"""Houdini provides a platform for machine learning which supports synthetic data generation, preprocessing, training models, exporting trained models, and deploying trained models"""
+
+@subtopics
+
+
+
+== General Support ==
+
+:: [overview]
+:: [topnodes]
+:: [preprocessing]
+
+
+<!--- 
+== Low-level tools ==
+--->
+
+== Supervised ML pipeline tools ==
+:: [examplebasedframework]
+:: [examplerepresentation]
+:: [datasetgeneration]
+:: [serialization]
+:: [regressiontraining]
+:: [experimenting]
+:: [mldeformer]
+
+
+== Animation and characater-specific ML tools ==
+
+::[nodes_animchar]
+
+
+== Volume-specific ML tools ==
+::[nodes_volume]
+::[Neural point surfacing for MPM|/mpm/nps]
+
+
+== Image-specific ML tools ==
+::[nodes_image]
+
+
+== Reference ==
+:: [lowlevelnodes]
+:: [examplebasednodes]
+:: [examplebasedglossary]
+
+
+<!---
+== Specific Models ==
+--->

@@ -1,0 +1,87 @@
+= Flow solver =
+
+:video:
+    #src: /videos/cop/flow.mp4
+
+== Blocks in Copernicus == (blocks)
+
+Blocks in the COP network act similar to compile blocks in the SOP network, as they encapsulate a bunch of nodes that you can treat as a single object. They typically consist of a [Block Begin|Node:cop/block_begin] node and a [Block End|Node:cop/block_end], with other nodes in between. Turning on __Simulate__ enables simulation mode, which ties the process to the frame bar, allowing for caching and checkpointing in memory for faster recooking and scrubbing. 
+
+Another important feature is [Live Simulation|/basics/cooking], which allows Houdini to continuously animate in almost real-time, providing real-time feedback for changes. This is similar to a video game world, where things play whether or not you are actively pressing anything. This mode is not tied to the playbar, but it's still recooking all the time. So if you make a change in the network, you will see its results being played back live in the viewport.
+
+== Flow Blocks ==
+
+Flow blocks function like a 2D fluid solver, although no actual fluid is involved. It is basically a [Flow Block Begin|Node:cop/flow_block_begin] and a [Flow Block End|Node:cop/flow_block_end] with simulation mode turned on by default, and inputs/outputs for color, velocity, and temperature, are already set up. However, just like other blocks, you can turn off simulations, run fixed iterations, or enable live simulation.
+
+Due to its 2D nature where everything has to rotate on a plane, it is not a real fluid simulation. While you could use this to make fire or smoke or liquid, it is generally intended to be an artistic tool to create interesting advection effects for motion graphics.
+
+== Using flow blocks ==
+
+Once you use the [tab menu|/basics/tabmenu] to put down a __Flow Block__, you can put down a [File|Node:cop/file]. For this example, we will use `Mandril.pic` for the __File Name__. Then you can wire the `c` output of the File COP to the `color` input of the [Flow Block Begin|Node:cop/flow_block_begin] node. The following image is what you should see in the viewport.
+
+[Image:/images/copernicus/flow/mandril.jpg]
+
+
+
+:task: Add some velocity:
+    # Put down a [Fractal Noise COP|Node:cop/fractalnoise].
+    # Put down a [Slope Direction COP|Node:cop/slopedir].
+    # Connect the Fractal Noise `noise` output to the Slope Direction `height` input.
+    # Connect the Slope Direction output to the default velocity `v` input of the Flow Block Begin node.
+    # Set the __Angle__ on the Slope Direction node to `90` degrees.
+    # Press __Play__ on the playbar to see the distortion.
+    
+    [Image:/images/copernicus/flow/distortion.jpg]
+    
+:task: Use temperature to drive simulation:
+    # Put down an [SDF Shape COP|Node:cop/sdfshape].
+    # Put down an [SDF to Mono COP|Node:cop/sdftomono].
+    # Connect the output of the SDF Shape to the input of the SDF to Mono node.
+    # Decrease the radius on the SDF Shape node to `0.2` to create a smaller source.
+    # Connect the SDF to Mono to the `temperature` input of the Flow Block Begin node to set the initial temperature.
+    # Press __Play__ on the playbar to see the temperature rising up.
+    
+    TIP:
+        You can use the __Time Scale__ parameter on the [Flow Block End|Node:cop/flow_block_end] to speed up or slow down the simulation.
+    
+    [Image:/images/copernicus/flow/temp.jpg]
+
+:task: Blend in another image:
+    # Complete the steps in __Use temperature to drive simulation__.
+    # Put down another [File COP|Node:cop/file]. We will use the `default.pic` butterfly for this example.
+    # Put down a [Blend COP|Node:cop/blend].
+    # Connect the `color` output on the [Flow Block Begin|Node:cop/flow_block_begin] node to the `bg` input of the Blend node.
+    # Connect the `c` output of the File node to the `fg` input of the Blend node.
+    # Connect the output of the the Blend node to `color` input of the  [Flow Block End|Node:cop/flow_block_end] node.
+    # Reduce the __Mask__ parameter on the Blend node to `0.01` so that it slowly blends into the original image.
+
+    [Image:/images/copernicus/flow/blend.jpg]
+
+    This will put the second File COP inside the block, which isn't a problem for small files like this. However, if you were using a larger 2K or 4K texture, it would run significantly slower because it's rerunning the file every frame. To solve this issue, you can instead use the `passthrough` input so that it's only cooked outside of the network once. Re-wire the output of the File node to the `passthrough` input of the Flow Block Begin node, and connect the `passthrough` output to the `fg` input of the Blend node. This will significantly improving performance when using large files.
+
+:task: Use collisions:
+    # Complete the steps in __Use temperature to drive simulation__.
+    # Put down an [SDF Shape COP|Node:cop/sdfshape].
+    # Change the __Basic Shape__ to __Squircle__ and reduce the __Blend__ to `0.75` to create in interesting shape.
+    # Put down an [SDF to Mono COP|Node:cop/sdftomono] and turn on the __Invert__ checkbox.
+    # Connect the SDF Shape node to the SDF to Mono node and wire them into the `passthrough` input of the Flow Block Begin node.
+    # Press Press __Play__ on the playbar to see the temperature rising up, but only in the designated shape.
+    
+    [Image:/images/copernicus/flow/collisions.jpg]
+    
+    NOTE:
+        The flow solver uses a soft collision technique with a mask field. Increasing collision iterations will improve quality. The cache duration can be set on the Flow Block End node or managed with the [Cache COP|Node:cop/cache] for expensive file reads.
+
+:task: Use divergence:
+    # Put down an [Chorma Key COP|Node:cop/chromakey] and connect the `c` output of the File node to the `source` input.
+    # Adjust the __Hue/Saturation__ to filter out the colour red.
+    # Put down an [Invert COP|Node:cop/invert] to invert the mask, and connect the `matte` output of the Chroma Key node to the `source` input of the Invert node.
+    # Connect the Invert node to to the `passthrough` input of the Flow Block Begin node.
+    # Press Press __Play__ on the playbar to see the red areas exploding outwards.
+    
+    [Image:/images/copernicus/flow/divergence.jpg]
+
+The other input/output of the Flow Block is `feedback`. Color, velocity, and temperature are all fed back by default. This input lets you have extra fields, if you need more than just these three.
+
+NOTE:
+    `feedback` and `passthrough` don't have to be a single layer. These two inputs can accept [cables|/copernicus/cables] as well. 

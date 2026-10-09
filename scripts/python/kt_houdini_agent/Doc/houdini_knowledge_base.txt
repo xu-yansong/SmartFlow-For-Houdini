@@ -1,0 +1,265 @@
+# Houdini 综合知识库
+# 来源: https://cg-td-course.readthedocs.io/zh-cn/latest/p_Houdini/
+#        https://www.sidefx.com/docs/houdini/
+
+## ==============================
+## Houdini 编程语言种类
+## ==============================
+
+Houdini 支持多种编程/脚本语言：
+1. VEX (Vector EXpression) - 高性能几何处理语言，运行在 Wrangle 节点中
+2. Python - 通用脚本，用于自动化、UI、Pipeline 工具
+3. HScript - Houdini 原生脚本语言（已过时，被 Python 取代）
+4. HScript Expressions - 参数表达式，如 $F, $T, ch(), point()
+5. OpenCL - GPU 加速计算（Volume/SOP 级别）
+6. GLSL - 视口着色器
+
+## ==============================
+## Houdini Python Shell 环境
+## ==============================
+
+Houdini 中可执行 Python 代码的环境：
+1. Python Shell (Window > Python Shell) - 交互式命令行
+2. Python SOP - 在 SOP 网络中执行 Python 操作几何体
+3. Python Panel - 自定义 UI 面板
+4. Shelf Tool - 工具架按钮回调
+5. 参数表达式 (python 模式)
+6. HDA 回调脚本
+7. Event Handler - 事件处理回调
+8. 456.py / 123.py - 启动脚本
+9. PDG/TOPs Python Processor
+
+## ==============================
+## hou 模块核心类
+## ==============================
+
+hou.node(path)        - 获取节点对象
+hou.pwd()             - 获取当前节点
+hou.parent()          - 获取当前节点的父节点
+hou.selectedNodes()   - 获取选中的节点列表
+
+### 节点操作
+node.createNode(type_name)  - 创建子节点
+node.destroy()              - 删除节点
+node.name()                 - 节点名称
+node.path()                 - 节点完整路径
+node.type()                 - 节点类型
+node.parm(name)             - 获取参数对象
+node.setParms({k: v})       - 批量设置参数
+node.children()             - 子节点列表
+node.inputs()               - 输入连接列表
+node.outputs()              - 输出连接列表
+node.setInput(index, node)  - 连接输入
+node.setDisplayFlag(True)   - 设置显示标志
+node.setRenderFlag(True)    - 设置渲染标志
+node.cook(force=True)       - 强制烹饪节点
+
+### 参数操作
+parm.eval()                 - 求值
+parm.set(value)             - 设置值
+parm.expression()           - 获取表达式
+parm.setExpression(expr)    - 设置表达式
+parm.revertToDefaults()     - 恢复默认值
+
+### 几何体访问
+node.geometry()             - 获取几何体对象 (hou.Geometry)
+geo.points()                - 所有点
+geo.prims()                 - 所有图元
+geo.iterPoints()            - 迭代点（更高效）
+geo.attribs()               - 全局属性
+geo.pointAttribs()          - 点属性
+geo.primAttribs()           - 图元属性
+geo.vertexAttribs()         - 顶点属性
+point.position()            - 点位置
+point.attribValue(name)     - 点属性值
+prim.vertices()             - 图元的顶点
+
+## ==============================
+## 常用 VEX 函数速查
+## ==============================
+
+### 几何体查询
+npoints(0)          - 输入0的总点数
+nprimitivs(0)       - 输入0的总图元数
+nvertices(0)        - 输入0的总顶点数
+pointattrib(0,name) - 检查点属性是否存在
+primattrib(0,name)  - 检查图元属性是否存在
+
+### 属性读写
+point(input, name, ptnum)          - 读取点属性
+prim(input, name, primnum)         - 读取图元属性
+vertex(input, name, linearindex)   - 读取顶点属性
+detail(input, name, 0)             - 读取 detail 属性
+setpointattrib(0, name, pt, val)   - 写入点属性
+setprimattrib(0, name, pr, 0, val) - 写入图元属性
+setdetailattrib(0, name, val)      - 写入 detail 属性
+
+### 几何体创建
+addpoint(0, pos)                   - 添加点
+addprim(0, "poly")                 - 添加图元
+addvertex(0, prim, point)          - 添加顶点到图元
+removepoint(0, ptnum)              - 删除点
+removeprim(0, primnum, andpoints)  - 删除图元
+
+### 搜索
+nearpoint(0, pos)                  - 最近点
+nearpoints(0, pos, radius, maxpts) - 范围内的点
+pcfind(0, "P", pos, radius, max)   - 点云搜索
+find(0, "P", min, max)             - 包围盒搜索
+intersect(0, orig, dir, pos, uvw)  - 射线求交
+
+### 字符串
+sprintf(fmt, ...)     - 格式化字符串
+concat(s1, s2)        - 拼接
+split(s, delim)       - 分割
+strlen(s)             - 长度
+match(pattern, s)     - 通配符匹配
+re_match(pattern, s)  - 正则匹配
+
+### 矩阵
+ident()               - 单位矩阵
+maketransform(...)    - 创建变换矩阵
+invert(m)             - 矩阵求逆
+transpose(m)          - 矩阵转置
+determinant(m)        - 行列式
+rotate(m, angle, axis) - 旋转矩阵
+
+### 插值
+lerp(a, b, t)         - 线性插值
+slerp(q1, q2, t)      - 四元数球面插值
+smooth(min, max, val)  - 平滑 Hermite 插值
+fit(v,omin,omax,nmin,nmax) - 范围映射
+
+### 颜色
+hsvtorgb(hsv)         - HSV 转 RGB
+rgbtohsv(rgb)         - RGB 转 HSV
+rgbtoxyz(rgb)         - RGB 转 XYZ
+luminance(rgb)        - RGB 灰度值
+
+## ==============================
+## Houdini 节点类型系统
+## ==============================
+
+### 节点上下文 (Context)
+    /obj    - 物体级别 (Object)
+    /obj/geo1 - 几何体物体
+    /obj/geo1/sopnode - SOP 节点（几何体操作）
+    /out    - 渲染输出 (ROP)
+    /mat    - 材质 (MAT/SHOP)
+    /stage  - Solaris/USD (LOP)
+    /ch     - 通道/动画 (CHOP)
+    /tasks  - PDG/TOPs
+
+### SOP 常用节点分类
+
+**基础几何体**
+    box, sphere, tube, torus, grid, circle, line, curve, font
+
+**变形/Transform**
+    transform, xform, bend, twist, mountain, peak, soft_transform
+
+**建模**
+    polyextrude, polybevel, polyfill, polycut, dissolve, fuse
+    boolean, clip, blast, delete, groupcreate
+
+**复制/散布**
+    copytopoints, scatter, copy (stamp)
+    
+**属性**
+    attribwrangle, attribcreate, attribtransfer, attribpromote
+    attribdelete, attribremap, color, point (SOP)
+
+**分组**
+    groupcreate, groupcombine, groupexpression, grouppromote
+
+**测量/分析**
+    measure, curvature, connectivity, sort, enumerate
+
+**VDB/体积**
+    vdbfrompolygons, vdbreshape, vdbsmooth, convertvdb
+
+**动力学 (DOP)**
+    rbdbulletsolver, pyrosolver, flipsolver, popsolver
+
+**其他**
+    null, switch, merge, output, subnetwork, foreach
+
+## ==============================
+## VEX 常见错误和最佳实践
+## ==============================
+
+### 错误 1: 整数除法截断
+    // 错
+    float ratio = 1 / 3;          // = 0
+    // 对
+    float ratio = 1.0 / 3.0;     // = 0.333
+
+### 错误 2: 忘记类型前缀
+    // 错（默认 float，丢失精度）
+    @id = @ptnum;                  // float
+    // 对
+    i@id = @ptnum;                 // int
+
+### 错误 3: {} 中使用变量
+    // 错
+    float a = 1; vector v = {a, 0, 0};
+    // 对
+    float a = 1; vector v = set(a, 0, 0);
+
+### 错误 4: 在 Points 模式下创建几何体
+    // 创建几何体应该在 Detail 模式
+    // 如果在 Points 模式，每个点都会创建一次
+
+### 错误 5: 修改正在遍历的几何体
+    // removepoint 在 Points 模式可能导致跳过元素
+    // 应该用 if + removepoint 的方式，或者在 Detail 模式反向删除
+
+### 最佳实践
+    1. 优先用 VEX 而非 Python 处理几何体（性能差 10-100 倍）
+    2. 用 i@, v@, s@ 等前缀明确指定属性类型
+    3. 大量点搜索用 pcfind/pcopen 代替 nearpoints
+    4. 复杂分支用 select() 代替 if/else
+    5. 向量常量用 set() 代替 {} （更安全）
+    6. 创建几何体时用 Detail 模式
+    7. 避免在 Wrangle 中 printf 大量输出（会很慢）
+    8. 用 ch()/chi()/chs() 暴露参数供用户调节
+
+## ==============================
+## HScript 表达式常用变量
+## ==============================
+
+    $F     - 当前帧号 (int)
+    $FF    - 当前帧号 (float)
+    $T     - 当前时间（秒）
+    $FSTART - 起始帧
+    $FEND   - 结束帧
+    $FPS    - 帧率
+    $HIP    - 场景文件所在目录
+    $HIPNAME - 场景文件名
+    $HIPFILE - 场景文件完整路径
+    $JOB    - 项目路径
+    $HOME   - 用户主目录
+    $HFS    - Houdini 安装目录
+    $OS     - 当前节点名
+    $CH     - 当前通道名
+    $CEX, $CEY, $CEZ - 质心位置
+    $XMIN, $XMAX, $YMIN, $YMAX, $ZMIN, $ZMAX - 包围盒
+    $SIZEX, $SIZEY, $SIZEZ - 包围盒尺寸
+
+## ==============================
+## Copy to Points 常用属性
+## ==============================
+
+在使用 Copy to Points 时，目标点上的以下属性会影响复制结果：
+
+    @P       - 复制位置
+    @N       - 朝向（Z轴对齐法线方向）
+    @up      - 上方向（配合 @N 确定完整朝向）
+    @orient  - 四元数朝向（优先级高于 @N+@up）
+    @rot     - 附加旋转
+    @pscale  - 统一缩放
+    @scale   - 各轴缩放 (vector)
+    @trans   - 附加位移
+    @pivot   - 旋转中心
+
+优先级: @orient > @N+@up > 无朝向（默认朝上）

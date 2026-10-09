@@ -1,0 +1,88 @@
+= Neural point surfacing =
+
+[Image:/images/mpm/nps/splash.jpg]
+
+The [Neural Point Surface|Node:sop/neuralpointsurface] method takes a point cloud as input and reconstructs a VDB surface from it. It contains multiple specialized pretrained models to yield specific looks depending on the material being surfaced. It allow users to reconstruct smooth surfaces while preserving the sharp, high frequency details described by the point cloud. Both the VDB and NPS model are used by the [MPM Surface|Node:sop/mpmsurface] node.
+
+== Traditional vs Neural workflows ==
+
+[Image:/images/mpm/nps/traditional.jpg]
+
+[Image:/images/mpm/nps/neural.jpg]
+
+There are advantages and disadvantages to using the Neural Point Surfacing method.
+:col:
+
+    Advantages:
+        * Localized treatment as opposed to morphological operation that have a global effect.
+        * Some desired features are more easily described by examples.
+        * Single node solution makes it easier for artists to get decent looking surfaces quickly. 
+  
+:col:
+  
+    Disadvantages:
+        * Less control - once trained, the model acts as a black box
+        * GPU oriented - CPU bases interference can be very slow.
+
+== Pre-trained models ==
+
+[Image:/images/mpm/nps/modeltypes.jpg]
+
+== Balanced ==
+
+This is the default. It should perform well in most scenarios and is likely to give the best results when sharp features of solid models must be preserved.
+
+:compare_images:
+    #image1: /images/mpm/nps/balanced_trad.jpg
+    #image2: /images/mpm/nps/balanced_nps.jpg
+    
+    """NPS vs VDB method. Model courtesy of Iliya Aristov."""
+    
+You can see from these images that the sharp features are preserved, the flat surfaces are smooth, and the volume is preserved in the thin material near the base. The VDB method results in the thin plates disappearing and flat areas that are very bumpy.
+    
+[Image:/images/mpm/nps/balanced_nps2.jpg]
+
+
+== Liquid ==
+
+Optimized to reconstruct liquid simulations. This model will preserve smooth curved surfaces, as well as sharp transitions of waves crashing and rolling. It is also good at reconstructing thin sheets of water by connecting nearby water droplets in a temporally stable manner.
+
+:compare_images:
+    #image1: /images/mpm/nps/liquid_trad.jpg
+    #image2: /images/mpm/nps/liquid_nps.jpg
+    
+    """NPS vs VDB method."""
+
+This image shows the differences between the Particle Fluid Surface and Neural Point Surfacing approaches. You can see that the Neural approach achieves sharp edges on the waves, as well as smooth surfaces on flat regions without any undesired noise.
+
+:video:
+    #src: /videos/sopflip/NPS_beach.mp4
+
+== Granular ==
+
+Optimized to properly capture rough and granular surfaces. This model will try to ignore the loose points near dense surfaces to reduce fuzziness and get more defined shapes while preserving loose points that are fully detached from the surfaces. This is especially useful with __Chunky__ MPM materials.
+
+:compare_images:
+    #image1: /images/mpm/nps/granular_trad.jpg
+    #image2: /images/mpm/nps/granular_nps.jpg
+    
+    """NPS vs VDB method."""
+    
+This image shows the VDB from Particles reference which appears more fuzzy, compared to the Neural Point Surfacing approach which shows a lot more structure, higher frequency of details, and more variation in the size of the pieces.
+
+:video:
+    #src: /videos/sopflip/NPS_snow.mp4
+
+== Smooth ==
+
+Optimized for smooth surface reconstruction. This model will lack high frequency details compared to the __Balanced__ model, but can get rid of more bumps across smooth surfaces.
+
+:compare_images:
+    #image1: /images/mpm/nps/smooth_trad.jpg
+    #image2: /images/mpm/nps/smooth_nps.jpg
+    
+    """NPS vs VDB method. Model courtesy of Zhen Cheng LU."""
+    
+You can see from these images that the volume of the laces are preserved, as well as the holes near the front of the shoe. With the VDB method, as you smooth the mesh to try to reduce this noise on the side of the shoe, you lose all of those high frequency details.
+    
+[Image:/images/mpm/nps/smooth_nps2.jpg]

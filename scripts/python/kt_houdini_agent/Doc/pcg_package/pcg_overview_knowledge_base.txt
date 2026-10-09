@@ -1,0 +1,131 @@
+# PCG 包体系总览
+# 本知识库为 Houdini Agent 提供项目 PCG 工作流的通用概念说明
+
+## ==============================
+## PCG 包体系总览
+## ==============================
+
+PCG（Procedural Content Generation）包体系是项目程序化内容生成的核心架构。
+整套体系是都是建立在一个叫Pangu的Unreal Engine的Plugins下
+整套 PCG 系统按功能拆分为八大模块，每个模块管理一类场景元素的程序化生成。
+每个模块下可以创建多个"包"，每个包是一组完整的 JSON 配置集合，
+定义了算法（HDA）、资产、渲染层等信息。
+
+八大模块及其配置文件根目录位于 ArtData 目录下：
+- LandTypes —— 地貌包（主包，可组合其他所有子系统）
+- BiomeTypes —— 植被包
+- CliffTypes —— 岩石包
+- HillTypes —— 山丘包
+- RoadTypes —— 道路包
+- WaterTypes —— 水系包
+- StageTypes —— 平台包
+- CityTypes —— 城市包
+
+ArtHDAs 目录是 Houdini 的 Path 路径，用于加载 HDA 算法文件。
+地貌包(LandTypes)是主包，具有引用/组合其他模块包的能力。其他模块是子系统。
+
+## ==============================
+## 包的目录层级结构
+## ==============================
+
+包的目录组织遵循三级结构：
+
+第一级：模块总目录（如 BiomeTypes/）
+第二级：分类目录 —— 按项目名或种类区分
+  - 按项目维度：如 SharePrj（跨项目共享）、TX3（特定项目）、AIWorldMaker
+  - 按种类维度：如 Forest（雨林类）、Desert（荒漠类）
+  分类命名由项目自行决定，无固定规则。
+第三级：包目录 —— 每个目录代表一个具体的包，包含一组 JSON 配置文件
+
+示例路径：
+  BiomeTypes/Desert/DesertGrass/  → Desert 分类下的 DesertGrass 植被包
+  LandTypes/SharePrj/Desert/      → SharePrj 分类下的 Desert 地貌包
+  CliffTypes/SharePrj/RiverValley/ → SharePrj 分类下的 RiverValley 岩石包
+
+ArtHDAs 目录也按分类组织：ArtHDAs/<分类>/otls/*.hda
+
+## ==============================
+## 包的通用 JSON 配置文件
+## ==============================
+
+每个包目录下包含一组 JSON 配置文件，不同模块的文件名前缀不同，但结构相似：
+
+- xxx_info.json —— 算法信息（指定 HDA 和参数），不同模块前缀不同
+- xxx_options.json —— 资产分类列表（字符串数组）
+- xxx_asset.json —— 资产入库（按 options 分类，录入具体模型资产）
+- kt_xxx_parm.json —— HDA 参数配置（文件名不固定，由 info.json 指定）
+- subsys_info.json —— 渲染层映射信息
+- subsys_layers.json —— 渲染层详细定义
+- package_baseinfo.json —— 包元信息（描述、缩略图、标签）
+- feature_info.json —— 特征描述（建议填写，非必需）
+- *.json.desc.json —— 描述文件（自动生成，忽略）
+
+所有路径使用相对于 ArtData 的路径（以 / 开头）。
+
+## ==============================
+## 渲染层映射机制
+## ==============================
+
+渲染层系统负责将 HDA 中的逻辑层映射到具体的材质贴图。
+核心文件为 subsys_info.json 和 subsys_layers.json。
+
+subsys_info.json 核心字段：
+- layers_base: HDA 中定义的逻辑层名数组（如 "B1_Slope_Rock_01"），代表功能语义
+- layers_order: 对应的渲染层名数组（如 "SharePrj_Rock_common_a"），决定具体材质表现
+
+映射规则：
+- layers_base 和 layers_order 按下标一一对应
+- 每个 layers_base 必须指定一个 layers_order
+- 多个 layers_base 可以指向同一个 layers_order
+- 同一个 HDA 在不同项目中可通过不同的 layers_order 使用不同贴图
+
+subsys_layers.json 定义每个渲染层的材质资产和参数：
+结构为 { "渲染层名": { "AssetPath": "UE资产路径", "Attr": { 材质属性 } } }
+Attr 中包含 BlendType、LayerMatFunc、LayerMatFuncParams 等字段。
+
+## ==============================
+## xxx_asset.json 资产入库结构
+## ==============================
+
+资产文件按 options 中定义的分类组织，结构为：
+{ "分类名": { "type": "分类名", "assetlist": { "Key": { 资产详情 } } } }
+
+每个资产包含以下关键字段：
+- asset: UE FoliageType 资产路径
+- staticMesh: 静态网格体路径
+- weight: 权重（影响随机选取概率）
+- uniformScale: 统一缩放
+- bounds: 包围盒 [minX, minY, minZ, maxX, maxY, maxZ]
+- actorType: Actor 类型（如 FoliageType_InstancedStaticMesh）
+- snapMode / instanceType / LOD / hasLOD / isPrefab 等实例化控制字段
+
+## ==============================
+## package_baseinfo.json 包元信息
+## ==============================
+
+包的描述性元数据文件：
+{
+    "package description": "包的文字描述",
+    "package thumbnail": "缩略图路径",
+    "reference_images": [],
+    "Tags": []
+}
+
+## ==============================
+## feature_info.json 特征描述
+## ==============================
+
+为 AI 场景生成提供的包特征描述（建议填写但非必需）：
+{
+    "description": "自然语言描述该包的视觉/地貌特征",
+    "sample texture": "sample.jpg",
+    "altitude range": [0, 60]  // 可选，海拔范围
+}
+
+## ==============================
+## desc.json 描述文件说明
+## ==============================
+
+所有以 .json.desc.json 结尾的文件是自动生成的描述文件，
+用于描述对应 JSON 文件的 schema 结构。
+这些文件不需要手动创建或修改，在理解包配置时可以忽略。

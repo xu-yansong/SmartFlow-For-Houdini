@@ -1,0 +1,45 @@
+= MPM Configure Softbody =
+
+There are several MPM Configure examples available through the [tab menu|/basics/tabmenu]. These are similar to [shelf tools|/shelf/index] that put down networks of nodes for learning purposes. The __MPM Configure Softbody__ example illustrates the use of the "elastic" __Rubber__ material type. It puts down a simple network of nodes to turn the pig head test geometry into a rubbery material.
+
+:video:
+    #src: /videos/mpm/mpmrubber.mp4
+    
+== Important nodes ==
+
+`pig`:
+    This is the [MPM Source|Node:sop/mpmsource] that uses the __Jello__ material preset. __Oversampling__ and __Relax Iterations__ are turned on to pack the points more densely and give them a more even distribution, respectively.
+    
+    It also has __Pin Constraints__ and __Enable Animation__ turned on, which outputs the source points on each frame such that they can be animated downstream before being passed to the MPM Solver. This means that the [MPM Solver|Node:sop/mpmsolver] will look at whatever is happening upstream at every frame and match the changes in position. Having this checkbox turned on means that the points are able to flow from the MPM Source to the MPM Solver, instead of being deleted.
+    
+`isolate_inside_sdf`:
+    This is a Sub-Network that contains some VDB operations to create an SDF of the inner core of the pig model.
+    
+    [Image:/images/mpm/inner_core.jpg]
+
+`pin_points_to_anim`:
+    This [Attribute Wrangle|Node:sop/attribwrangle] takes all of the points inside of the core and pins them in space, allowing the ears and nose to move around freely.
+
+`anim`:
+    This is the animation of the pig head oscillating on the Y axis.
+
+`mpmcontainer`:
+    This setup uses a default [MPM Container|Node:sop/mpmcontainer], which defines the resolution of the simulation using the __Particle Separation__ parameter.
+
+`mpmsolver`:
+    This setup uses a default [MPM Solver|Node:sop/mpmsolver], which does the work of solving the scene. Since __Enable Animation__ is checked on the [MPM Source|Node:sop/mpmsource], the solver knows that there is only one frame of emission. Only the core is animated and the rest of the points in the pig head are being simulated by the solver.
+
+`pig_head_geo`, `first_frame`, `retarget`, `subdivide`:
+    These nodes are just doing simple [point deform|Node:sop/pointdeform] retargeting. It looks at the pig head geometry on the first frame and remeshes the points.
+
+`set_name`:
+    Sets a `name` primitive attribute on the geometry to express that it should be treated as a single connected piece.
+
+`deform_pig_head`:
+    This [MPM Deform Pieces|Node:sop/mpmdeformpieces] retargets the MPM animation to the rest geometry using the __Point (Deform)__ __Retargeting Type__. The __End Frame__ parameter is set to match the end of the MPM simulation so that the node can validate point count consistency throughout the frame range.
+    
+== Learning from this example ==
+
+* Select the [MPM Solver|Node:sop/mpmsolver] and angle the camera to look inside the mouth to see the pinned points.
+    
+    [Image:/images/mpm/pinned_points.jpg]

@@ -1,0 +1,34 @@
+= MPM Configure Metal Tearing =
+
+There are several MPM Configure examples available through the [tab menu|/basics/tabmenu]. These are similar to [shelf tools|/shelf/index] that put down networks of nodes for learning purposes. The __MPM Configure Metal Tearing__ example illustrates the use of the __Metal__ material type. It puts down a simple network of nodes to simulate a sphere collider ripping through a metal sheet.
+
+:video:
+    #src: /videos/mpm/mpmmetal.mp4
+    
+== Important nodes ==
+
+`metal_sheet`:
+    This is the [MPM Source|Node:sop/mpmsource] that uses the __Metal__ material preset. However, the __Type__ is set to __Surface__ instead of the default __Volume__. This scatters points on the surface of the input geometry. It also has __Relax Iterations__ of `250` to make sure there is a uniform distribution across the surface that fills as many holes as possible to create a good representation of the surface.
+    
+`frame`, `distance_to_frame`, and `pin_frame`:
+    These nodes highlight the frame of the metal sheet, use a Ray SOP to detect the distance between the frame and sheet, and based on that distance, pin to animation all of the points that are near the edge.
+    
+`sphere_collider`:
+    This is the [MPM Collider|Node:sop/mpmcollider], which uses the __Animated (Rigid)__ collider type. It allows for very precise collisions as, for each substep, it interpolates the transforms of a single VDB which is both lighter in memory and more accurate than __Animated (Deforming)__ colliders.
+
+`mpmcontainer`:
+    This setup uses a default [MPM Container|Node:sop/mpmcontainer], which defines the resolution of the simulation using the __Particle Separation__ parameter. 
+    
+`mpmsolver`:
+    This setup uses a default [MPM Solver|Node:sop/mpmsolver], which does the work of solving the scene. The __Material Condition__ is decreased slightly to increase the number of substeps based on the stiffness of the material which fixes some instability in this case.
+
+`fractured_metal_sheet`:
+    This [MPM Post-Fracture|Node:sop/mpmpostfracture] fractures the metal sheet according to its final state at the end of the MPM simulation, which is defined by the __End Frame__ parameter. The __Global Scale__ parameter has been set to `0.1`, which affects all scale dependent parameters in a single step. In the __Fracture Points__ tab, the filler points parameters have been adjusted to allow proper bending of the metal sheet near tearing areas by adding additional points. __Align Fractures to Stretch Points__ is turned on to center the fractures where points have been identified as fracturing instead of using them as fracture centroids. In the __Cutter Geometry__ tab, the __Add Interior Details__ checkbox has been turned on to get more interesting fractures.
+
+`deformed_metal_sheet`:
+    This [MPM Deform Pieces|Node:sop/mpmdeformpieces] takes the pieces defined by the upstream [MPM Post-Fracture|Node:sop/mpmpostfracture] feeding into its first input and deforms them using the MPM particles in the second input according to the __Point + Piece__ __Retargeting Type__. __Close Gaps__ is turned on to remove cracks by favoring the output from the __Point (Deform)__ when the per-point difference between the __Piece (transform)__ and __Point (Deform)__ __Retargeting Type__ is small. This is especially useful for metal tearing simulations.
+    
+== Learning from this example ==
+
+:task: Fix instability in the behavior of the material:
+    In some cases, there could be some instability in the simulation where the material requires more substeps than what you're providing, which could result in points that merge or collapse onto each other. The quickest way to solve this is to slightly decrease the __Material Condition__ on the [MPM Solver|Node:sop/mpmsolver]. This reduces the timestep of the solvers which keeps the material stable. In this example, the value was decreased from `0.9` to `0.6`. It is also possible to raise the __Substeps Min/Max__ directly but this will not dynamically adapt to changes in material or resolution.

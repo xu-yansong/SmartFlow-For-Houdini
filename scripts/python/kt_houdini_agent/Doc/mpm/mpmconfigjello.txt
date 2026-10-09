@@ -1,0 +1,28 @@
+= MPM Configure Jello Party =
+
+There are several MPM Configure examples available through the [tab menu|/basics/tabmenu]. These are similar to [shelf tools|/shelf/index] that put down networks of nodes for learning purposes. The __MPM Configure Jello Party  __ example illustrates the use of the "elastic" __Jello__ material type. It puts down a simple network of nodes to simulate jello cubes rolling and bouncing around.
+
+:video:
+        #src: /videos/mpm/mpmjello.mp4
+        
+== Important nodes ==
+
+`jello_cubes`:
+    This is the [MPM Source|Node:sop/mpmsource] that uses the __Jello__ material preset.
+    
+`mpmsolver`:
+    This setup uses a default [MPM Solver|Node:sop/mpmsolver], which does the work of solving the scene. However, there is a dive target with a `popforce1`, which you can access by double-clicking the node. This [POP Force|Node:dop/popforce] is what makes the jello cubes move.
+    
+`domain`:
+    A box with some padding (geometry), which sets the boundary for the [MPM Container|Node:sop/mpmcontainer]. This is an alternative way of setting boundaries for the MPM Container. You could also directly set the __Size__ of the bounding box on the MPM Container node without providing a geometry as input, and set __All__ to __Closed__ bounds.
+
+`mpm_mesh`:
+    The [MPM Surface|Node:sop/mpmsurface] will generate a polysoup representation of the material's surface that is suitable for rendering. The surface is generated using the [Neural Point Surface|Node:sop/neuralpointsurface] with the __Neural Model__ set to __Balanced__. The `Cd` attribute is transferred to the mesh from the MPM particles. The third input uses the original model at rest to transfer UVs onto the dynamic mesh. The __Adaptivity__ parameter has been set to `0` to prevent frame-to-frame flickering in the UVs.
+
+== Learning from this example ==
+
+- The purpose of this example is to show that you can use custom forces inside a dive target. You can add more POP forces and connect them to this example to achieve different behavior.
+
+- The DOP network in the dive target will be evaluated once per DOP substep.
+
+- When possible, using Gas OpenCL nodes should lead to better performance than VEX nodes, as it prevents unnecessary copies from the host to the OpenCL device.

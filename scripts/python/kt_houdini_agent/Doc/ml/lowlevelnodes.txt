@@ -1,0 +1,38 @@
+= Low-level ML nodes =
+
+Houdini has a family of low-level nodes that support the creation of a wide variety of ML setups.
+These can be used to create entire new ML setups from scratch and also incorporate existing models, training scripts, and data sets into Houdini.
+
+The most important of these low-level nodes are listed below:
+
+:col:
+    Data Set Preprocessing:
+
+    [Principal Component Analysis|Node:sop/pca]
+
+    [Linear Solver|Node:sop/linearsolver]
+ 
+:col:
+    Raw Data Set Input/Output:
+
+    [ROP Geometry Raw Output|Node:sop/rop_geometryraw]
+
+    [Raw Import|Node:sop/rawimport]
+
+:col:
+    Model Training:
+
+    [Python Virtual Environment|Node:top/pythonvenv]
+
+    [Python Script|Node:top/pythonscript]
+
+:col:
+    Inference:
+
+    [ONNX Inference (SOP)|Node:sop/onnx]
+
+    [ONNX Inference (COP)|Node:cop/onnx]
+
+    
+
+

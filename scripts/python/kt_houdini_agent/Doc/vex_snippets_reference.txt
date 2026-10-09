@@ -1,0 +1,249 @@
+# Houdini VEX Snippets 完整参考 (Using VEX Expressions)
+# 来源: https://www.sidefx.com/docs/houdini/vex/snippets.html
+
+## 概述
+
+VEX snippets（代码片段）用于 Attribute Wrangle、Volume Wrangle 等节点中。
+与完整的 VEX 程序不同，snippets 不需要函数签名，直接写代码体即可。
+
+## 基本语法
+
+    // 单行注释
+    /* 多行注释 */
+    
+    // 语句以分号结尾
+    @P.y = sin(@P.x);
+    
+    // 变量声明
+    float val = 1.5;
+    int count = 10;
+    string name = "hello";
+    vector pos = {0, 1, 0};
+    matrix3 m = ident();
+
+## 访问参数值 (Channel References)
+
+    // 读取节点参数
+    float freq = ch("freq");       // float 参数
+    int count = chi("count");      // int 参数
+    string path = chs("path");     // string 参数
+    vector color = chv("color");   // vector 参数
+    
+    // 用 chramp 读取 ramp 参数
+    float ramp_val = chramp("myramp", @curveu);
+    vector ramp_clr = chramp("color_ramp", @curveu);
+
+## 访问几何属性
+
+    // 读取当前元素的属性（自动绑定）
+    vector pos = @P;
+    vector normal = @N;
+    float pscale = @pscale;
+    int id = @id;
+    
+    // 带类型前缀访问（推荐用于自定义属性）
+    int count = i@mycount;
+    string name = s@name;
+    vector vel = v@v;
+    
+    // 读取第二输入的属性
+    vector pos2 = point(1, "P", @ptnum);
+    // 或简写
+    vector pos2 = v@opinput1_P;
+
+## 设置属性
+
+    // 直接赋值（最常用）
+    @P.y += 1;
+    @Cd = {1, 0, 0};
+    @pscale = rand(@ptnum);
+    
+    // 创建新属性（需要类型前缀）
+    i@myattr = 42;
+    v@mycolor = {0.5, 0.8, 1.0};
+    s@name = sprintf("point_%d", @ptnum);
+    
+    // 函数方式设置（可操作其他元素）
+    setpointattrib(0, "Cd", other_pt, {1, 0, 0});
+
+## 常用 VEX Gotchas（陷阱）
+
+### 1. 整数除法
+    // 错误：整数除法会截断
+    float ratio = 1 / 3;        // 结果是 0，不是 0.333
+    // 正确：至少一个操作数为 float
+    float ratio = 1.0 / 3;      // 结果是 0.333
+    float ratio = float(1) / 3;
+
+### 2. 向量赋值
+    // {} 语法只能用于常量
+    vector v = {1, 2, 3};       // OK
+    vector v = {a, b, c};       // 错误！变量不能用 {}
+    vector v = set(a, b, c);    // 正确
+    
+### 3. 属性类型
+    // 不带前缀的自定义属性默认为 float
+    @myattr = 5;     // float 属性，值为 5.0
+    i@myattr = 5;    // int 属性，值为 5
+
+### 4. @OpInput 语法
+    // opinput 编号从 0 开始
+    @opinput0_P  // 第一输入（同 @P）
+    @opinput1_P  // 第二输入
+    @opinput2_P  // 第三输入
+    @opinput3_P  // 第四输入
+
+## 创建几何体
+
+    // 添加点
+    int pt = addpoint(0, {0, 1, 0});
+    
+    // 添加图元和顶点
+    int prim = addprim(0, "poly");
+    addvertex(0, prim, pt0);
+    addvertex(0, prim, pt1);
+    addvertex(0, prim, pt2);
+    
+    // 删除元素
+    removepoint(0, @ptnum);
+    removeprim(0, @primnum, 1);  // 1 = 同时删除点
+    
+    // 创建折线 (polyline)
+    int prim = addprim(0, "polyline");
+    for (int i = 0; i < 10; i++) {
+        int pt = addpoint(0, set(sin(i*0.5), i*0.1, cos(i*0.5)));
+        addvertex(0, prim, pt);
+    }
+
+## 几何体遍历函数
+
+    // 查找邻居点
+    int pts[] = neighbours(0, @ptnum);
+    
+    // 查找连接的图元
+    int prims[] = pointprims(0, @ptnum);
+    
+    // 图元的点
+    int pts[] = primpoints(0, @primnum);
+    
+    // 近邻搜索
+    int pts[] = nearpoints(0, @P, search_radius);
+    int pt = nearpoint(0, @P);  // 最近的点
+    
+    // pcfind (点云搜索)
+    int pts[] = pcfind(0, "P", @P, radius, maxpts);
+
+## 常用数学函数
+
+    // 三角函数
+    sin(x), cos(x), tan(x)
+    asin(x), acos(x), atan(x), atan2(y, x)
+    
+    // 指数和对数
+    pow(base, exp), sqrt(x), log(x), exp(x)
+    
+    // 取整
+    floor(x), ceil(x), round(x), trunc(x)
+    
+    // 范围和插值
+    clamp(val, min, max)
+    fit(val, omin, omax, nmin, nmax)
+    fit01(val, nmin, nmax)
+    lerp(a, b, t)
+    smooth(min, max, val)    // Hermite 插值
+    
+    // 向量操作
+    length(v), normalize(v), dot(a, b), cross(a, b)
+    distance(a, b)
+    
+    // 随机
+    rand(seed)               // 0-1 float
+    random(seed)             // 0-1 float (更好的分布)
+    sample_sphere_uniform(rand(seed))
+
+## 噪波函数
+
+    // Perlin 噪波
+    float n = noise(@P);
+    vector n = noise(@P * freq);
+    
+    // 带频率和偏移
+    float n = noise(@P * chf("freq") + chf("offset"));
+    
+    // Simplex 噪波（更快）
+    float n = xnoise(@P);
+    
+    // Curl 噪波（无散度，适合流体）
+    vector curl = curlnoise(@P * freq);
+    
+    // Turbulent 噪波
+    float turb = turbulent_noise(@P, depth);
+    
+    // Alligator 噪波
+    float n = anoise(@P);
+    
+    // 自定义分形噪波
+    float n = 0;
+    float amp = 1;
+    vector pos = @P;
+    for (int i = 0; i < octaves; i++) {
+        n += noise(pos) * amp;
+        pos *= 2.0;
+        amp *= 0.5;
+    }
+
+## 常见代码模式
+
+### 颜色渐变（基于高度）
+    @Cd = fit(@P.y, 0, 1, {0,0,1}, {1,0,0});
+
+### 随机颜色
+    @Cd = rand(@ptnum);
+    // 或 HSV 随机
+    @Cd = hsvtorgb(set(rand(@ptnum), 0.8, 1.0));
+
+### 按组过滤
+    if (inpointgroup(0, "mygroup", @ptnum)) {
+        @Cd = {1, 0, 0};
+    }
+
+### 沿法线偏移
+    @P += @N * chf("amount");
+
+### 球面分布
+    float u = rand(@ptnum);
+    float v = rand(@ptnum + 1);
+    float theta = 2 * $PI * u;
+    float phi = acos(2 * v - 1);
+    @P = set(sin(phi)*cos(theta), sin(phi)*sin(theta), cos(phi));
+
+### 连接最近点（创建线）
+    // 在 Detail 模式运行
+    for (int i = 0; i < @numpt; i++) {
+        vector pos_i = point(0, "P", i);
+        int nearest = nearpoint(0, pos_i, 1);  // 排除自身需要其他方法
+        int pts[] = nearpoints(0, pos_i, chf("radius"), 2);
+        if (len(pts) > 1) {
+            int prim = addprim(0, "polyline");
+            addvertex(0, prim, i);
+            addvertex(0, prim, pts[1]);
+        }
+    }
+
+### 属性传递（从第二输入）
+    int near_pt = nearpoint(1, @P);
+    @Cd = point(1, "Cd", near_pt);
+
+### 条件分组
+    if (@P.y > chf("threshold")) {
+        setpointgroup(0, "above", @ptnum, 1);
+    }
+
+## Run Over 模式说明
+
+在 Attribute Wrangle 的 Run Over 参数中：
+    Points      - 对每个点执行一次 (@ptnum 为当前点)
+    Vertices    - 对每个顶点执行一次 (@vtxnum 为当前顶点)
+    Primitives  - 对每个图元执行一次 (@primnum 为当前图元)
+    Detail      - 只执行一次（用于全局操作，如创建几何体）
+    Numbers     - 按指定次数执行（@elemnum 为当前迭代）

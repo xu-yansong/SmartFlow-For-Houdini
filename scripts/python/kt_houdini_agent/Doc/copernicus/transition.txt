@@ -1,0 +1,31 @@
+= Copernicus for Houdini users =
+
+"""Differences between the Compositing and Copernicus networks."""
+
+== Overview ==
+
+As of Houdini 20.5, use [Copernicus nodes|/nodes/cop/index] instead of Compositing nodes. Though both networks still exist, the Compositing network is now designated as `COP Network - Old`.
+
+Though there are some similarities between the Copernicus and Compositing networks, this page explains key differences between the two.
+
+== Data and display windows == (data_display)
+
+Data and display windows both provide coordinates for a rectangle.
+
+The data window determines which region (in [pixel space|/copernicus/spaces]) of the viewer contains pixel data. The display window determines the file's boundaries (in pixel space) based on pixel coordinates in the upper-left and lower-right corners. For files that either don't have all pixel data in the display window or have pixel data outside of the display window's boundaries, the extra pixel data appears between the data and display windows.
+
+(Thanks to [OpenEXR|https://openexr.com/en/latest/TechnicalIntroduction.html] and [fnord software blog|https://fnordware.blogspot.com/2012/06/datawindow-and-displaywindow-in-openexr.html] for reference.)
+
+== Limit node == (limit)
+
+The Compositing network has the [Limit node|Node:/cop2/limit], which lets you limit the pixel range. Use the [Clamp node|Node:/cop/clamp] to perform a similar function in Copernicus.
+
+== Mosaic and demosaic == (mosaic)
+
+Use the [Contact Sheet COP|Node:/cop/contactsheet] in Copernicus to perform a similar function as the [Mosaic COP2 node|Node:/cop2/mosaic]. To offset file sequences, update `$F#` (`$F4` for example) in the [File COP|Node:/cop/file]'s __File Name__ to `<F#>` (`<F4>`). This lets you set the __Video Start Frame__ to the frame number from where you want the sequence to start playing. `$F#` doesn't use the __Video Start Frame__.
+
+Turn on __Extract Tile__ in the [Crop COP|Node:/cop/crop] to perform a similar function as the [Labs Demosaic COP2 node|Node:/cop2/labs--demosaic].
+
+== Wires == (wires)
+
+The Compositing network could support multiple layers on one wire. Instead, each Copernicus wire supports only one layer. Use [Cables|/copernicus/cables] to connect multiple wires to an input port using only one wire to imitate the capabilities of a Compositing wire.

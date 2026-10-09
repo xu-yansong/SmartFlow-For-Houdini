@@ -1,0 +1,115 @@
+= Copernicus =
+
+"""Houdini's 2D and 3D GPU image processing framework."""
+
+:include /news/beta:
+
+:fig: [Image:/images/copernicus/copernicus_flower.jpg]
+    #display: full
+
+    """Image courtesy of Nikola Damjanov."""
+
+== Overview ==
+
+Copernicus (COP) is a 2D and 3D GPU image processing framework. [COP nodes|/nodes/cop/index] provide real-time image manipulation within a 3D space. Each wire consists of either a layer (which is a single image) or geometry (which is any Houdini geometry). You can use [cables|/copernicus/cables] to connect multiple wires to an input port using only one wire. The nodes can export as images or volumes. COP nodes also fully interoperate with [SOPs|/nodes/sop/index], which lets you solve problems using the suitable network type.
+
+Use Copernicus nodes instead of [Compositing nodes|/nodes/cop2/index]. Though both networks still exist, the Compositing network is now designated as `COP Network - Old`. The new [COP Network node|Node:/sop/copnet] sets the default resolution, pixel scale, border, and precision for COP nodes in the network that don't have their own input or set values for these parameters. For more information about changing from Compositing to Copernicus, see [transition].
+
+NOTE:
+    Use the [Vulkan viewport|/ref/windows/mainprefs.html#3dview] instead of OpenGL, which doesn't support visualizations. See [Limitations|#limitations] for more information.
+
+For definitions of Copernicus terminology, see [glossary].
+
+== How to access Copernicus == (access)
+
+To access the COPs network, you can either manually [add a COP network|#add], [add a COP network SOP|#add_sop], or use the [default COP network|#default]. You can view the COP network in the [Scene (3D)|/basics/view] and [Composite (2D)|/ref/views/imgview] Views.
+
+After you add a COP network, see [Working with Copernicus nodes|/copernicus/working_with_cops] for next steps. To use slap comp in your network, see [Slap comp|/copernicus/slap_comp].
+
+[Image:/images/copernicus/copernicus_texture.jpg]
+
+=== Adding a COP network === (add)
+
+# Go to the Object (`/obj`) or Solaris (`/stage`) network.
+# Create a [COP Network node|Node:/manager/copnet].
+# Dive into the COP Network node to add [Copernicus nodes|/nodes/cop/index].
+
+=== Adding a COP network SOP === (add_sop)
+
+# Create a [Geometry node|/nodes/obj/geo] in the Object (`/obj`) network.
+# Dive into the Geometry node.
+# Add a [COP Network SOP|Node:/sop/copnet]. 
+# Dive into the COP Network node to add [Copernicus nodes|/nodes/cop/index].
+
+NOTE:
+    This COP network is treated as geometry, so you can wire it into other geometry nodes. For example, you can wire the COP Network node into a [Transform node|/nodes/sop/xform].
+
+=== Using the default COP network === (default)
+
+# Go to the Compositing (`/img`) network.
+# Dive into the existing [COP Network node|Node:/manager/copnet] to add [Copernicus nodes|/nodes/cop/index].
+
+== Input and output == (input_output)
+
+COPs have a similar shape and network orientation as [VOP|/nodes/vop/index] networks. They have the following inputs and outputs, which are based on [data types|glossary#data_type] and differentiated by color:
+
+:col:
+    * Metadata: This determines the output's resolution and position rather than its type. You can wire any output type into this port.
+    * Geometry: This can contain 2D volumes similar to layers and its output is geometry.
+    * Layer: This includes the ID, Mono, UV, RGB, and RGBA types.
+        An RGB layer has three values per pixel. These values are usually red, green, and blue, but you can store whatever you want in these pixels.
+    * VDB: This includes the Float, Integer, and Vector types.
+    * Cable: This is a wire that's made up of multiple, individual wires (inputs). See [/copernicus/cables] for more information.
+
+:col:
+    [Image:/images/copernicus/input_output_colors.jpg]
+
+NOTE:
+    The input and output names on the node can be different than the names listed above, but they're still color-coded based on their type.
+
+When an input with an associated parameter is wired in, the associated parameter usually scales that input. For example, when you wire a bright input into the [Bright node|/nodes/cop/bright], the associated __Brightness__ parameter multiplies with that input.
+
+== Limitations == (limitations)
+
+The following are Copernicus' limitations:
+* Handles and states
+* Multilayer workflow
+* Roto/paint
+* Time shift and manipulation
+* Materials driven by COP textures may not update properly in the OpenGL viewport
+* Type info driven visualization doesn't work in the OpenGL viewport (SDFs, tiling, and such)
+
+NOTE:
+    :include /copernicus/_common_notes#comp_sim/:
+
+@subtopics
+
+== Basics ==
+
+:: [glossary]
+:: [Copernicus nodes|/nodes/cop/index]
+:: [working_with_cops]
+:: [cables]
+:: [transition]
+:: [nuke]
+:: [substance_designer]
+:: [cooking]
+
+== Next steps ==
+
+:: [slap_comp]
+:: [openfx]
+:: [hatching]
+:: [vdb]
+:: [onnx_inference]
+:: [tips]
+
+== Dynamics ==
+
+:: [flow]
+:: [/pyro/copintro]
+
+== Advanced concepts ==
+
+:: [normals]
+:: [spaces]

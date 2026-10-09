@@ -1,0 +1,138 @@
+= Masking =
+
+"""Define zones of interest and detail."""
+
+Masks are one of the most important concepts in conjunction with terrains. Masks allow for the precise shaping of your terrain, but also for controlling parameters and attributes. The fact that there's a wide range of nodes, dedicated to masking, underlines the importance of masks. A mask lets you define, where to apply effects such as erosion or terracing. Masks always appear in red and everything _inside_ the red area(s) will be affected or modified.
+
+When you work with heightfields, you work with layers. A mask is basically nothing than a layer. You can create several mask layers and store them under different names for different applications. It's also possible to combine masks to a single layer, or reuse masks, created by nodes like the [HeightField Terrace SOP|Node:sop/heightfield_terrace] to identify certain regions of interest. Blurring lets you create smooth masks, but there are also modes for expanding, shrinking and sharpen your masks without having to redraw them. Even blurring supports masking, and you can define exactly where the smoothing effect will occur.
+
+You can draw and paint masks. You can also create masks by feature, geometry and occlusion. Another, very convenient way is to load a [mask from an image|#image] file or Houdini's COP network. This method lets you draw detailed masks in your favorite image processing software and import it.
+
+TIP:
+    Masks can become very complex and sometimes you have to deal with multiple masks. We therefore recommend to name your masks and nodes accordingly to make them identifiable.
+
+Many nodes provide a separate input for connecting masks, like the [HeightField Noise SOP|Node:sop/heightfield_noise] or [HeightField Layer SOP|Node:sop/heightfield_layer]. The latter node lets you combine different terrains and you can draw a mask to control, where the heightfields are merged together.
+
+As mentioned, you can also use masks to drive attributes and parameters. The [HeightField Erode SOP|Node:sop/heightfield_erode], for example, provides support for several parameter masks. A dropdown menu indicates where you can apply a masks to control a parameter. The menu's default choice is __Mask Off__. When you choose __Mask On__, you will see an input field for a mask. Once you've connected a mask, the input field becomes accessible. You can also click the 
+
+For a clean view of the final terrain it can be helpful to delete the mask. This will also help to save resources. To do so, add a [HeightField Layer Clear SOP|Node:sop/heightfield_layerclear] to your network. For __Layer 1__, enter `mask` to delete it.
+
+== Painting masks I == (paint)
+
+This workflow gives you full control over all aspects of a mask. You can exactly define the mask's area, size, smoothness, and opacity. If you're not happy with the mask's shape you can completely reset your brush strokes or just erase certain parts. You can profit from all features from Houdini's paint tools.
+
+# Add a [HeightField Paint SOP|Node:sop/heightfield_paint]. Connect the paint node's output to the _second_ input of the node you want the mask to be applied.
+# Hover the mouse cursor over the viewport and press ((Enter)) to turn on the node's brush mode. A red sphere indicates the brush. Use the ((mouse_wheel)) to change the brush's size.
+# Move the mouse over the terrain with the ((LMB)) pressed to draw the mask. Your motions create red strokes on the terrain's surface.
+# To change the mask's opacity/transparency, go to the node's __Opacity__ value. A value of `1` means full opacity, while `0` is full transparency.
+
+The default __Paint Mode__ is __Replace__. When you paint over an already masked area, e.g. with an increased __FG Value__ of `0.2`, the brush removes the original mask and creates a new one in these areas. With __Add__, however, you will really add new parts to a mask. When you paint over an existing mask, the mask values will sum up.
+
+You can also use the brush as an eraser. To do this, make sure that __Paint Mode__ is set to __Replace__. Then, change __FG Value__ to `0` and paint over the region of interest.
+
+TIP:
+    You can directly control __FG Value__ by clicking and dragging the ((MMB)). This way you can draw fine nuances in the mask without leaving the viewport.
+
+There's also a live mode. For example, with the standard setup, turn on the HeightField Noise SOP's blue __Display/Render__ flag. Then, click the _paint_ node and turn on the draw mode as described in step #2 above. When you draw the mask, you can see the result of your action directly in the viewport.
+
+:video:
+    #src: /videos/heightfields_paint_mask1.mp4
+
+== Painting masks II ==
+
+Maybe you've noticed that some heightfield nodes have a [Smallicon:SOP/paint] __Add a Mask Paint__ button. An example for such a node is the [HeightField Terrace SOP|Node:sop/heightfield_terrace]. Sometimes it's active, sometimes not. Unfortunately, there's no consistent rule. When the button is inactive, connect the upstream node's output to the _second_ input of the node with the paint button.
+
+When you click the button, Houdini adds a HeightField Paint SOP and connects it automatically. Now you can paint the mask. Your options and tools are the same as described above.
+
+== Object masks ==
+
+The [HeightField Mask by Object SOP|Node:sop/heightfield_maskbyobject] lets you use arbitrary geometry to create a mask. The object is projected onto the terrain and you'll see a cross section of the connected geometry. You can combine several objects through a [Merge SOP|Node:sop/merge] to create complex and individually shaped mask. HeightField Mask by Object provides some interesting features. You can
+
+* directly blur the mask without a separate HeightField Blur SOP
+* invert the mask
+* create animated masks by moving or deforming the mask geometry
+* add the geometry mask to or subtract it from an already existing mask when you set __Combine with Existing__ to __Add__.
+
+The screenshots shows an example setup with a [HeightField Mask Noise SOP|Node:sop/heightfield_noise], subtracted from a geometry mask.
+
+[Image:/images/heightfields/masking_object.jpg]
+
+== Image masks == (image)
+
+You can also create images inside your favorite drawing/painting application or import any image and use it as a mask. Another method is to assemble a mask in Houdini's COP network. A nice feature of image-based masks is that colors are converted into opacity values. This way you can precisely control the strength of the effects you apply to shape your terrain. And you can also create complex patterns.
+
+# To import a file, add a [HeightField File SOP|Node:sop/heightfield_file] to your network and connect it. 
+# Click the [Smallicon:BUTTONS/chooser_file] __Open floating file chooser__ button to load an image from disk. This *doesn't* have to be a grayscale image.
+# Sometimes, images turn out pale or details are hardly visible. In this case, consider the choose another __Channel__ to enhance contrast.
+# From the __Type__ menu, choose __Mask__.
+# Control the dimensions of the image with __Size > Size__. The value is given in meters and corresponds with the Heightfield SOP's own __Size__ parameters.
+
+If you want to use a COP-based image instead, set __Source__ to __COP__. On the __COP Network__ parameter, click the [Smallicon:BUTTONS/chooser_node] __Open floating file chooser__ button and navigate to the COP node you want to convert into a mask.
+
+It's also possible to [combine|#combine] image-based masks with other, already existing masks. On the __Layering__ section you can find a __Layer Mode__ menu with several options. The image map's content doesn't play a role and Houdini will convert any image into a mask.
+
+[Image:/images/heightfields/masking_file.jpg]
+
+== Noise masks == (noise)
+
+A noise mask is a fast way to create a random mask with spots or areas of different size. Basically, noise masks work like any other noise-based node or function in Houdini. You choose a noise type and then you adjust the noise pattern through various parameters. The main difference to other nodes, e.g. the [Attribute Noise SOP|Node:sop/attribnoise], is the missing __Animation__ section.
+
+* To create a noise mask, add a [HeightField Mask Noise SOP|Node:sop/heightfield_noise] to your network and connect it.
+* With __Element Size__ you can control the noise pattern's size. Smaller values produce more spots. This is a global size factor, while __Scale__ lets you stretch or squeeze the pattern differently along its axes.
+
+As with other types, you can [combine|#combine] noise masks with other, already existing masks. The __Combine Method__ provides several options, e.g. for adding or subtracting masks to create complex patterns.
+
+== Feature masks ==
+
+Terrains have various characteristics like height, slope or curvature. You can use these features for the creation of masks. Feature masks use natural properties, they create convincing results. You can also combine multiple features without losing control. Each feature has its own set of parameters and a customizable ramp.
+
+* Add a [HeightField Mask by Feature SOP|Node:sop/heightfield_maskbyfeature] and connect it.
+* Turn on the feature(s) you want to include to generate the mask and make your adjustments.
+
+Again, you can [combine|#combine] a feature mask with other, already existing masks by the choosing one of the mode from the __Combine with Existing__ dropdown menu.
+
+== Combining masks == (combine)
+
+Most mask-based nodes provide a __Combine with Existing__ dropdown menu that lets you choose from different methods to merge different masks. Now, imagine a scene with two masks, e.g. a HeightField Paint (`A`) and a HeightField Mask By Feature SOP (`B`).
+
+The dropdown menu's default method is __Replace__. When you turn on the blue __Display/Render__ flag for mask `B`, you will only see this mask. Mask `B` replaces mask `A` and the painted mask is no longer visible.
+
+Now, choose __Add__ from the menu. What you get is a combination of mask `A` and `B`. There are also modes for subtracting, multiplying and blending masks, along with some others.
+
+Masks don't have to range between 0 and 1, but you can also apply values greater than 1. The strength of a mask has direct influence on your terrain or its attributes.
+
+== Mask layers == (masklayers)
+
+In many situations you need more than just one mask. The problem, however, is that Houdini's heightfields only have one `mask` layer. What, if you want to create masks for different purposes or effects? What, if you need various types of masks to feed a VEX script? There's a standard workflow for turning a `mask` layer into a new layer.
+
+You start with the creation of a default `mask` layer, for example through a HeightField Mask by Feature SOP. There you choose one of the features like __Mask by Curvature__ and then you want to save the result in a separate `curvature` layer. 
+
+# After you've specified the mask, add a [HeightField Copy Layer|Node:sop/heightfield_copylayer] and connect its input with the output of the mask node.
+# On the copy node, go to __Destination__ and enter the name of the new layer. Here, it's `curvature`.
+# If you don't want to override the original `mask` layer, add a [HeightField Mask Clear SOP|Node:sop/heightfield_layerclear]. This node doesn't delete the `mask` layer, but sets its values to 0.
+
+To make the new `curvature` layer visible, lay down a [HeightField Visualize SOP|Node:sop/heightfield_visualize]. There you can see nine __Layer__ parameters with associated dropdown menus. You can open any menu and choose __curvature__. The layer should appear in the viewport with the corresponding color. If you're not happy with the color, you can change it, of course.
+
+== Clearing masks ==
+
+Clearing a mask doesn't mean that the mask will be [deleted|#delete], but you assign a constant value to each mask point instead.
+
+# Add a HeightField Layer Clear SOP to your network and place it _after_ the node where the mask was used for the last time.
+# Go to __Number of Clears__ and enter the number of masks you want to clear. The node will create a parameter set for each layer/mask you want to work on.
+# Each __Layer (n)__ parameter provides a dropdown menu. From there you can choose the appropriate mask.
+# Use the __Value (n)__ parameter to determine the constant mask value. When you enter `0`, the mask layer will still be present, but won't affect your heightfield operation(s).
+
+== Deleting masks == (delete)
+
+If you want to delete a mask (or any other layer), you can use a [Delete SOP|Node:sop/delete]. Let's assume you've created an `erosionmask` mask. Now you don't need it anymore, so you want to delete it completely and free memory.
+
+# Add and connect a Delete SOP to your network at that point where the mask is no longer required.
+# Go to the __Group__ parameter's associated dropdown menu on the right. From there, choose `erosionmask`. The entry changes to `@name=erosionmask`.
+# If you _only_ want to _keep_ `erosionmask` and delete any other layer (including `mask`, `height`), set __Operation__ to __Delete Non-Selected__.
+
+NOTE:
+    Instead of a Delete SOP you can also use a [Blast SOP|Node:sop/blast].
+
+== Parameter masks ==
+
+You can use masks to drive parameters. Some parameters, for example __Erosion Rate__ or __Deposition Rate__ on the HeightField Erode SOP's __Hydro__ section, have associated dropdown menus. The default choice is __Mask Off__, but when you choose __Mask On__, you'll be able to enter the name of a mask that will control the parameter's influence.

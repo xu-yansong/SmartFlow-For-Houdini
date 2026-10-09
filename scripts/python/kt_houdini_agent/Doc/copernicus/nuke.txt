@@ -1,0 +1,25 @@
+= Copernicus for Nuke(tm) users =
+
+"""Differences between using Nuke and Copernicus."""
+
+== Overview ==
+
+This page is for users that are familiar with Nuke(tm) and want to accomplish similar tasks in Houdini using Copernicus.
+
+NOTE:
+    Copernicus images are always in 3D.
+
+== Display images side by side in a 2048 by 1024 output ==
+
+Use the Contact Sheet COP node if you want to display images beside each other in a 2048 x 1024 resolution output. This node is similar to Nuke's Contact Sheet node and an alternative to its Resize node.
+
+NOTE:
+    All images are centered at the origin in [image space|/copernicus/spaces] (-1 to 1) by default. When you use a 2048 x 1024 resolution output, the images also fit within that resolution. This means that your images overlap by default.
+
+# Add a [Contact Sheet COP|Node:/cop/contactsheet] in your node network.
+# Wire the images as separate inputs into the Contact Sheet COP node. The images are output side by side.
+# (Optional) Configure the Contact Sheet COP node to change the images' stacking orientation.
+
+== STMap node ==
+
+Use the [UV Sample node|Node:/cop/sample] in Copernicus to perform a similar function as Nuke's STMap node.

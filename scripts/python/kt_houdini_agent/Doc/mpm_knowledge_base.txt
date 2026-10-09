@@ -1,0 +1,1324 @@
+## Deformation gradient F
+
+Per point local transformations - elastic component of the deformation gradient
+
+= Deformation gradient F =
+
+### Overview
+
+The deformation gradient attribute `F` is a 3x3 matrix that describes the local deformation. It is made up of two components: 
+
+```
+    F = Fp * Fe
+```
+ 
+`Fp` is the plastic component and `Fe` is the elastic component. The are both multiplied together to form the deformation gradient.
+
+We only care about the `Fe`, as the plastic deformation (`Fp`) will update the rest state of the material.
+
+### Pros and cons
+
+:col:
+    **Pros**
+    
+    - It captures rotation, scaling, and shear. 
+    - It can also be compressed to a quaternion if only orientation is needed, to make it smaller on disk. 
+    - From this matrix, you can extract its determinant. You can compute the volume of the transformation and it will help you detect when the material is either compressing or when it's stretching (`J = Jp * Je)`. Stretching can be associated with fracturing, so it can be very easy to drive secondary emission of debris (`J`). 
+
+:col:
+    **Cons**
+    
+    - The main drawback is the size (3x3 matrix is 9 floats). If you have millions and millions of points, it will be very heavy to cache on disk. 
+
+:Fig:
+    == Plastic and elastic components ==
+
+:Fig:
+
+Figure 1 |
+    Shows a the deformation gradient with no forces applied. The first section shows the amount of critical compression and the second section shows the critical stretch along the X axis. 
+
+Figure 2 |
+    A force from the right is applied and compresses the X axis. Any compression beyond the critical compression value will be considered plastic deformation. Nothing is maintained and tracked by the solver, because you're not trying to recover from it.
+
+Figure 3 |
+    On the next timestep, the solver tries to recover from only the deformation happening in the first section, and creates a new deformation gradient.
+    
+Critical compression and critical stretch are the user defined parameters that drastically affect how the material will behave plastically or elastically.
+
+============================================================
+
+## Destruction: Post fracturing and deforming pieces
+
+Western Pacific Train from Jesper Landin
+
+= Destruction: Post fracturing and deforming pieces =
+
+:fig: 
+    The MPM Post-Fracture fractures the renderable geometry represented in an MPM simulation using the final frame of the simulation. It attempts to fracture the geometry exactly where things are breaking or bending so that the renderable geometry can accurately capture the dynamics of the MPM simulation while preserving all of its original attributes.
+
+The MPM Deform Pieces transfers the dynamics of the MPM simulation onto the renderable geometry. The renderable geometry must first be fractured using the MPM Post-Fracture once you are satisfied with the dynamics of the MPM simulation.
+
+:col: 
+    
+    
+    :col:
+    
+    
+    In comparison with the RBD workflow, this might feel a little bit backward. With MPM, first you get the simulation that you like, then you use the last frame of the simulation to fracture the renderable geometry, and lastly you retarget the dynamics of the MPM simulation onto the fractured geometry. This has the benefit of allowing the geometry to dynamically fracture where it needs to instead of blindly predefining where things can break. On the other hand, you need to refracture the renderable geometry each time the MPM simulation changes.
+
+NOTE:
+    You must always set an __End Frame__ on the MPM Post-Fracture node  because this node is looks at this last frame and evaluates the state of the material, and based on this state ,it's going to fracture the geometry.
+
+WARNING:
+    The deformation gradient `F` needs to be cached for the destruction workflow. It is not by default. You must turn on the __Deformation Gradient (F)__ checkbox on the __Output__ tab of the MPM Solver.
+
+### MPM Post Fracture
+
+Once you set the __End Frame__ on the MPM Post Fracture node, you can turn off the __Perform Fracture__ checkbox temporarily. You will still see guides to give you an general idea of what you're generating, but you don't have to pay the cost of fracturing the geometry every single time you change a parameter.
+
+The __Global Scale__ parameter is another time saving feature, since all of the parameters are scale dependent. For example, if you set up this node for a building to fracture perfectly, you can then apply it to another asset that you want to look exactly the same, even if it's a different size.  You can get the same look for the fractures and same details for the cracks by using this multiplier to adjust everything to scale.
+
+There are three steps (tabs) to configure your fracture. The first step is to define which pieces are going to be fractured, on the __Pieces Selection__ tab. You can set the minimum length for a piece to be considered for fracturing. Anything smaller than this amount will be excluded. If you turn on __Show Guides__, piece large enough to be considered for fracturing will be outlined in green, and pieces that are too small to fracture will be outlined in red.
+
+The second step is to define what MPM points are going to be used to fracture the geometry on the __Fracture Points__ tab. Turning on __Align Fractures to Stretch Points__ is a very useful tool when fracturing metal, as well as other types of materials, as it helps align the cracks in the right place. It uses the immediate neighbors to the points selected by stretch thresholding as piece centroid to be used for the fracturing.
+
+:col: 
+    
+    
+    You can see that the area in green fractures as expected, with one point per piece. The area in red shows isolated points with no neighbors next to them. This creates floating pieces, as you don't know which direction the piece will fold, so the generated crack might look unnatural.
+
+:col:
+    
+    
+    You can see improved alignment between the geometry fractures and the MPM fractures.
+    
+You can also specify the minimum stretching amount for the point to be considered breaking, as well as prevent two overlapping points from being selected. If you have points that are too close to each other, it's going to slow down the fracturing process and can lead to a broken geometry.
+
+All of the white points that are visualized in the example above are not MPM points, but are that are added near the fracturing region to allow the geometry to flex a little bit to avoid having very elongated pieces that will not be transformed properly. Increasing the __Filler Points__ will result in more resolution and nicer bending of the geometry near the fracturing regions.
+
+Lastly, if you have the __Cutter Method__ set to __Boolean__, you can add some resolution in the __Cutter Geometry__ tab. Options on this tab allow you to add more noise, creating a more natural looking fracture.
+
+### MPM Deform Pieces
+
+This node lets you choose how the MPM dynamics will be applied to the fractured geometry with the __Retargeting Type__. It can be used as part of the destruction workflow, or without the MPM Post Fracture node. __Piece (Transform)__ is useful for fracturing something like a smashed watermelon, as it transform each piece of the fractured geometry with a single transformation extracted from the MPM points. __Piece (Deform)__ deforms each point of the fractured geometry with its nearest MPM point at rest, and is often use for debugging. __Piece + Point__ is combination of these two methods, and is driven by the __Stretch Ratio Tolerance__. It defines the amount of piece deformation that will trigger a smooth transition from the deformation to the transformation.  Very high values will be equivalent to using the __Point (Deform)__ type while a value of `0` will be equivalent to using the __Piece (Transform)__ type.
+
+Depending on the type of material you're fracturing, you may need to use this node to make some further adjustments. For example, when fracturing concrete, it's natural to see small cracks where the material hasn't fully broken. However, this looks unnatural when fracturing a material like metal. In this case, you can turn on the __Close Gaps__ checkbox to close cracks that appear when a piece is transitioning from deforming to transforming. This is especially useful when simulating plastically deformable material like metal where things can stretch a fair bit before actually tearing.
+
+:col: 
+    
+    
+    :col:
+
+============================================================
+
+## FAQ
+
+= FAQ =
+
+See the following for questions about when to use MPM vs other solvers.
+
+What license to do need to use MPM?:
+
+    Although MPM is in SOPs, you need DOP level permissions to use it. This means that MPM is available in Houdini FX, Houdini Apprentice, Houdini Indie, and Houdini Education. It is not available in Houdini Core.
+ 
+Why is the metal and concrete preset so slow?:
+
+    Metal and concrete are both very stiff materials, compared to other MPM material types. These require a very high number of substeps, which leads to slow simulation times. MPM wasn't designed to simulate these types of materials, but they are included as presets since it is possible.
+
+How is `pscale` impacting the simulation?:
+
+    It has no impact. The `pscale` attribute is only used for visualization of the spheres in the viewport and the post-simulation meshing.
+
+Is it possible to use MPM at DOP level?:
+
+    Although it is technically possible to do so, since MPM was developed as a DOP Solver, it is intended to be used in SOPs only. If you need DOP-level control outside of what is provided by the Dive Target, you will need to unlock the SOP-level MPM Solver.
+    
+Can I apply forces to MPM?:
+
+    Yes, you can dive inside the MPM Solver and apply POP forces to your MPM simulation.
+
+============================================================
+
+## MPM Configure
+
+= MPM Configure =
+
+There are several MPM Configure examples available through the tab menu. These are similar to shelf tools that put down networks of nodes for learning purposes. The basic __MPM Configure__ example is a good starting point, as it is a simple setup that demonstrates how a typical node tree should be wired together. 
+
+This ready-to-use tool creates a sphere as the source and a box as a collider.
+
+### Important nodes
+
+`mpmsource`:
+    The first branch is the MPM Source, which defines the material you're going to simulate. It is also linked to the MPM Container in the third branch, which drives the resolution. The __Emission Type__ is set to __Once__, so the simulation will only emit particles on the first DOP substep of the simulation.
+    
+`mpmcollider`:
+    The second branch is the MPM Collider, which can either be animated or static. It is also linked to the MPM Container in the third branch, which is the same one that is being linked by the source. This node converts the box into a VDB.
+    
+`mpmcontainer`:
+    The third branch is the MPM Container, which defines resolution of the simulation using the __Particle Separation__ parameter, and allows boundaries to be defined which can either delete or bounce the particles on contact. When you reduce the __Particle Separation__ by half, the resolution increases by a factor of 8.
+    
+`mpmsolver`:
+    All 3 of the components mentioned above feed into the MPM Solver, which does the work of solving the scene.
+
+### Learning from this example
+
+:task: Change the material:
+    Use the __Material Preset__ parameter to easily change between materials such as: snow, soil, mud, concrete, metal, jello, rubber, water, honey, and sand. This will change the parameters and attributes of the material.
+    
+:task: Make the sphere continuously emit the material:
+    Change the __Emission Type__ to __Continuous__, and set the __Activation__ to `1`. This will cause the simulation to continuously emit particles on each DOP substep.
+
+:task: Make the material stick to the collider:
+    In the __Material__ section, there are __Friction__ and __Sticky__ parameters. Increasing the value of the __Sticky__ parameter to `1` will cause the material to stick to the collider as it moves.
+
+:task: Move the particles:
+    Give your particles some __Velocity__. For example, if you set the __Velocity__ to `-1` in the X-axis, they will be thrown to the side instead of falling straight down.
+
+:task: Make the collider animated:
+    # Add a Transform SOP between the `mpmcollider` and the `mpmsolver`.
+    # Set the __Rotate__ parameter on the Y-axis to `$F*10` to make the box spin.
+    # On the MPM Collider, set the __Collider Type__ to __Animated Rigid__.
+
+:task: Increase the resolution of the whole simulation:
+    Decrease the __Particle Separation__ on the MPM Container.
+    
+:task: Increase the resolution of only the collider:
+    Decrease the __Voxel Size__ on the MPM Collider. For example, changing it from `0.1` to `0.05` will give the box more detail, but keep the material resolution the same.
+    
+:task: Turn on boundaries to act as colliders:
+    # On the MPM Container, turn on __All__ in the __Boundaries__ section.
+    # Select __Closed__ from the dropdown menu.
+
+:task: Turn on boundaries to remove particles:
+    # On the MPM Container, turn on __All__ in the __Boundaries__ section.
+    # Select __Delete__ from the dropdown menu.
+    
+:task: Increase the number of substeps based on the speed of the material:
+    Reduce the __CFL Condition__ on the MPM Solver.
+
+:task: Increase the number of substeps based on the type and stiffness of the material:
+    Reduce the __Material Condition__ on the MPM Solver.
+
+============================================================
+
+## MPM Configure Building Collapse
+
+= MPM Configure Building Collapse =
+
+There are several MPM Configure examples available through the tab menu. These are similar to shelf tools that put down networks of nodes for learning purposes. The __MPM Configure Building Collapse__ example illustrates the use of the __Concrete__ material type. It puts down a simple network of nodes to simulate a building being hit by a meteorite and collapsing.
+
+:video:
+    #src: /videos/mpm/mpmconcrete.mp4
+    
+
+### Important nodes
+
+`building_model` and `meteorite`:
+    These are both MPM Sources using the __Concrete__ material preset. The __Density__ and __Stiffness__ on the `meteorite` node is multiplied by 10x and 2x, respectively, so that it's able to break through the building. It also has a strong initial __Velocity__ applied.
+    
+`noise_E_attribute`:
+    This is an Attribute Wrangle node that adds some spatial variation to the stiffness of the building, causing it to collapse in a more interesting way.
+    
+`merge_sources`:
+    A Merge node merges the two MPM sources before feeding them into the solver.
+
+`mpmcontainer`:
+    The MPM Container defines the resolution of the simulation using the __Particle Separation__ parameter. This parameter is increased slightly to increase the resolution of the whole simulation.
+
+`mpmsolver`:
+    On the __Visualize__ tab of the MPM Solver, the __Color From Attribute__ checkbox is turned on, and the `Jp` attribute is being visualized. This is the determinant of the plastic component of the deformation gradient. It basically highlights where things are either stretching (breaking) or compressing in a permanent way. The solver is not going to try to recover from the plastic deformation, as opposed to the elastic deformation. This `Jp` attribute can be used to trigger secondary emission like debris and dust. In this example, you will be able to see the cracks that are being highlighted as the meteorite hits the building.
+    
+`fractured_meteor`:
+    This MPM Post-Fracture fractures the meteor geometry according to its final MPM state at the end of the MPM simulation, which is defined by the __End Frame__ parameter. In the __Fracture Points__ tab, __Align Fractures to Stretch Points__ is turned off to allow each stretching point to be used as a fracture centroid. The fillers' __Point Separation__ has been increased to reduce their amount and the __Maximum Distance__ has been reduced to only add filler points near MPM fracture points. In the __Cutter Geometry__ tab, the __Add Interior Details__ checkbox has been turned on to get more interesting fractures.
+
+`fractured_building`:
+    This MPM Post-Fracture fractures the building according to it's final MPM state at the end of the MPM simulation, which is defined by the __End Frame__ parameter. In the __Fracture Points__ tab, __Align Fractures to Stretch Points__ is turned off to allow each stretching point to be used as a fracture centroid. The fillers' __Point Separation__ has been increased to reduce their amount and the __Maximum Distance__ has been reduced to only add filler points near MPM fracture points. In the __Cutter Geometry__ tab, the __Add Interior Details__ checkbox has been turned on to get more interesting fractures.
+
+`deformed_building`:
+    This MPM Deform Pieces takes the fractured pieces defined by the two upstream MPM Post-Fractures feeding into its first input and deforms them using the MPM particles in the second input, applying the __Point + Piece__ __Retargeting Type__.
+
+### Learning from this example
+
+:task: Visualize the areas of varied stiffness in the concrete:
+    # Select the `noise_E_attribute` node and put the __Display__ flag on it.
+    # Remove the two backslashes in this line of code to bind the noise to the color attribute:
+        `//@Cd = noise;`
+        
+        The concrete is softer in the black areas stiffer in the lighter areas. This variation makes the concrete break apart in a more interesting way when the meteorite collides with it.
+        
+        
+        
+    TIP:
+        You can turn on the __Bypass__ flag on for this node to see how the addition of varied stiffness affects the way the concrete breaks apart.
+
+============================================================
+
+## MPM Configure Jello Party
+
+= MPM Configure Jello Party =
+
+There are several MPM Configure examples available through the tab menu. These are similar to shelf tools that put down networks of nodes for learning purposes. The __MPM Configure Jello Party  __ example illustrates the use of the "elastic" __Jello__ material type. It puts down a simple network of nodes to simulate jello cubes rolling and bouncing around.
+
+:video:
+        #src: /videos/mpm/mpmjello.mp4
+        
+
+### Important nodes
+
+`jello_cubes`:
+    This is the MPM Source that uses the __Jello__ material preset.
+    
+`mpmsolver`:
+    This setup uses a default MPM Solver, which does the work of solving the scene. However, there is a dive target with a `popforce1`, which you can access by double-clicking the node. This POP Force is what makes the jello cubes move.
+    
+`domain`:
+    A box with some padding (geometry), which sets the boundary for the MPM Container. This is an alternative way of setting boundaries for the MPM Container. You could also directly set the __Size__ of the bounding box on the MPM Container node without providing a geometry as input, and set __All__ to __Closed__ bounds.
+
+`mpm_mesh`:
+    The MPM Surface will generate a polysoup representation of the material's surface that is suitable for rendering. The surface is generated using the Neural Point Surface with the __Neural Model__ set to __Balanced__. The `Cd` attribute is transferred to the mesh from the MPM particles. The third input uses the original model at rest to transfer UVs onto the dynamic mesh. The __Adaptivity__ parameter has been set to `0` to prevent frame-to-frame flickering in the UVs.
+
+### Learning from this example
+
+- The purpose of this example is to show that you can use custom forces inside a dive target. You can add more POP forces and connect them to this example to achieve different behavior.
+
+- The DOP network in the dive target will be evaluated once per DOP substep.
+
+- When possible, using Gas OpenCL nodes should lead to better performance than VEX nodes, as it prevents unnecessary copies from the host to the OpenCL device.
+
+============================================================
+
+## MPM Configure Landslide
+
+= MPM Configure Landslide =
+
+There are several MPM Configure examples available through the tab menu. These are similar to shelf tools that put down networks of nodes for learning purposes. The __MPM Configure Landslide__ example illustrates the use of the “chunky” __Soil__ material type. It puts down a simple network of nodes to simulate a cliff chunk made of soil and grass detaching and sliding down a slope.
+
+:video:
+        #src: /videos/mpm/mpmsoil.mp4
+        
+
+### Important nodes
+
+`landslide_soil`:
+    This is the MPM Source that uses the __Soil__ material preset. The main differences are two parameter changes from the default. The __Density__ has been increased to `1500`, the __Compression Hardening__ has been increased to `8`, and the __Stiffness__ has been increased to `5`. This is to make the soil hold together. There is also some initial __Velocity__ added to the soil to help it detach from the cliff.
+    
+`modify_material_attributes`:
+    If you dive inside this subnet there are a few Attribute Wrangle nodes that are used to add details to the soil.
+    
+    `noise_E1`:
+        Adds some spatial variation to the stiffness of the soil by setting bounds for how soft and how stiff the soil can be. 
+    `set_grass_attribs`:
+        Sets up the grass so it behaves differently than the soil beneath. 
+    `set_colors1`:
+        Sets colors to better visualize the grass and soil areas.
+    `tweak_vel`:
+        Modifies the initial velocity set on the MPM Source so that the bottom of the soil is pulled down in the direction of the slope with more intensity than the top, allowing for it to collapse on itself. 
+    `pin_points1`:
+        Pins some points to the surface of the slope collider, which you can visualize when the MPM Solver is selected. This helps with the transition between the sources and the collider, giving it a more organic look.
+
+`slope_smooth` and `slope_sticky`:
+    The slope is split into two MPM Colliders with varying friction. `slope_smooth` represents the sheer face of the slope and has very low __Friction__. This will allow the soil going down the hill to pick up some speed. `slope_sticky` is a collider with much higher friction, which will cause the soil to stick to it and start to tumble and roll as opposed to just sliding down.
+
+`mpmcontainer`:
+    The MPM Container defines the resolution of the simulation using the __Particle Separation__ parameter and sets limits on whether particles should be deleted or bounce on contact with the boundary.    
+    
+`mpmsolver`:
+    This setup uses a default MPM Solver, which does the work of solving the scene.
+
+`soil_mesh`:
+    The MPM Surface will generate a polysoup representation of the material's surface that is suitable for rendering. The surface is generated using the Neural Point Surface with the __Neural Model__ set to __Granular__. The `Cd` attribute is transferred to the mesh from the MPM particles. The third input uses the original model at rest to transfer UVs onto the dynamic mesh. The fourth input uses the static slope collider as a mask to prune polygons that would not be seen at render time to reduce the memory and disk footprint. The __Adaptivity__ parameter has been set to `0` to prevent frame-to-frame flickering in the UVs.
+    
+
+### Learning from this example
+
+:task: Visualize the areas of varied stiffness in the soil:
+    # Dive inside the `modify_material_attributes` subnet and select the `noise_E1` node.
+    # Remove the two backslashes in this line of code to bind the noise to the color attribute:
+        `//@Cd = noise;`
+        
+        The soil is softer in the black areas and stiffer in the lighter areas. This variation makes the soil look more organic.
+        
+        
+        
+    TIP:
+        You can turn on the __Bypass__ flag on for this node to see how the varied stiffness in the soil affects the way the soil behaves.
+        
+:task: Simplify the example:
+    * Bypass the split slope with varying friction nodes (`high_friction_volume`, `sdf_sticky`, and `slope_sticky`) and just use a single collider to see the difference.
+    
+    * Bypass all of the `modify_material_attributes` to see the difference it makes, then add them back one-by-one to see how each achieves a different effect.
+        
+TIP:
+     You can also try changing the input geometry as a way to learn from this example.
+
+============================================================
+
+## MPM Configure Metal Tearing
+
+= MPM Configure Metal Tearing =
+
+There are several MPM Configure examples available through the tab menu. These are similar to shelf tools that put down networks of nodes for learning purposes. The __MPM Configure Metal Tearing__ example illustrates the use of the __Metal__ material type. It puts down a simple network of nodes to simulate a sphere collider ripping through a metal sheet.
+
+:video:
+    #src: /videos/mpm/mpmmetal.mp4
+    
+
+### Important nodes
+
+`metal_sheet`:
+    This is the MPM Source that uses the __Metal__ material preset. However, the __Type__ is set to __Surface__ instead of the default __Volume__. This scatters points on the surface of the input geometry. It also has __Relax Iterations__ of `250` to make sure there is a uniform distribution across the surface that fills as many holes as possible to create a good representation of the surface.
+    
+`frame`, `distance_to_frame`, and `pin_frame`:
+    These nodes highlight the frame of the metal sheet, use a Ray SOP to detect the distance between the frame and sheet, and based on that distance, pin to animation all of the points that are near the edge.
+    
+`sphere_collider`:
+    This is the MPM Collider, which uses the __Animated (Rigid)__ collider type. It allows for very precise collisions as, for each substep, it interpolates the transforms of a single VDB which is both lighter in memory and more accurate than __Animated (Deforming)__ colliders.
+
+`mpmcontainer`:
+    This setup uses a default MPM Container, which defines the resolution of the simulation using the __Particle Separation__ parameter. 
+    
+`mpmsolver`:
+    This setup uses a default MPM Solver, which does the work of solving the scene. The __Material Condition__ is decreased slightly to increase the number of substeps based on the stiffness of the material which fixes some instability in this case.
+
+`fractured_metal_sheet`:
+    This MPM Post-Fracture fractures the metal sheet according to its final state at the end of the MPM simulation, which is defined by the __End Frame__ parameter. The __Global Scale__ parameter has been set to `0.1`, which affects all scale dependent parameters in a single step. In the __Fracture Points__ tab, the filler points parameters have been adjusted to allow proper bending of the metal sheet near tearing areas by adding additional points. __Align Fractures to Stretch Points__ is turned on to center the fractures where points have been identified as fracturing instead of using them as fracture centroids. In the __Cutter Geometry__ tab, the __Add Interior Details__ checkbox has been turned on to get more interesting fractures.
+
+`deformed_metal_sheet`:
+    This MPM Deform Pieces takes the pieces defined by the upstream MPM Post-Fracture feeding into its first input and deforms them using the MPM particles in the second input according to the __Point + Piece__ __Retargeting Type__. __Close Gaps__ is turned on to remove cracks by favoring the output from the __Point (Deform)__ when the per-point difference between the __Piece (transform)__ and __Point (Deform)__ __Retargeting Type__ is small. This is especially useful for metal tearing simulations.
+    
+
+### Learning from this example
+
+:task: Fix instability in the behavior of the material:
+    In some cases, there could be some instability in the simulation where the material requires more substeps than what you're providing, which could result in points that merge or collapse onto each other. The quickest way to solve this is to slightly decrease the __Material Condition__ on the MPM Solver. This reduces the timestep of the solvers which keeps the material stable. In this example, the value was decreased from `0.9` to `0.6`. It is also possible to raise the __Substeps Min/Max__ directly but this will not dynamically adapt to changes in material or resolution.
+
+============================================================
+
+## MPM Configure Pancakes
+
+= MPM Configure Pancakes =
+
+There are several MPM Configure examples available through the tab menu. These are similar to shelf tools that put down networks of nodes for learning purposes. The __MPM Configure Landslide__ example illustrates the use of the "viscous" __Honey__ material type. It puts down a simple network of nodes to simulate a stack of pancakes that's drizzled in syrup (honey) and then cut.
+
+:video:
+    #src: /videos/mpm/mpmhoney.mp4
+    
+
+### Important nodes
+
+`pancakes`:
+    This is the MPM Source that uses the __Rubber__ material preset and __Chunky__ behavior.
+
+`syrup`:
+    This is the MPM Source that uses the __Honey__ material preset with __Continuous__ emission, which starts to emit at frame 10. The default __Viscosity__ is also reduced to make the syrup more runny.
+
+`cutter`:
+    This is the MPM Collider, which uses the __Animated (Rigid)__ collider type. It allows for very precise interpolation of the collider by the solver, as it keeps only one VDB and interpolates between the transforms resulting in very accurate collisions and stickiness on the collider. The __Voxel Size__ is refined to `0.0025` so that it can cut through the rubber material more accurately. 
+
+`mpmcontainer`:
+    This is the MPM Container, which defines the resolution of the simulation using the __Particle Separation__ parameter.
+
+`mpmsolver`:
+    This is the MPM Solver, which does the work of solving the scene. __Assume Unchanging Material Properties__ is turned off because the syrup doesn't start emitting until frame 10. This means that a different number of substeps may be needed than initially determined at frame 1 when the solver is only processing the pancakes. Turning this off allows the solver to reevaluate the __Material Condition__ on every frame which keeps things stable.
+
+`pancake_mesh`:
+    This MPM Surface generates the polysoup representation of the material that is suitable for rendering. It is using the default __Method__ of __VDB from Particles__ along with some __Filtering___ to make the surface smooth. The pancakes are moved in space before surfacing to prevent them from being connected as a single mesh. The color `Cd` and `name` attributes are transferred to the mesh from the MPM particles. The third input uses the original model at rest to transfer UVs onto the dynamic mesh. The __Adaptivity__ parameter has been set to `0` to prevent frame-to-frame flickering in the UVs.
+
+`syrup_mesh`:
+    This MPM Surface generates the polysoup representation of the material that is suitable for rendering. The surface is generated using the Neural Point Surface with the __Neural Model__ set to __Liquid__. The `Cd` attribute is transferred to the mesh from the MPM particles.
+
+### Learning from this example
+
+* If you have the __Emission Type__ set to __Continuous__ on the MPM Source, make sure to turn on __Global Substeps__ on the MPM Solver. Otherwise, your simulation could have stepping. Increasing __Global Substeps__ will create a smoother emission stream.
+
+    :col:
+        
+    :col:
+
+============================================================
+
+## MPM Configure Sand Instances
+
+= MPM Configure Sand Instances =
+
+There are several MPM Configure examples available through the tab menu. These are similar to shelf tools that put down networks of nodes for learning purposes. The __MPM Configure Sand Instances__ example illustrates the use of the __Sand__ material type. It puts down a simple network of nodes to simulate Crag walking through a sandbox.
+
+:video:
+    #src: /videos/mpm/mpmsand.mp4
+    
+
+### Important nodes
+
+`sand`:
+    This is the MPM Source that uses the __Sand__ material preset.
+    
+`crag`:
+    This is the MPM Collider, which uses the __Animated (Rigid)__ collider type. It allows for very precise interpolation of the colliders by the solver, as it keeps only one VDB and interpolates between the transforms resulting in very accurate collisions. The Crag: Test Geometry is made of multiple rigid pieces, and based on the __Name Attribute__, it will figure out that all of these pieces are rigid and create a collider per piece (67 total). This allows you to use very precise collisions with something that looks like it's deforming.
+    
+`mpmcontainer`:
+    This is the MPM Container, which defines the resolution of the simulation using the __Particle Separation__ parameter.
+    
+`mpmsolver`:
+    This is the MPM Solver, which does the work of solving the scene.  The __Material Condition__ is decreased to `0.7` to fix some instability where the material requires more substeps than what is provided by default.
+
+`orient_from_F_and_set_name`:
+    This Attribute Wrangle provides some initial random orientation to the points and extracts the rotation from the deformation gradient. From frame to frame it will extract the rotational component of the deformation gradient and will add it on top of the randomized orientation of the points. This makes the sandbox look more natural by adding more variations.
+    
+`rocks`:
+    The rock geometry to instance onto each point.
+
+`instance_rocks`:
+    This Copy to Points node instances the rocks onto each oriented point.
+
+`transform_rocks`:
+    This MPM Deform Pieces will efficiently transform the packed fragments with the MPM particles' deformation gradient point attribute `F`. The __End Frame__ parameter is set to `100`, which matches the end of the MPM simulation so that the node can validate point count consistency throughout the frame range.
+    
+
+### Learning from this example
+
+The purpose of this example is to show that you can extract orientation information from the deformation gradient to do instancing. It also illustrates that you can decompose a deforming collider into multiple rigidly transforming colliders.
+
+:task: Removed randomized rotation of the rocks:
+    On the `orient_from_F_and_set_name` node, comment out the randomization by adding two forward slashes in front of the rotate lines of code.
+    
+    ```
+        //rotate(rot, fit01(rand(@id%7745), -3.14, 3.14), normalize(fit01(vector(rand(@id%6651)),-1,1)));
+        //rotate(rot, fit01(rand(@id%9531), -3.14, 3.14), normalize(fit01(vector(rand(@id%1232)),-1,1)));
+    ```
+    
+:task: See the randomized rotation of the particles:
+    Click the __Display Particle Origins__ button in the Display Options toolbar.
+    
+    
+    
+:task: See the different shaped rocks:
+    # Append an Exploded View node to the output of the `rocks` node.
+    # Increase the __Uniform Scale__ to spread them out further.
+
+============================================================
+
+## MPM Configure Rolling Snowball
+
+= MPM Configure Rolling Snowball =
+
+There are several MPM Configure examples available through the tab menu. These are similar to shelf tools that put down networks of nodes for learning purposes. The __MPM Configure Rolling Snowball__ example illustrates the use of the "chunky" __Snow__ material type. 
+
+:video:
+    #src: /videos/mpm/mpmsnow.mp4
+
+It puts down a simple network of nodes to simulate a snowball rolling down a slope.
+
+### Important nodes
+
+`snowball`:
+    This is the MPM Source that uses the __Snow__ material preset. The main differences are two parameter changes from the default. The __Density__ has been increased to `900`, to make sure that the snowball has enough weight to sink into the snow of the slope. Additionally, the __Stiffness__ has been increased to `28`, to make sure that the snowball does not collapse on itself and preserves its shape while it's rolling down the slope. There is also some initial __Velocity__ added to the snowball to push it down the hill.
+    
+`snow_slope`:
+    This is another MPM Source, which uses the basic __Snow__ material preset.
+    
+`static_slope`:
+    This is the MPM Collider, which uses the default __Static__ collider type.
+    
+`mpmcontainer`:
+    This setup uses a default MPM Container, which defines the resolution of the simulation using the __Particle Separation__ parameter, and can sets limits on whether particles should be deleted or bounce on contact with the boundary. 
+    
+`mpmsolver`:
+    This setup uses a default MPM Solver, which does the work of solving the scene.
+
+`build_sdf`:
+    The MPM Surface will generate a signed distance field (SDF) representation of the snow's surface, which is required by multiple downstream tasks. Some __Filtering__ options are used to make the surface smoother and more representative of the underlying material.
+
+`build_density`:
+    This MPM Surface will generate the density representation of the snow that is suitable for rendering. It takes the MPM particles as the first input to rasterize the points to a density grid and uses the precomputed SDF as a mask to clip some of the fuzzy details at the surface and add low frequency structures to the snow surface.
+
+`secondary_emission`:
+    This MPM Debris Source will generate the source points used to drive a secondary simulation to add high frequency details to the MPM simulation. Both __Replicate Points__ parameters have been reduced to limit the amount of points to be emitted per frame.
+
+`secondary_sim`:
+    This DOP Network is a simple POP network using the SDF representation of the MPM simulation as a deforming collider.
+
+`build_secondaries_density`:
+    This MPM Surface will rasterize the secondary simulation to a density grid using the same resolution as the `build_density` node through an expression added to the __Voxel Size__ parameter.
+
+`combine_vdbs`:
+    Both density VDBs are combined into a single VDB for efficient rendering.
+
+### Learning from this example
+
+:task: Make the snowball break apart as it rolls down the hill:
+    Decrease the __Stiffness__ parameters on the `snowball` MPM Source node.
+
+============================================================
+
+## MPM Configure Softbody
+
+= MPM Configure Softbody =
+
+There are several MPM Configure examples available through the tab menu. These are similar to shelf tools that put down networks of nodes for learning purposes. The __MPM Configure Softbody__ example illustrates the use of the "elastic" __Rubber__ material type. It puts down a simple network of nodes to turn the pig head test geometry into a rubbery material.
+
+:video:
+    #src: /videos/mpm/mpmrubber.mp4
+    
+
+### Important nodes
+
+`pig`:
+    This is the MPM Source that uses the __Jello__ material preset. __Oversampling__ and __Relax Iterations__ are turned on to pack the points more densely and give them a more even distribution, respectively.
+    
+    It also has __Pin Constraints__ and __Enable Animation__ turned on, which outputs the source points on each frame such that they can be animated downstream before being passed to the MPM Solver. This means that the MPM Solver will look at whatever is happening upstream at every frame and match the changes in position. Having this checkbox turned on means that the points are able to flow from the MPM Source to the MPM Solver, instead of being deleted.
+    
+`isolate_inside_sdf`:
+    This is a Sub-Network that contains some VDB operations to create an SDF of the inner core of the pig model.
+    
+    
+
+`pin_points_to_anim`:
+    This Attribute Wrangle takes all of the points inside of the core and pins them in space, allowing the ears and nose to move around freely.
+
+`anim`:
+    This is the animation of the pig head oscillating on the Y axis.
+
+`mpmcontainer`:
+    This setup uses a default MPM Container, which defines the resolution of the simulation using the __Particle Separation__ parameter.
+
+`mpmsolver`:
+    This setup uses a default MPM Solver, which does the work of solving the scene. Since __Enable Animation__ is checked on the MPM Source, the solver knows that there is only one frame of emission. Only the core is animated and the rest of the points in the pig head are being simulated by the solver.
+
+`pig_head_geo`, `first_frame`, `retarget`, `subdivide`:
+    These nodes are just doing simple point deform retargeting. It looks at the pig head geometry on the first frame and remeshes the points.
+
+`set_name`:
+    Sets a `name` primitive attribute on the geometry to express that it should be treated as a single connected piece.
+
+`deform_pig_head`:
+    This MPM Deform Pieces retargets the MPM animation to the rest geometry using the __Point (Deform)__ __Retargeting Type__. The __End Frame__ parameter is set to match the end of the MPM simulation so that the node can validate point count consistency throughout the frame range.
+    
+
+### Learning from this example
+
+* Select the MPM Solver and angle the camera to look inside the mouth to see the pinned points.
+
+============================================================
+
+## MPM Configure Spinning Tire
+
+= MPM Configure Spinning Tire =
+
+There are several MPM Configure examples available through the tab menu. These are similar to shelf tools that put down networks of nodes for learning purposes. The __MPM Configure Spinning Tire__ example illustrates the use of the "viscous" __Mud__ material type. It puts down a simple network of nodes to simulate a tire spinning around in a mixture of water and mud. It is a good demonstration of two different source materials interacting together in a simulation. It also shows the stickiness you can get between materials and colliders, which can be tricky to achieve with other solvers in Houdini.
+
+:video:
+    #src: /videos/mpm/mpmmud.mp4
+
+### Important nodes
+
+`water` and `mud`:
+    These are the MPM Sources that uses the __Water__ and __Mud__ material preset that are interacting in the scene. They are colored blue (`color_water`) and brown (`color_mud`), respectively, to better visualize the difference between them in the viewport.
+
+`timescale_slowmo`:
+    The expression in the __Frame__ parameter slows down the animation to be the same rate as the MPM Solver. It takes the floating point frame and multiplies it by the __Time Scale__ parameter on the MPM Solver, which is set at 1/10th of the speed (`0.1`). This gives the proper slow motion effect to the wheel.
+    
+`wheel`:
+    This is the MPM Collider, which uses the __Animated (Rigid)__ collider type. It allows for very precise interpolation of the collider by the solver, as it keeps only one VDB and interpolates between the transforms resulting in very accurate collisions and stickiness on the collider. The __Voxel Size__ is also decreased in order to override the simulation resolution defined by the __Particle Separation__ parameter on the MPM Container. This will allow you to have even more modeling details. If you zoom into the tire, you will be able to see the treads. Additionally, __Friction__ is turned up to `10` and __Sticky__ is turned up to `1`, resulting in the mud sticking to and being picked up by the tire.
+    
+`mpmcontainer`:
+    This setup uses a default MPM Container, which defines the resolution of the simulation using the __Particle Separation__ parameter, and sets limits on whether particles should be deleted or bounce on contact with the boundary. The __Boundaries__ are set to __Closed__, and the __Friction__ and __Sticky__ are turned up to `10`. This makes sure the mud sticks to the walls as it's thrown against it.
+
+`noise_viscosity`:
+    An Attribute Wrangle that adds some spatial variation to the viscosity of the mud.
+    
+`mpmsolver`:
+    This setup uses a default MPM Solver, which does the work of solving the scene. The __Material Condition__ is decreased slightly to fix some instability where the material requires more substeps than what is provided by default.
+
+`water_mesh`:
+    This MPM Surface generates the polysoup representation of the water that is suitable for rendering. It is using the default __Method__ of __VDB from Particles__ along with some __Filtering__ to make the surface smooth. The `Cd` attribute is transferred to the mesh from the MPM particles.
+
+`mud_mesh`:
+    This MPM Surface generates the polysoup representation of the mud that is suitable for rendering. It is using the default __Method__ of __VDB from Particles__ along with some __Filtering__ to make the surface smooth. The `Cd` attribute is transferred to the mesh from the MPM particles.
+ 
+
+### Learning from this example
+
+:task: Visualize the noise pattern on the varied viscosity of the mud:
+    # Select the `noise_viscosity` node.
+    # Remove the two backslashes in this line of code:
+        `//@Cd = noise;`
+        
+        This variation improves the look of the mud when thrown by the tire.
+        
+        
+        
+        TIP:
+            You can turn on the __Bypass__ flag on for this node to see how the varied viscosity of the mud affects the way the mud behaves.
+
+:task: Fix instability in the behavior of the material:
+    In some cases, there could be some instability in the simulation where the material requires more substeps than what you're providing, which could result in points that merge or collapse onto each other. The quickest way to solve this is to slightly decrease the __Material Condition__ on the MPM Solver. This reduces the timestep of the solvers which keeps the material stable. In this example, the value was decreased from `0.9` to `0.7`.
+
+============================================================
+
+## MPM Configure Water Glass
+
+= MPM Configure Water Glass =
+
+There are several MPM Configure examples available through the tab menu. These are similar to shelf tools that put down networks of nodes for learning purposes. The __MPM Configure Water Glass__ example illustrates the use of the "liquid" __Water__ material type. It puts down a simple network of nodes to simulate water being poured from one glass into another.
+
+:video:
+    #src: /videos/mpm/mpmwater.mp4
+    
+
+### Important nodes
+`water`:
+    This is the MPM Source that uses the __Water__ material preset.
+
+`anim_glass`:
+    This is the MPM Collider, which uses the __Animated (Rigid)__ collider type. It allows for very precise interpolation of the collider by the solver, as it keeps only one VDB and interpolates between the transforms resulting in very accurate collisions and stickiness on the collider.  The __Voxel Size__ is also decreased to `0.001` in order to override the default resolution defined by the __Particle Separation__ parameter on the MPM Container. This increase in resolution will prevent the water from leaking through the thin walls of the glass. The __Friction__ has also been changed to `0`, so that the water moves over the surface freely.
+
+`static_glass`:
+    This is the MPM Collider, which uses the __Static__ collider type. It allows for very precise interpolation of the collider by the solver, as it keeps only one VDB and interpolates between the transforms resulting in very accurate collisions and stickiness on the collider.  The __Voxel Size__ is also decreased to `0.001` in order to override the default resolution of the __Particle Separation__ parameter on the MPM Container. This increase in resolution will prevent the water from leaking through the thin walls of the glass. The __Friction__ has also been changed to `0`, so that the water moves over the surface freely.
+
+`merge_colliders`:
+    This node merges the two colliders before feeding them into the MPM Solver.
+
+`mpmcontainer`:
+    This is the MPM Container, which defines the resolution of the simulation using the __Particle Separation__ parameter.
+
+`mpmsolver`:
+    This is the MPM Solver, which does the work of solving the scene. It is important to note that __Enable Particle-Level Collisions__ is turned on in the __Collisions__ tab. This allows a second collision step to be performed directly on the material points. It adds some computation, but yields more accurate collisions. The __Material Condition__ is also decreased slightly to fix some instability where the material requires more substeps than what is provided by default.
+
+`water_mesh`:
+    This MPM Surface generates the polysoup representation of the water that is suitable for rendering. The surface is generated using the Neural Point Surface with the __Neural Model__ set to __Liquid__. The `Cd` attribute is transferred to the mesh from the MPM particles.
+
+### Learning from this example
+ 
+ * If you turn off __Voxel Size__ on the MPM Collider, you will see that the top of the glass disappears. This is because the glass is very thin, and requires a smaller __Voxel Size__ to be represented properly inside the solver.
+ 
+ * If you turn off __Enable Particle-Level Collisions__, you will see that the water goes right through the glass. The global resolution of the simulation is too coarse to properly capture the thin walls of the glass. The particle-level correction is the only thing preventing the particles from going through the glass in this case.
+
+* If you look on the __Visualize__ tab of the MPM Solver, you will see that __Color From Attribute__ is turned on, which looks at the speed attribute and shows you how fast the water is moving.
+
+============================================================
+
+## MPM vs other solvers
+
+MPM where the water and sand interact with each other.
+
+= MPM vs other solvers =
+
+### Overview
+
+When to use MPM instead of other solvers is a question that comes up often. The basic answer is that you should use MPM over other solvers if you want multiple materials to interact with each other in the simulation. Currently, MPM is the only solver that can handle this interaction.
+
+MPM was first introduced as a way to efficiently solve elastoplastic "chunky" materials where large chunks are expected to stick together, such as snow and soil. It is best suited for these types of materials, as this effect is very hard to achieve with other solvers.
+
+    
+
+### MPM vs FLIP
+
+MPM is the most similar to FLIP. It uses the same data structure as FLIP, which is particles and background grids. As mentioned above, you should use MPM when you need water to interact with another material. For example, if you have a beach simulation where you need the water and sand to physically interact with each other, you will need to use MPM. However, if you want to simulate a high resolution beach with detailed water where the sand is a static collider, use FLIP.
+
+:col:
+    :video:
+        #src: /videos/mpm/flip_beach.mp4
+        :col:
+    :fig: 
+        FLIP is also better than MPM for handling fluid that has a lot of splashes or other details, since it is well integrated with the whitewater workflow. FLIP is also currently better at handling surface tension.
+
+### MPM vs Bullet
+
+MPM allows you to skip the pre-fracturing step and let the forces do the work for you, similar to the way FEM works. The outputted point cloud resulting from an MPM simulation also yields more interesting fracture patterns compared to tetrahedron. 
+
+However, Bullet is a highly specialized solver for rigid bodies, which makes it more efficient for this kind of work. Metal and concrete are both very stiff materials, compared to other MPM material types. These require a very high number of substeps, which leads to slow simulation times.
+
+MPM can be a better option in cases where multiple materials need to interact together seamlessly, such as concrete falling in water.
+
+### MPM vs Vellum
+
+MPM is very good at keeping large chunks of stiff material together at high resolution, which tends to be hard to do with Vellum. Vellum might crumble more easily, making it harder to create the desired effect. Snow and soil are two very good use cases for MPM. For dry sand, where chunks are not expected, Vellum will usually be a better choice.
+
+Vellum is also more efficient at handling small scale fluid effects, like fluid dripping down collision objects. For example, sweat or blood dripping down a face or body. Grains is also faster to simulate than MPM, and is best for sparse simulations as there is no underlying grid. Both MPM and Vellum can be faster than FLIP for simulating liquids.
+
+============================================================
+
+## Neural point surfacing
+
+NPS vs VDB method. Model courtesy of Iliya Aristov.
+
+= Neural point surfacing =
+
+The Neural Point Surface method takes a point cloud as input and reconstructs a VDB surface from it. It contains multiple specialized pretrained models to yield specific looks depending on the material being surfaced. It allow users to reconstruct smooth surfaces while preserving the sharp, high frequency details described by the point cloud. Both the VDB and NPS model are used by the MPM Surface node.
+
+### Traditional vs Neural workflows
+
+There are advantages and disadvantages to using the Neural Point Surfacing method.
+:col:
+
+    Advantages:
+        * Localized treatment as opposed to morphological operation that have a global effect.
+        * Some desired features are more easily described by examples.
+        * Single node solution makes it easier for artists to get decent looking surfaces quickly. 
+  
+:col:
+  
+    Disadvantages:
+        * Less control - once trained, the model acts as a black box
+        * GPU oriented - CPU bases interference can be very slow.
+
+### Pre-trained models
+
+### Balanced
+
+This is the default. It should perform well in most scenarios and is likely to give the best results when sharp features of solid models must be preserved.
+
+:compare_images:
+    #image1: /images/mpm/nps/balanced_trad.jpg
+    #image2: /images/mpm/nps/balanced_nps.jpg
+    
+    You can see from these images that the sharp features are preserved, the flat surfaces are smooth, and the volume is preserved in the thin material near the base. The VDB method results in the thin plates disappearing and flat areas that are very bumpy.
+    
+
+### Liquid
+
+Optimized to reconstruct liquid simulations. This model will preserve smooth curved surfaces, as well as sharp transitions of waves crashing and rolling. It is also good at reconstructing thin sheets of water by connecting nearby water droplets in a temporally stable manner.
+
+:compare_images:
+    #image1: /images/mpm/nps/liquid_trad.jpg
+    #image2: /images/mpm/nps/liquid_nps.jpg
+    
+    This image shows the differences between the Particle Fluid Surface and Neural Point Surfacing approaches. You can see that the Neural approach achieves sharp edges on the waves, as well as smooth surfaces on flat regions without any undesired noise.
+
+:video:
+    #src: /videos/sopflip/NPS_beach.mp4
+
+### Granular
+
+Optimized to properly capture rough and granular surfaces. This model will try to ignore the loose points near dense surfaces to reduce fuzziness and get more defined shapes while preserving loose points that are fully detached from the surfaces. This is especially useful with __Chunky__ MPM materials.
+
+:compare_images:
+    #image1: /images/mpm/nps/granular_trad.jpg
+    #image2: /images/mpm/nps/granular_nps.jpg
+    
+    This image shows the VDB from Particles reference which appears more fuzzy, compared to the Neural Point Surfacing approach which shows a lot more structure, higher frequency of details, and more variation in the size of the pieces.
+
+:video:
+    #src: /videos/sopflip/NPS_snow.mp4
+
+### Smooth
+
+Optimized for smooth surface reconstruction. This model will lack high frequency details compared to the __Balanced__ model, but can get rid of more bumps across smooth surfaces.
+
+:compare_images:
+    #image1: /images/mpm/nps/smooth_trad.jpg
+    #image2: /images/mpm/nps/smooth_nps.jpg
+    
+    You can see from these images that the volume of the laces are preserved, as well as the holes near the front of the shoe. With the VDB method, as you smooth the mesh to try to reduce this noise on the side of the shoe, you lose all of those high frequency details.
+
+============================================================
+
+## Overview
+
+= Overview =
+
+### Introduction
+
+MPM stands for material point method and is an extension of the FLIP Solver to solid mechanics. It allows the simulation of multiple materials such as snow, soil, mud, concrete, metal, jello, rubber, water, honey, and sand. This two-way coupling lets both of the materials affect each other in the same environment. 
+
+The implementation is based on OpenCL to leverage the powerful GPUs present in most machines. The background grid uses NanoVDB, which is sparse by default. The rebuilding of the background grid is done on the CPU to free up as much memory as possible on the GPU.
+
+MPM makes dynamic fracturing realistic and easy, but everything can eventually break. It can use multiphysics (provided all things are MPM), and is really good at simulating clumpy/chunky materials. It uses a SOP-based workflow, with the option of user defined forces with a dive target. The typical node tree is made up of the following parts.
+
+NOTE:
+    The OpenCL kernels need to compile the first time you run an MPM simulation, so it will be slow. After compiling, it will run much faster.
+
+### MPM components
+
+MPM Source:
+    Defines the material points to be injected in the MPM simulation. This node creates points and sets material point attributes that can be manipulated to add variation on a per-point basis before going into the MPM Solver. It expects a mesh or volume as input, and fills the object with particles holding the material attributes. Many MPM Sources can be merged together before they are passed to the MPM Solver.
+
+MPM Collider:
+    Defines colliders to be used in the simulation. Only VDB colliders are supported. This node can create the VDB representation from a mesh or be provided with a VDB directly. Three types of colliders are supported: static, transformed, and deforming. Many MPM Colliders can be merged together before they are passed to the MPM Solver.
+
+MPM Container:
+    Defines the resolution and start frame of the MPM simulation. For this reason, it must be known by all MPM nodes involved in the solve. The MPM Source, MPM Collider, and MPM Solver all have an input to be connected to this node. This can optionally be done with a dependency link in the __MPM Container__ parameter on these nodes. If you choose to do this, make sure you have __Show for Selected Nodes__ turned on in the __Dependency Link__ section of the __View__ menu in the network editor. You can optionally add boundaries to the simulation container. By default the container is unbounded, but it can be useful to define some limits where material particles are bounced or deleted on contact.    
+    
+MPM Solver:
+    Does the actual work of solving the scene based on the sources and colliders passed to its first and second inputs respectively. It can simulate many material types in a multi-physic context. MPM is an extension of FLIP to solid mechanics that was first introduced to graphics to simulate snow. It is particularly efficient at solving elastoplastic "chunky" materials where large chunks are expected to stick together, such as snow and soil. It is also possible to simulate complex interactions like water carrying large chunks of soil or concrete. It is also where you control the substeps and ground plane.
+    
+See MPM Workflow for more information.
+    
+
+### MPM network layout
+
+You can use the tab menu to put down an __MPM Configure__ for an example of a simple setup. The first branch is the MPM Source, which defines the material you're going to simulate. The second branch is the MPM Collider, which can either be animated or static. The third branch is the MPM Container, which defines the resolution of the simulation and sets limits on whether particles should be deleted or bounce on contact. All of these 3 components feed into the MPM Solver, which does the work of solving the scene.
+
+:col:
+    :fig: 
+
+:col:
+    :fig: 
+
+You can optionally merge multiple sources or colliders into one stream before feeding them into the MPM Solver. The following example shows soil and water colliding with two static and one animated piece of geometry.
+
+:fig: 
+
+:col:
+    :fig: 
+
+:col:
+    :fig: 
+    
+NOTE:
+    The container must be referenced in the __MPM Container__ parameter on all source and collider nodes. You can do this by using the  __Operation Chooser__ dropdown menu, or by dragging the node from the network to the parameter field. Optionally, you can connect it to the second input for each node; however, this could make the network look more cluttered.
+    
+    
+
+There are also other MPM Configure examples where you can put down more complex networks using the different material types. See MPM Configure Examples for more information.
+
+============================================================
+
+## Auto sleep
+
+= Auto sleep =
+
+:video:
+    #src: /videos/mpm/wolf_snow.mp4
+
+The Auto Sleep feature on the solver instructs part of the simulation to be ignored when particles are not moving. This mechanism can speed up the simulation, especially in cases where most of the particles are static for a large portion of the sequence. You can choose whether the particles are initially asleep or awake. If you choose __Passive__, you can the define the __Velocity Threshold__ to get the particle active again (wake them up) and also the __Sleep Delay__ to go back to sleep.
+
+### Breach example
+
+In the following example, there is a spaceship rising up and breaching a surface made up of approximately 6 million particles. For simulation like this, you can get a 1.5x speed up for free when using the auto sleep mechanism.
+
+:col:
+    
+    
+:col:
+    
+
+As the spaceship rises, it hits the particles and you get a visualization of the state of the particles. There are 3 distinct colors that represent the point attribute state. You can find these controls in the __Color From Attribute__ section on the __Visualize__ tab of the MPM Solver. Passive particles correspond to 0 and are represented as purple. Active particles correspond to 1 and are green. The third state corresponds to the number 1 and is the boundary state and is represented by red.
+
+NOTE: 
+    The third state is needed for this to work under the hood, but it's not something that users should manipulate themselves. It is a hybrid state between active and passive.
+
+### Impact activation example
+
+Activating the points based on collision allows you to easily simulate things that would otherwise collapse before impact. You can define the point state as either active or passive directly on the MPM Source.
+
+:col:
+    
+    
+:col:
+    
+
+:col:
+    
+
+In this example, there's a collider going through the leg of Crag, which activates the whole character. This method prevents the particles from settling and starting to crumble before the the simulation actually starts. The reason this is possible in MPM is because of the high number of substeps. With any other solver, you might expect the first frame to activate the knee region, and then activate larger and larger regions of the character. However, since the material is so stiff, the simulation is running with over 200 substeps. This allows propagation all the way to the top of the of the character within a single frame. Once the particles settle, they go back to sleep.
+
+NOTE:
+    The __State__ parameter on the MPM Source allows you to set the particles to be asleep or awake on emission. There is also an option for __None__, which doesn't define anything on the source and uses the default from the solver. If you set it to __Passive__ on the source, but __Active__ on the solver, the particles will be passive since the source settings take precedence over the solver ones. 
+
+### Use cases
+
+It's useful to set particles as passive when you have something like a building that's being hit by a meteorite. If particles are set to active, the building might jiggle as it settles before being hit. In this case, setting them to passive will prevent this. The Crag example is another similar use case. You want Crag to be perfectly still before any impact. Any reaching of equilibrium is hidden by the action of the of the simulation.
+
+Alternatively, if you have a car running through a puddle of water, you would want to set the particles to be initially active to allow the water to settle into a rest/stable state before having the wheel going through it. If you don't activate the particles until the wheel reaches the puddle, you might see the level of water drop as the wheel is going through and it, making it look unnatural. So in cases like this, you need the material to reach it equilibrium first.
+
+In other cases, like the concrete Crag Impact activation example above, you want the model to be perfectly still before any impact. Any reaching of equilibrium is hidden by the action of the of the simulation.
+
+============================================================
+
+## Sourcing debris
+
+= Sourcing debris =
+
+MPM Debris Source extracts points of potential emission for secondary simulations derived from a primary MPM simulation. It detects material stretch and creates source points where the material is breaking to emit secondary simulations such as debris. The output of this node will usually be passed to a POP Solver to perform the secondary simulation using an SDF representation of the MPM simulation as a collider.
+
+The __Prune Points__ section allows you to determine which points you don't want to emit from. For example, the __Minimum Stretching__ parameter looks at the `jp` attribute, where things and breaking and stretching. The image below shows the visualization of the `jp` attribute on a simulation of a snowball rolling down a slope.
+
+You can also set the __Minimum Speed__ so that if something is static, it won't be emitting. __Max Dist to Surface__ ensures that your emissions occur close to the surface for a more natural look of your secondary simulation. __Ratio to Keep__ lets you dial back the amount of emission, if there is too much, and only keep a portion of the points.
+
+The __ Replicate Points__ section looks at the stretching and speed to determine where you may want to generate more secondary points. For example, if something is breaking a lot or going very fast, you may want to generate more points.
+
+============================================================
+
+## Surface tension
+
+= Surface tension =
+
+There are two methods available to compute __Surface Tension__ on the MPM Solver: __Point Based__ or __Grid Based__. Each of these methods have advantages and disadvantages that you will have to consider when choosing one.
+
+### Point based
+
+__Point Based__ surface tension is generally more accurate and stable, but slower than the __Grid Based__ method. This method is better for smaller macro effects like a droplet of water on a leaf. It works well with very strong surface tension values and has less artifacts than the grid based solution.
+
+In an example like this, increasing the Detection Distance parameter on the __Collisions__ tab of the solver can make the droplets stick more strongly to the leaves, creating interesting effects like a droplet hanging off the edge.
+
+TIP:
+    When working with thin colliders, make sure __Enable Particle Level Collisions__ is turned on. This will allow a second collision step to be performed directly on the material points. This adds some computation, but yields more accurate collisions. Choosing  __Velocity-Based Move Outside Colliders__ applies the collision response to the particles' velocity and adjusts the velocity so that the particles are moved outside of the colliders during the next integration step. This is the most accurate way to make sure particles do not sink inside the collider.
+
+:col:
+    
+    
+:col:
+    
+
+With the point based solution you can also vary the surface tension on a per point basis. In this example, each material has their own phase so they won't be attracted to each other, even if they both had surface tension. The green material has a surface tension of 1, so it clumps together. The blue material has a surface tension of 0, so it spreads out quickly. Combining these with phases can create interesting patterns and complex behavior. This only works with the __Point Based__ surface tension, because it uses a per-point attribute to vary in different phases.
+
+:col:
+    
+    
+:col:
+    
+
+### Grid based
+
+__Grid Based__ surface tension is less accurate and stable, but faster than the __Point Based__ method. It is faster for scaling millions of particles, and should be used for larger simulations with a lot of points. Such as simple drip shots where the point count is high. Moderate surface tension values should yield correct results.
+
+:col:
+    
+    
+:col:
+    
+
+### Troubleshooting artifacts
+
+- Occasionally you could run into the issue where a big drop of water falls on the ground and starts slowly moving in one direction. This might occur when the surface tension that is being computed internally is not perfectly balanced, which gives it directionality. You can turn on the __External Force Only__ checkbox to ensure that the forces applied by the surface tension are only external to the drop of water. This should reduce the artifact of having blob of water going in one direction, when it should be static. 
+
+- Surface tension always tries to make the liquid round, and in doing so it pushes against other colliders and shrinks itself, causing it to levitate slightly above the ground plane. To fix this issue, you can set the friction and the stickiness very high on the ground plane. 
+
+-
+
+============================================================
+
+## Surfacing
+
+Sledge Hammer by MaX3Dd. Pumpkin Scan by Arkify 3D.
+
+= Surfacing =
+
+:fig: 
+    MPM Surface SOP creates a surface based on a MPM simulation. It can output VDBs as well as polygon meshes. This node comes with many functionalities to streamline the process of turning your MPM simulation into renderable geometry. 
+
+You can choose your __Output Type__ as well as the __Method__. The __Neural Point Surface__ method uses the Neural Point Surface node to generate the `surface` grid using a pre-trained neural network. This is the newer and more experimental approach, but gives good results out of the box if you have a high-end graphics card. 
+
+The __VDB from Particles__ method uses a combination of VDB morphological operations to generate the `surface` grid. This is the more robust and traditional approach, however you will most likely need to tweak the parameters to get the desired look. This method is generally preferred if you have a lower end or mid-end GPU, or when you are dealing with very large simulations involving millions of particles.
+
+Another useful feature is the ability to partition the point cloud so that large point clouds can be processed on OpenCL devices with limited amount of memory. However, this option should only be turned on if your OpenCL device (GPU) is running out of memory while cooking the node, as it may degrade performance and should be used if necessary. This option is only available when using the __Neural Point Surface__ method.
+
+:col: 
+    
+    
+    :col:
+    
+    
+    There are also some unique inputs on this node to be aware of. The second input takes the output of the MPM Surface, which is useful to split the SDF creation from the polygon mesh creation in two separate steps. For example, if you need a collider representation of the MPM particles for secondary simulation, this prevents you from having to recompute everything from scratch since you will already have a representation of the surface as a volume and the velocity field. To save on computation, you can just take the output of one MPM Surface node and plug it into the second input of another MPM Surface node. It allows you to cache the SDF representation as a collider for another simulation, and then cache the version you need for rendering.
+
+The third input takes the renderable geometry used by the MPM Source. This is useful when you want to transfer UVs. You can provide the source model at its rest position, and when connected to the third input, you can transfer UVs per island.
+
+The fourth input uses a VDB `surface` used as a mask to prune polygons that would not be visible at render time. In the landslide example, you could use the slope as a mask to reduce the amount of polygons generated by the MPM Surface.
+
+See Neural point surfacing for more information.
+
+============================================================
+
+## Troubleshooting
+
+= Troubleshooting =
+
+:task: Control the quality (level of detail) of the simulation:
+
+    Increase the __Particle Separation__ parameter on the MPM Container. This parameter drives the quality of the sources, colliders, and solver. A smaller particle separation will result in more details, the same way it does with FLIP.
+
+:task: Get precise and fast animated colliders:
+
+    Always use the __Animated (Rigid) __ __Collider Type__ when possible. This provides very precise interpolations between frames. 
+    
+    If you look at the MPM Configure Spinning Tire example, the material is being moved using just friction, without needing to add any custom velocity fields.
+    
+    :video:
+        #src: /videos/mpm/mpmmud.mp4
+    
+:task: Prevent MPM particles from going through thin colliders:
+
+    # Increase the __Voxel Size__ in the __Geometry__ section of the MPM Collider. This will override the global resolution and allow you to create a finer mesh for your geometry.
+    
+        :col: 
+            
+            Original mesh
+        :col:
+            
+            Finer mesh after increasing the Voxel Size
+        
+    # In the __Advanced__ tab of the MPM Solver, turn on the __Enable Particle-Level Collisions__ checkbox. This will allow a second collision step to be performed directly on the material points. This adds some computation, but yields more accurate collisions.
+    
+    # Choose __Velocity-Based Move Outside Colliders__ from the dropdown. This option applies the collision response to the particles' velocity and adjusts the velocity so that the particles are moved outside of the colliders during the next integration step. This is the most accurate way to make sure particles do not sink inside the collider but can lead to instability.
+    
+        For an example of thin colliders, see the MPM Configure Water Glass example.
+    
+        :video:
+            #src: /videos/mpm/mpmwater.mp4
+
+:task: Get smooth continuous emission without stepping artifacts:
+
+    On the MPM Solver, increase the __Global Substeps__ parameter in the __Iterations__ section of the __Solver__ tab. This will create a smoother emission stream.
+    
+    :col: 
+        
+        Before increasing the Global Substeps
+    :col:
+        
+        After increasing the Global Substeps
+        
+:task: Get continuous emission to fill and overflow a container:
+
+    On the MPM Source, turn on the __Overlapping Expansion__ checkbox. 
+    
+    By default, MPM doesn't allow overlapping particles. This creates unexpected behavior when trying to fill a container by continuous emission, as you won't be able to source points on top of the already existing points. Turning on __Overlapping Expansion__ will create internal pressure in the emitter and it will force the particle to move away from each other, which will create gaps and those gaps will be able to be filled by the emitter in the simulation. Note that this is not restricted to liquids.
+    
+    :col: 
+        
+        Water filling a glass
+    :col:
+        
+        Chunky material filling a glass     
+        
+:task: Apply forces to the simulation:
+
+    Although MPM is in SOPs, you can dive inside the MPM Solver and set up custom forces using a POP Wrangle DOP.
+    
+:task: Simulate thin objects like a sheet of metal or a hollow object:
+
+    In the __Points from Geometry__ section there is a __Type__ parameter that's set to __Volume__ by default, which fills the geometry with particles. Changing this to __Surface__ will instead cover the geometry surface with particles. However, the scatter may cause holes to appear in the geometry, which could make it difficult to render or retarget. Turn on __Relax Iterations__ to more evenly distribute the particles.
+
+    :col: 
+        
+        Before turning on Relax Iterations
+    :col:
+        
+        After turning on Relax Iterations
+    :col:
+        
+        Hollow Squab dropped on a box
+    
+    :video:
+        #src: /videos/mpm/mpmmetal.mp4
+        
+:task: Pin particles in space to prevent them from moving:
+    Use the parameters in the __Pin Constraints__ section of the MPM Source to achieve this effect.
+    
+    The MPM Configure Softbody example is a great demonstration of how to pin a __Point Group__. The inner points are isolated, and an Attribute Wrangle is used to pin the core points in space, allowing the ears and nose to move around freely.
+    
+    :video:
+        #src: /videos/mpm/mpmrubber.mp4
+
+:task: Prune out points shooting outside of the visible simulated domain:
+
+    # On the MPM Container, change the __Geometry Type__ to __Convex Geometry__ and set the __Boundaries__ to __Delete__.
+    
+    # Wire in an Object Merge SOP that references a camera frustum to use as the bounding box.
+    
+    This is useful if you have something exploding or has a lot of splash.
+    
+    :col: 
+        
+    :col:
+        
+
+:task: Reduce the effect of materials sticking to each other:
+
+    Reduce the __Grid Scale__ in the __Resolution__ section of the MPM Container.
+
+    The background grid is shared when there are two materials simulated together. When you have two points very close to each other, the material will behave half like material A and half like material B within the voxel because they're sharing the material property. Reducing the __Grid Scale__ will reduce the bleeding between materials.
+    
+    In the following example, water is dropped onto a mound of soil, but it does not run off as expected. Changing the __Grid Scale__ to __1__ means the voxel will be roughly the same size as the particle. Once we do this, the water is able to run off and even carry some of the soil particles with it, creating a more realistic look.
+
+    :col: 
+        
+        Before changing the Grid Scale
+    :col:
+        
+        After changing the Grid Scale
+
+:task: Run a simulation in slow motion:
+
+    # Reduce the __Time Scale__ parameter on in the __Iterations__ section of the MPM Solver. A value of `0.1` will make it 10 times slower.
+    
+    # Add a Time Shift SOP between the MPM Collider and MPM Solver.
+    
+    # Turn off the __Integer Frames__ checkbox.
+    
+    # Set the __Frame__ to multiply the floating point frames by the timescale.
+        `$FF*ch("../mpmsolver/timescale")`
+        
+    For an example of how to set this up, see the MPM Configure Spinning Tire example.
+
+:task: Make the simulation run faster:
+    Reduce the __Substeps Max__ parameter in the __Iterations__ section of the MPM Solver. 
+    
+    You can do this if you feel like the system is too conservative and you could get similar results with lower substeps. However, lowering this value too much can cause the simulation to become unstable.
+    
+    You could also try increasing the __CFL Condition__ and __Material Condition__, which would relax the velocity and stiffness constraints and could speed up the simulation.
+
+:task: Fix wiggling in materials that should not wiggle (such as wet sand):
+    Increase the __Stiffness (E)__ in the __Material__ section of the MPM Source node and decrease the __Cohesion__ by the same factor. 
+    
+    For example, you can multiply each existing value by `0.01`. This should give you a result that is very close to the original, without the wiggling.
+
+:task: Fix bouncing in materials that should not bounce (such as snow):
+    Increase the __Critical Compression__, __Critical Stretch__, and __Stiffness (E)__ in the __Material__ section of the MPM Source node. 
+    
+    This will make the material compress a little more, but will get rid of the bouncing when it settles.
+    
+:task: Fix fast moving particles from collapsing mid-air or creating a staircase pattern around the edges:
+    Increase the __Max Voxel Dilation__ in the __Simulation__ section of the MPM Solver. 
+    
+    Since the simulation is sparse, sometimes the background grid doesn't extend fast enough to keep up and cover the area where the particles are going, when they are moving very quickly. This can cause the shape of the material to collapse and show the pattern of the voxels. Increasing this value will expand the active region. The reason the max value is low by default is to account for cases where you have crazy explosions with particles that are flying out of the simulation. The active regions are clamped to avoid running out of GPU memory and the simulation crashing.
+
+    :col: 
+        
+        Before increasing the Max Voxel Dialation
+    :col:
+          
+        After increasing the Max Voxel Dialation  
+
+:task: Fix a simulation where materials have changing properties and become unstable:
+
+    Turn off the __Assume Unchanging Material Properties__ checkbox on the __Advanced__ tab of the MPM Solver. 
+    
+    By default the MPM Solver assumes that material properties are constant throughout the simulation. This is an optimization that prevents the solver from recomputing the __Material Condition__ on every frame. However, if you have material properties that change as the simulation runs, it could become unstable if the substeps aren't adjusted appropriately. Turning this off will slow down the simulation, but will ensure stability by keeping the __Material Condition__ consistent.
+    
+:task: Get some MPM particles to follow an animated target:
+
+    In the __Pin Constraints__ section of the MPM Source node, turn on the __Initialize as Pinned__, __Enable Animation__, and __Use Input Animation__ checkboxes.
+
+    :col: 
+        
+        Before pinning points to animation
+        
+    :col:
+        
+        After pinning points to animation
+
+:task: Create a collider with variable friction:
+
+    # Connect your collision object to an MPM Collider and set the desired __Friction__.
+    
+    # Create a second branch from your original collision object and use an Attribute Paint SOP to paint areas where you want more friction.
+    
+    # Use a Scatter SOP to scatter points on the painted areas by turning on __Density Attribute__ and using the `mask` attribute.
+    
+    # Use a VDB from Particles node to turn it into a VDB and wire it into a second MPM Collider. 
+    
+    # Set the second __Friction__ on the second MPM Collider. In the following example, a __Friction__ value of `0` was used for the slope (first MPM Collider) and a value of `10` was used for the painted areas (second MPM Collider).
+    
+    # Merge the two MPM Colliders with a Merge SOP and connect it to the second input of your MPM Solver.
+
+    :col: 
+        
+        No friction
+        
+    :col:
+        
+        Painted areas have friction
+        
+:task: Easily point deform non-fracturing objects (such as rubber or jello):
+
+    # Use a Time Shift and Point Deform after the MPM Solver to re-target your original geometry onto the simulated MPM points. 
+    
+    # Connect the Time Shift node to the output of the MPM Solver, and second input of the Point Deform.
+    
+    # Set the __Frame__ value to `1` to freeze on the rest frame. You can do this by right-clicking the parameter field and selecting __Delete Channels__. Then type `1` to reference the first frame.
+    
+    # Connect the first input of the Point Deform to the output of your original source geometry, and connect the third input to the output of the MPM Solver.
+
+:task: Add variation to the way the material behaves and fractures:
+    
+    You can do this using an Attribute Wrangle SOP.
+
+    ```exp
+    float noise = fit(abs(snoise(@P*5,5,0.5,1)), 0, 0.25, 0, 1);
+    @E *= fit01(noise, 1, 4);
+    ```
+    
+    For example, this code generates a noise value, then scales it and stores it as `noise`. It scales the noise value again and multiplies it by the attribute `@E`, which is the __Stiffness (E)__ (Young's modulus). This results in the MPM Source fracturing in a less uniform way.
+
+============================================================
+
+## MPM Workflow
+
+= MPM Workflow =
+
+MPM networks are made up of 4 components: MPM Source, MPM Collider, MPM Container, and MPM Solver. The set up is pretty straightforward, as the first three nodes are wired into the solver, respectively.
+
+### MPM Source
+
+The MPM Source creates MPM particles from a geometry mesh or volume and defines the material type to be used for the simulation. The __Material Preset__ parameter is the most important one to be aware of when first putting down this node. It provides you with a selection of preset materials to quickly get a starting point when setting up a new simulation. These include the following material types: snow, soil, mud, concrete, metal, jello, rubber, water, honey, and sand. Different materials types will be slower or faster to simulate. For example, concrete is much stiffer than snow or water, so it requires more substeps and takes longer to simulate. If you have multiple source materials in the same simulation, the number of substeps will be driven by the stiffest material.
+
+The next thing you will want to set is whether or not the emission occurs __Once__, or is __Continuous__ using the __Emission Type__ dropdown menu.
+
+:col:
+    :fig: 
+    
+:col:
+    :fig: 
+    
+    
+
+### MPM Collider
+
+The MPM Collider has three collider types: static, transforming, or deforming. You can also choose whether the material is bounced or deleted once it hits the collider. It is important to note that only VDB colliders are supported. This node can create the VDB representation from a mesh or be provided with a VDB directly.
+
+:task: Set up a static collider:
+    Set the __Collider Type__ is set to __Static__.
+    
+    This is the default MPM Collider, as it is the most efficient. It is represented by a single VDB `surface` in memory throughout the simulation.
+    
+:task:  Set up a transforming collider:
+    # Use a Transform SOP between your object and the MPM Collider and keyframe some transformations. For example, you can use the expression `$FF*10` in the Y value of the __Rotate__ parameter to cause your collider to rotate around the Y-axis.
+
+    # Set the __Collider Type__ to __Animated (Rigid)__.
+    
+    This is the most efficient of the animated colliders and it is extremely accurate as the transformation is interpolated between frames for each substep. It is represented by a single VDB along with a transformation matrix. Only the rigid transformation is updated per frame as the VDB `surface` never changes.
+    
+:task: Set up a deforming collider:
+    # Connect some deforming geometry to the MPM Collider.
+    
+    # Set the __Collider Type__ to __Animated (Deforming)__.
+    
+    This should only be used over the __Animated (Rigid)__ type when actual deformation is taking place, as it is the most expensive of the two. It is represented by a pair of `surface` and `vel` VDBs that must be updated on each frame. The fields are also interpolated between frames to yield better results, which requires two pairs of VDB to be uploaded on the OpenCL device per frame.
+    
+:task: Make the material stick to the collider:
+    In the __Material__ section, there are __Friction__ and __Sticky__ parameters. Increasing the value of the __Sticky__ parameter to `1` will cause things to stick to it as it moves.
+    
+    For an example of this, use the tab menu to put down the MPM Configure Rolling Snowball example.
+ 
+
+### MPM Container
+
+The MPM Container defines the resolution and start frame of the MPM simulation, which means it must be connected to all MPM nodes involved in the solve. The MPM Source, MPM Collider, and MPM Solver all have an input to be connected to this node. This can optionally be done with a dependency link in the __MPM Container__ parameter on these nodes. If you choose to do this, make sure you have __Show for Selected Nodes__ turned on in the __Dependency Link__ section of the __View__ menu in the network editor.
+
+The parameters in the __Resolution__ section are very important, because this is where you set the global particle separation used to drive the resolution of the whole simulation. The __Particle Separation__ parameter not only sets the level of detail for the source, but also the collider. The __Grid Scale__ parameter multiplies the __Particle Separation__ to define the voxel width `dx` of the background grid. The default of `2` will pack `8` particles per voxel on average.
+
+You can optionally add boundaries to the simulation container. By default the container is unbounded, but it can be useful to define some limits where material particles are bounced or deleted on contact. You can do this in the __Boundaries__ section of the node.
+        
+
+### MPM Solver
+   
+The MPM Solver does the actual work of solving the scene based on the sources and colliders passed to its first and second inputs respectively. 
+
+There are two types of substeps on this node: __Global Substeps__ and __Substeps Min/Max__. The __Global Substeps__ are the number of DOP substeps for each simulated frame. This should generally be kept to `1` for performance reasons, but could be increased to achieve smooth continuous emission. The __Substeps Min/Max__ set limits on the minimum and maximum number of substeps. The solver dynamically picks the lowest substep count based on the type and speed of the material. Although the max value is set at 10,000 by default, it doesn't mean 10,000 are necessarily being used. You can see the actual substep count on the outputted geometry as a detail attribute. The high default value is to account for stiffer materials, like concrete or metal, that will require more substeps and are expected to be slow.
+
+    TIP:
+        When facing instability, it is recommended to look at the MPM Solver's detail attributes to find the number substeps actually being computed on each frame. Using this information, it is often easy to raise the minimum substeps or reduce the __CFL__ / __Material Condition__ to prevent it from dipping below a certain number which will often solve the issue.
+
+    NOTE:
+        Both the __CFL__ and __Material Conditions__ impose their own independent constraint on the maximum timestep allowed. The most strict constraint will drive the timestep while the more permissive one will have little impact. This means that, when simulating very stiff materials (bounded by the __Material Condition__ like metal or concrete), objects will be allowed to move relatively fast without noticeable changes on the number of substeps required by the __CFL Condition__.
+        
+You can optionally apply forces like gravity, air resistance, and wind in the __Forces__ section. You can also turn on a ground plane that have extra parameters to control friction and stickiness, which is useful if you want to simulate something like snow sliding down a slope. 
+
+The parameters on the __Visualize__ tab let you see the container, colliders, ground plane, and background grid.
+
+You can also dive inside the The MPM Solver and add custom forces. This network will be evaluated once per frame. When possible, using Gas OpenCL nodes should lead to better performance than VEX nodes as it will prevent unnecessary copies from the host to the OpenL device.
+
+For more information, see the Troubleshooting page.

@@ -31,6 +31,27 @@ pc.initWindow()
           ]]>
         </scriptCode>
       </scriptItem>
+
+      <scriptItem id="sf_houdini_agent">
+        <label>Houdini Agent</label>
+        <scriptCode><![CDATA[
+from importlib import reload
+from kt_houdini_agent import launcher
+reload(launcher)
+launcher.show_tool(ui="external")
+        ]]></scriptCode>
+      </scriptItem>
+
+      <scriptItem id="sf_houdini_agent_start_mcp">
+        <label>Start MCP</label>
+        <scriptCode><![CDATA[
+import start_mcp_server
+from importlib import reload
+reload(start_mcp_server)
+ok, message = start_mcp_server.start_in_houdini()
+print("[SF Houdini Agent]", ok, message)
+        ]]></scriptCode>
+      </scriptItem>
     </subMenu>
   </menuBar>
 </mainMenu>

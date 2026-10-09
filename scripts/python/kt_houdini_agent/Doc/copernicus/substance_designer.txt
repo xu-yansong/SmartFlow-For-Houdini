@@ -1,0 +1,79 @@
+= Copernicus for Substance 3D Designer(tm) users =
+
+"""Differences between using Substance 3D Designer and Copernicus."""
+
+== Overview ==
+
+This page is for users that are familiar with Substance 3D Designer(tm) and want to accomplish similar tasks in Houdini using Copernicus.
+
+== Nodes ==
+
+The following table outlines where to find certain Substance 3D Designer node operations in Copernicus. For more information, see [COP nodes|/nodes/cop/index].
+
+Substance 3D Designer ||
+    Copernicus ||
+
+Distance node |
+    [Feather|Node:/cop/feather] and [Extrapolate Boundaries|Node:/cop/extrapolateboundaries] nodes
+
+    See [Distance node|#distance] for more information about how to configure these COPs so they act like a Distance node.
+
+Gradient nodes |
+    Ramp nodes
+
+Histogram nodes |
+    Remap nodes
+
+Flood Fill nodes |
+    [Segment by Connectivity|Node:/cop/segmentbyconnectivity] and [UV Map by ID|Node:/cop/uvmapbyid] nodes
+
+== Use cases ==
+
+The following are examples of how to set up certain COP nodes so that they work similarly to the relevant Substance 3D Designer nodes.
+
+=== Distance node === (distance)
+
+A common workflow in Substance 3D Designer is to make edges and then add those edges to a flood fill. This often results in ragged edges. As an alternative to their Distance node, you can use the Feather COP or Extrapolate Boundaries COP to clean up the edges' outline.
+
+==== Feather COP ====
+
+The following is an example of how to clean up the outlines of edges with the Feather COP.
+
+# Create a [Tile Pattern COP|Node:/cop/tilepattern] in your Copernicus network.
+# Add a [Feather COP|Node:/cop/feather].
+# Wire the Tile Pattern COP's `tiles` output into the Feather COP's `source` input.
+# In the Feather COP, set __Feather Direction__ to `Circle`. This creates smoother results.
+# (Optional) Turn on the __Feather from High to Low__ parameter to expand the outer edges of the pattern shape into the background.
+# Adjust the __Distance for Unit Change__ parameter until you get the desired output.
+
+You can also use the Feather COP to expand and shrink shapes.
+
+# Create a [Tile Pattern COP|Node:/cop/tilepattern] in your Copernicus network.
+# Add a [Feather COP|Node:/cop/feather].
+# Wire the Tile Pattern COP's `tiles` output into the Feather COP's `source` input.
+# In the Feather COP, adjust the __Distance for Unit Change__ parameter until you get the desired output.
+# Add a [Remap COP|Node:/cop/remap].
+# In the Remap COP, set __Operation__ to `Threshold` and __Threshold When__ to `Greater`.
+# Adjust the __Threshold__ parameter until you get the desired output.
+# Wire the Feather COP's `feather` output into the Remap COP's `source` input.
+# Turn on the Remap COP's display flag and select the Feather COP.
+# Turn the __Feather from High to Low__ parameter on to expand the outer edges of the pattern shape into the background or off to shrink the outer edges of the pattern shape inwards.
+
+==== Extrapolate Boundaries COP ====
+
+The following is an example of how to clean up the outlines of edges with the Extrapolate Boundaries COP.
+
+# Create an [Extrapolate Boundaries COP|Node:/cop/extrapolateboundaries] in your Copernicus network.
+# Wire the design into the Extrapolate Boundaries COP's `source` input.
+# Wire the base shape into the Extrapolate Boundaries COP's `fillarea` input.
+    TIP:
+        To smooth small segments that can produce grainy artifacts, apply a [Blur COP|Node:/cop/blur] to the base shape before you wire it into the `fillarea`.
+# Wire the cracks into the Extrapolate Boundaries COP's `mask` input. This makes the blending stay within the cracks.
+# In the Extrapolate Boundaries COP, set __Exterior__ to `Unchanged`.
+# Adjust the __Threshold__ and __Edge Padding__ parameters until you get the desired output. See the following image for an example.
+
+    NOTE:
+        If your `fillarea` input is the inverse of your `source` input, you can adjust the Extrapolate Boundaries COP's __Edge Padding__ to make each dot's value expand outwards until it reaches the next expanding dot's edge. For example, you can do this to create cell patterns.
+
+    :fig: [Image:/images/copernicus/extrapolate_boundaries_distance.jpg]
+        #display: half

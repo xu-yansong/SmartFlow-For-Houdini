@@ -1,0 +1,60 @@
+= MPM Configure =
+
+There are several MPM Configure examples available through the [tab menu|/basics/tabmenu]. These are similar to [shelf tools|/shelf/index] that put down networks of nodes for learning purposes. The basic __MPM Configure__ example is a good starting point, as it is a simple setup that demonstrates how a typical node tree should be wired together. 
+
+[Image:/images/mpm/nodesetup_viewport.jpg]
+
+This ready-to-use tool creates a sphere as the source and a box as a collider.
+
+== Important nodes ==
+
+`mpmsource`:
+    The first branch is the [MPM Source|Node:sop/mpmsource], which defines the material you're going to simulate. It is also linked to the [MPM Container|Node:sop/mpmcontainer] in the third branch, which drives the resolution. The __Emission Type__ is set to __Once__, so the simulation will only emit particles on the first DOP substep of the simulation.
+    
+`mpmcollider`:
+    The second branch is the [MPM Collider|Node:sop/mpmcollider], which can either be animated or static. It is also linked to the [MPM Container|Node:sop/mpmcontainer] in the third branch, which is the same one that is being linked by the source. This node converts the box into a VDB.
+    
+`mpmcontainer`:
+    The third branch is the [MPM Container|Node:sop/mpmcontainer], which defines resolution of the simulation using the __Particle Separation__ parameter, and allows boundaries to be defined which can either delete or bounce the particles on contact. When you reduce the __Particle Separation__ by half, the resolution increases by a factor of 8.
+    
+`mpmsolver`:
+    All 3 of the components mentioned above feed into the [MPM Solver|Node:sop/mpmsolver], which does the work of solving the scene.
+
+== Learning from this example ==
+
+:task: Change the material:
+    Use the __Material Preset__ parameter to easily change between materials such as: snow, soil, mud, concrete, metal, jello, rubber, water, honey, and sand. This will change the parameters and attributes of the material.
+    
+:task: Make the sphere continuously emit the material:
+    Change the __Emission Type__ to __Continuous__, and set the __Activation__ to `1`. This will cause the simulation to continuously emit particles on each DOP substep.
+
+:task: Make the material stick to the collider:
+    In the __Material__ section, there are __Friction__ and __Sticky__ parameters. Increasing the value of the __Sticky__ parameter to `1` will cause the material to stick to the collider as it moves.
+
+:task: Move the particles:
+    Give your particles some __Velocity__. For example, if you set the __Velocity__ to `-1` in the X-axis, they will be thrown to the side instead of falling straight down.
+
+:task: Make the collider animated:
+    # Add a [Transform SOP|Node:sop/xform] between the `mpmcollider` and the `mpmsolver`.
+    # Set the __Rotate__ parameter on the Y-axis to `$F*10` to make the box spin.
+    # On the [MPM Collider|Node:sop/mpmcollider], set the __Collider Type__ to __Animated Rigid__.
+
+:task: Increase the resolution of the whole simulation:
+    Decrease the __Particle Separation__ on the [MPM Container|Node:sop/mpmcontainer].
+    
+:task: Increase the resolution of only the collider:
+    Decrease the __Voxel Size__ on the [MPM Collider|Node:sop/mpmcollider]. For example, changing it from `0.1` to `0.05` will give the box more detail, but keep the material resolution the same.
+    
+:task: Turn on boundaries to act as colliders:
+    # On the [MPM Container|Node:sop/mpmcontainer], turn on __All__ in the __Boundaries__ section.
+    # Select __Closed__ from the dropdown menu.
+
+:task: Turn on boundaries to remove particles:
+    # On the [MPM Container|Node:sop/mpmcontainer], turn on __All__ in the __Boundaries__ section.
+    # Select __Delete__ from the dropdown menu.
+    
+:task: Increase the number of substeps based on the speed of the material:
+    Reduce the __CFL Condition__ on the [MPM Solver|Node:sop/mpmsolver].
+
+:task: Increase the number of substeps based on the type and stiffness of the material:
+    Reduce the __Material Condition__ on the [MPM Solver|Node:sop/mpmsolver].

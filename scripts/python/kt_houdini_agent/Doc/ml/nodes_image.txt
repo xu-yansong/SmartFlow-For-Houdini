@@ -1,0 +1,23 @@
+= ML-related nodes for images =
+
+These ML-related nodes incorporate ML in their process or end product, either through training data or during inference. They are not intended as building blocks for ML pipelines.
+
+[ML Train Style Transfer TOP|Node:top/ml_trainstyletransfer] |
+    #width: 25%
+
+    Trains a machine learning model for doing style transfer between two classes of images. The resulting model can be used with [ONNX Interface SOP |Node:sop/onnx] or [ONNX Inference COP |Node:cop/onnx].
+
+[ML Train OIDN TOP|Node:top/ml_trainoidn] |
+
+    A wrapper around the OIDN training script used to train an OIDN denoising filter model on preprocessed training and validation datasets. Generally, you should use this node with [Preprocess OIDN|Node:top/partitionbyexpression].
+
+
+[ML Preprocess OIDN TOP|Node:top/ml_preprocessoidn] |
+
+    A wrapper around the OIDN preprocessing script used to preprocess training and validation datasets compliant with the [OIDN dataset naming scheme|https://github.com/OpenImageDenoise/oidn?tab=readme-ov-file#datasets].
+
+
+[PDG ML Training Monitor Panel|/ref/panes/pdgmltrainingmonitor] |
+
+    Can inspect the training progress and plots of the [ML Train Style Transfer TOP |Node:top/ml_trainstyletransfer] and [ML Train Regression TOP |Node:top/ml_trainregression].
+

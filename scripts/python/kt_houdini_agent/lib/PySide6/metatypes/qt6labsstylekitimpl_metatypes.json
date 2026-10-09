@@ -1,0 +1,631 @@
+[
+    {
+        "classes": [
+            {
+                "classInfos": [
+                    {
+                        "name": "QML.Element",
+                        "value": "DelegateContainer"
+                    }
+                ],
+                "className": "QQStyleKitDelegateContainer",
+                "lineNumber": 26,
+                "object": true,
+                "properties": [
+                    {
+                        "constant": false,
+                        "designable": true,
+                        "final": true,
+                        "index": 0,
+                        "lineNumber": 29,
+                        "name": "delegateStyle",
+                        "notify": "delegateStyleChanged",
+                        "override": false,
+                        "read": "delegateStyle",
+                        "required": false,
+                        "scriptable": true,
+                        "stored": true,
+                        "type": "QQStyleKitDelegateProperties*",
+                        "user": false,
+                        "virtual": false,
+                        "write": "setDelegateStyle"
+                    },
+                    {
+                        "constant": false,
+                        "designable": true,
+                        "final": true,
+                        "index": 1,
+                        "lineNumber": 30,
+                        "name": "quickControl",
+                        "notify": "quickControlChanged",
+                        "override": false,
+                        "read": "quickControl",
+                        "required": true,
+                        "scriptable": true,
+                        "stored": true,
+                        "type": "QObject*",
+                        "user": false,
+                        "virtual": false,
+                        "write": "setQuickControl"
+                    },
+                    {
+                        "constant": false,
+                        "designable": true,
+                        "final": true,
+                        "index": 2,
+                        "lineNumber": 31,
+                        "name": "delegateInstance",
+                        "notify": "delegateInstanceChanged",
+                        "override": false,
+                        "read": "delegateInstance",
+                        "required": false,
+                        "scriptable": true,
+                        "stored": true,
+                        "type": "QQuickItem*",
+                        "user": false,
+                        "virtual": false
+                    },
+                    {
+                        "constant": false,
+                        "designable": true,
+                        "final": true,
+                        "index": 3,
+                        "lineNumber": 32,
+                        "name": "usingDefaultDelegate",
+                        "notify": "usingDefaultDelegateChanged",
+                        "override": false,
+                        "read": "usingDefaultDelegate",
+                        "required": false,
+                        "scriptable": true,
+                        "stored": true,
+                        "type": "bool",
+                        "user": false,
+                        "virtual": false
+                    }
+                ],
+                "qualifiedClassName": "QQStyleKitDelegateContainer",
+                "signals": [
+                    {
+                        "access": "public",
+                        "index": 0,
+                        "lineNumber": 49,
+                        "name": "delegateStyleChanged",
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "index": 1,
+                        "lineNumber": 50,
+                        "name": "quickControlChanged",
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "index": 2,
+                        "lineNumber": 51,
+                        "name": "delegateInstanceChanged",
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "index": 3,
+                        "lineNumber": 52,
+                        "name": "usingDefaultDelegateChanged",
+                        "returnType": "void"
+                    }
+                ],
+                "superClasses": [
+                    {
+                        "access": "public",
+                        "name": "QQuickItem"
+                    }
+                ]
+            }
+        ],
+        "inputFile": "qqstylekitdelegatecontainer_p.h",
+        "outputRevision": 69
+    },
+    {
+        "classes": [
+            {
+                "classInfos": [
+                    {
+                        "name": "QML.Element",
+                        "value": "StyleKitLayoutItem"
+                    }
+                ],
+                "className": "QQStyleKitLayoutItem",
+                "lineNumber": 25,
+                "object": true,
+                "properties": [
+                    {
+                        "constant": false,
+                        "designable": true,
+                        "final": true,
+                        "index": 0,
+                        "lineNumber": 28,
+                        "name": "item",
+                        "notify": "itemChanged",
+                        "override": false,
+                        "read": "item",
+                        "required": false,
+                        "scriptable": true,
+                        "stored": true,
+                        "type": "QQuickItem*",
+                        "user": false,
+                        "virtual": false,
+                        "write": "setItem"
+                    },
+                    {
+                        "constant": false,
+                        "designable": true,
+                        "final": true,
+                        "index": 1,
+                        "lineNumber": 29,
+                        "name": "x",
+                        "notify": "xChanged",
+                        "override": false,
+                        "read": "x",
+                        "required": false,
+                        "scriptable": true,
+                        "stored": true,
+                        "type": "qreal",
+                        "user": false,
+                        "virtual": false
+                    },
+                    {
+                        "constant": false,
+                        "designable": true,
+                        "final": true,
+                        "index": 2,
+                        "lineNumber": 30,
+                        "name": "y",
+                        "notify": "yChanged",
+                        "override": false,
+                        "read": "y",
+                        "required": false,
+                        "scriptable": true,
+                        "stored": true,
+                        "type": "qreal",
+                        "user": false,
+                        "virtual": false
+                    },
+                    {
+                        "constant": false,
+                        "designable": true,
+                        "final": true,
+                        "index": 3,
+                        "lineNumber": 31,
+                        "name": "width",
+                        "notify": "widthChanged",
+                        "override": false,
+                        "read": "width",
+                        "required": false,
+                        "scriptable": true,
+                        "stored": true,
+                        "type": "qreal",
+                        "user": false,
+                        "virtual": false
+                    },
+                    {
+                        "constant": false,
+                        "designable": true,
+                        "final": true,
+                        "index": 4,
+                        "lineNumber": 32,
+                        "name": "height",
+                        "notify": "heightChanged",
+                        "override": false,
+                        "read": "height",
+                        "required": false,
+                        "scriptable": true,
+                        "stored": true,
+                        "type": "qreal",
+                        "user": false,
+                        "virtual": false
+                    },
+                    {
+                        "constant": false,
+                        "designable": true,
+                        "final": true,
+                        "index": 5,
+                        "lineNumber": 33,
+                        "name": "alignment",
+                        "notify": "alignmentChanged",
+                        "override": false,
+                        "read": "alignment",
+                        "required": false,
+                        "scriptable": true,
+                        "stored": true,
+                        "type": "Qt::Alignment",
+                        "user": false,
+                        "virtual": false,
+                        "write": "setAlignment"
+                    },
+                    {
+                        "constant": false,
+                        "designable": true,
+                        "final": true,
+                        "index": 6,
+                        "lineNumber": 34,
+                        "name": "margins",
+                        "notify": "marginsChanged",
+                        "override": false,
+                        "read": "margins",
+                        "required": false,
+                        "scriptable": true,
+                        "stored": true,
+                        "type": "QMarginsF",
+                        "user": false,
+                        "virtual": false,
+                        "write": "setMargins"
+                    },
+                    {
+                        "constant": false,
+                        "designable": true,
+                        "final": true,
+                        "index": 7,
+                        "lineNumber": 35,
+                        "name": "fillWidth",
+                        "notify": "fillWidthChanged",
+                        "override": false,
+                        "read": "fillWidth",
+                        "required": false,
+                        "scriptable": true,
+                        "stored": true,
+                        "type": "bool",
+                        "user": false,
+                        "virtual": false,
+                        "write": "setFillWidth"
+                    },
+                    {
+                        "constant": false,
+                        "designable": true,
+                        "final": true,
+                        "index": 8,
+                        "lineNumber": 36,
+                        "name": "fillHeight",
+                        "notify": "fillHeightChanged",
+                        "override": false,
+                        "read": "fillHeight",
+                        "required": false,
+                        "scriptable": true,
+                        "stored": true,
+                        "type": "bool",
+                        "user": false,
+                        "virtual": false,
+                        "write": "setFillHeight"
+                    }
+                ],
+                "qualifiedClassName": "QQStyleKitLayoutItem",
+                "signals": [
+                    {
+                        "access": "public",
+                        "index": 0,
+                        "lineNumber": 66,
+                        "name": "itemChanged",
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "index": 1,
+                        "lineNumber": 67,
+                        "name": "xChanged",
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "index": 2,
+                        "lineNumber": 68,
+                        "name": "yChanged",
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "index": 3,
+                        "lineNumber": 69,
+                        "name": "widthChanged",
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "index": 4,
+                        "lineNumber": 70,
+                        "name": "heightChanged",
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "index": 5,
+                        "lineNumber": 71,
+                        "name": "alignmentChanged",
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "index": 6,
+                        "lineNumber": 72,
+                        "name": "marginsChanged",
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "index": 7,
+                        "lineNumber": 73,
+                        "name": "fillWidthChanged",
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "index": 8,
+                        "lineNumber": 74,
+                        "name": "fillHeightChanged",
+                        "returnType": "void"
+                    }
+                ],
+                "superClasses": [
+                    {
+                        "access": "public",
+                        "name": "QObject"
+                    }
+                ]
+            },
+            {
+                "classInfos": [
+                    {
+                        "name": "DefaultProperty",
+                        "value": "layoutItems"
+                    },
+                    {
+                        "name": "QML.Element",
+                        "value": "StyleKitLayout"
+                    }
+                ],
+                "className": "QQStyleKitLayout",
+                "lineNumber": 88,
+                "object": true,
+                "properties": [
+                    {
+                        "constant": false,
+                        "designable": true,
+                        "final": true,
+                        "index": 0,
+                        "lineNumber": 91,
+                        "name": "container",
+                        "notify": "containerChanged",
+                        "override": false,
+                        "read": "container",
+                        "required": false,
+                        "scriptable": true,
+                        "stored": true,
+                        "type": "QQuickItem*",
+                        "user": false,
+                        "virtual": false,
+                        "write": "setContainer"
+                    },
+                    {
+                        "constant": false,
+                        "designable": true,
+                        "final": true,
+                        "index": 1,
+                        "lineNumber": 92,
+                        "name": "layoutItems",
+                        "notify": "layoutItemsChanged",
+                        "override": false,
+                        "read": "layoutItems",
+                        "required": false,
+                        "scriptable": true,
+                        "stored": true,
+                        "type": "QQmlListProperty<QQStyleKitLayoutItem>",
+                        "user": false,
+                        "virtual": false
+                    },
+                    {
+                        "constant": false,
+                        "designable": true,
+                        "final": true,
+                        "index": 2,
+                        "lineNumber": 93,
+                        "name": "padding",
+                        "notify": "paddingChanged",
+                        "override": false,
+                        "read": "padding",
+                        "required": false,
+                        "scriptable": true,
+                        "stored": true,
+                        "type": "QMarginsF",
+                        "user": false,
+                        "virtual": false
+                    },
+                    {
+                        "constant": false,
+                        "designable": true,
+                        "final": true,
+                        "index": 3,
+                        "lineNumber": 94,
+                        "name": "contentMargins",
+                        "notify": "contentMarginsChanged",
+                        "override": false,
+                        "read": "contentMargins",
+                        "required": false,
+                        "scriptable": true,
+                        "stored": true,
+                        "type": "QMarginsF",
+                        "user": false,
+                        "virtual": false,
+                        "write": "setContentMargins"
+                    },
+                    {
+                        "constant": false,
+                        "designable": true,
+                        "final": true,
+                        "index": 4,
+                        "lineNumber": 95,
+                        "name": "spacing",
+                        "notify": "spacingChanged",
+                        "override": false,
+                        "read": "spacing",
+                        "required": false,
+                        "scriptable": true,
+                        "stored": true,
+                        "type": "qreal",
+                        "user": false,
+                        "virtual": false,
+                        "write": "setSpacing"
+                    },
+                    {
+                        "constant": false,
+                        "designable": true,
+                        "final": true,
+                        "index": 5,
+                        "lineNumber": 96,
+                        "name": "mirrored",
+                        "notify": "mirroredChanged",
+                        "override": false,
+                        "read": "isMirrored",
+                        "required": false,
+                        "scriptable": true,
+                        "stored": true,
+                        "type": "bool",
+                        "user": false,
+                        "virtual": false,
+                        "write": "setMirrored"
+                    },
+                    {
+                        "constant": false,
+                        "designable": true,
+                        "final": true,
+                        "index": 6,
+                        "lineNumber": 97,
+                        "name": "implicitWidth",
+                        "notify": "implicitWidthChanged",
+                        "override": false,
+                        "read": "implicitWidth",
+                        "required": false,
+                        "scriptable": true,
+                        "stored": true,
+                        "type": "qreal",
+                        "user": false,
+                        "virtual": false
+                    },
+                    {
+                        "constant": false,
+                        "designable": true,
+                        "final": true,
+                        "index": 7,
+                        "lineNumber": 98,
+                        "name": "implicitHeight",
+                        "notify": "implicitHeightChanged",
+                        "override": false,
+                        "read": "implicitHeight",
+                        "required": false,
+                        "scriptable": true,
+                        "stored": true,
+                        "type": "qreal",
+                        "user": false,
+                        "virtual": false
+                    },
+                    {
+                        "constant": false,
+                        "designable": true,
+                        "final": true,
+                        "index": 8,
+                        "lineNumber": 99,
+                        "name": "enabled",
+                        "notify": "enabledChanged",
+                        "override": false,
+                        "read": "isEnabled",
+                        "required": false,
+                        "scriptable": true,
+                        "stored": true,
+                        "type": "bool",
+                        "user": false,
+                        "virtual": false,
+                        "write": "setEnabled"
+                    }
+                ],
+                "qualifiedClassName": "QQStyleKitLayout",
+                "signals": [
+                    {
+                        "access": "public",
+                        "index": 0,
+                        "lineNumber": 132,
+                        "name": "containerChanged",
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "index": 1,
+                        "lineNumber": 133,
+                        "name": "layoutItemsChanged",
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "index": 2,
+                        "lineNumber": 134,
+                        "name": "layoutChanged",
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "index": 3,
+                        "lineNumber": 135,
+                        "name": "paddingChanged",
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "index": 4,
+                        "lineNumber": 136,
+                        "name": "contentMarginsChanged",
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "index": 5,
+                        "lineNumber": 137,
+                        "name": "spacingChanged",
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "index": 6,
+                        "lineNumber": 138,
+                        "name": "mirroredChanged",
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "index": 7,
+                        "lineNumber": 139,
+                        "name": "implicitWidthChanged",
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "index": 8,
+                        "lineNumber": 140,
+                        "name": "implicitHeightChanged",
+                        "returnType": "void"
+                    },
+                    {
+                        "access": "public",
+                        "index": 9,
+                        "lineNumber": 141,
+                        "name": "enabledChanged",
+                        "returnType": "void"
+                    }
+                ],
+                "superClasses": [
+                    {
+                        "access": "public",
+                        "name": "QObject"
+                    }
+                ]
+            }
+        ],
+        "inputFile": "qqstylekitlayout_p.h",
+        "outputRevision": 69
+    }
+]

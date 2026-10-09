@@ -1,0 +1,19 @@
+= Resampling =
+
+"""Increase terrain resolution step by step."""
+
+A common workflow with Houdini's heightfields is to start at low resolutions to create a terrain's larger structures and increase resolution for the fine details. The node for this process is the [HeightField Resample SOP|Node:sop/heightfield_resample].
+
+The most important advantage of resampling is certainly speed, because changes on a terrain with 2.5 million voxels will simply take longer than on a terrain with 500,000 voxels. You can gradually increase the heightfield's resampling resolution as you add more and more of the finer structures.
+
+One of the most obvious issues is that you'll lose many of the detail the various nodes create, for example from the [HeightField Distort by Noise SOP|Node:sop/heightfield_distort]. Another issue with resampling is that you might introduce artifacts or regular patterns. It's not always possible to get rid of these unwanted structures completely.
+
+To get more control over the number of voxels, we also recommend that you turn on the resample node's __Specify Exact Resolution__ option. There you can choose from two __Division Mode__ settings. This is very convenient, because you can synchronize this mode with the [HeightField SOP's|Node:sop/heightfield] own __Division Mode__. Then you can decide whether you want to subdivide the terrain with a __Grid Spacing__ or __Grid Samples__ parameter.
+
+The decision whether you want to resample your terrain is totally up to you, but for complex setups with multiple erosion levels, resampling can be a time saver. The comparison below shows a high-resolution heightfield with 28 million voxels. The terrain on right image uses three cascading resample nodes with different settings and has 25 million voxels. The differences are rather small, although the high-res version looks slightly crispier.
+
+:compare_images:
+    #image1: /images/heightfields/resampling_low.jpg
+    #image2: /images/heightfields/resampling_hi.jpg
+
+Another application for the HeightField Resample SOP is also downsampling, for example if you want to load a terrain to a game engine. You start with a high-res terrain and for export you can decrease resolution step by step until you've found the perfect balance between level of detail and file size.

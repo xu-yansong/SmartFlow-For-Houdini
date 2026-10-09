@@ -1,0 +1,57 @@
+= MPM Configure Sand Instances =
+
+There are several MPM Configure examples available through the [tab menu|/basics/tabmenu]. These are similar to [shelf tools|/shelf/index] that put down networks of nodes for learning purposes. The __MPM Configure Sand Instances__ example illustrates the use of the __Sand__ material type. It puts down a simple network of nodes to simulate Crag walking through a sandbox.
+
+:video:
+    #src: /videos/mpm/mpmsand.mp4
+    
+== Important nodes ==
+
+`sand`:
+    This is the [MPM Source|Node:sop/mpmsource] that uses the __Sand__ material preset.
+    
+`crag`:
+    This is the [MPM Collider|Node:sop/mpmcollider], which uses the __Animated (Rigid)__ collider type. It allows for very precise interpolation of the colliders by the solver, as it keeps only one VDB and interpolates between the transforms resulting in very accurate collisions. The [Crag: Test Geometry|Node:sop/testgeometry_crag] is made of multiple rigid pieces, and based on the __Name Attribute__, it will figure out that all of these pieces are rigid and create a collider per piece (67 total). This allows you to use very precise collisions with something that looks like it's deforming.
+    
+`mpmcontainer`:
+    This is the [MPM Container|Node:sop/mpmcontainer], which defines the resolution of the simulation using the __Particle Separation__ parameter.
+    
+`mpmsolver`:
+    This is the [MPM Solver|Node:sop/mpmsolver], which does the work of solving the scene.  The __Material Condition__ is decreased to `0.7` to fix some instability where the material requires more substeps than what is provided by default.
+
+`orient_from_F_and_set_name`:
+    This [Attribute Wrangle|Node:sop/attribwrangle] provides some initial random orientation to the points and extracts the rotation from the deformation gradient. From frame to frame it will extract the rotational component of the deformation gradient and will add it on top of the randomized orientation of the points. This makes the sandbox look more natural by adding more variations.
+    
+`rocks`:
+    The rock geometry to instance onto each point.
+
+`instance_rocks`:
+    This [Copy to Points|Node:sop/copytopoints] node instances the rocks onto each oriented point.
+
+`transform_rocks`:
+    This [MPM Deform Pieces|Node:sop/mpmdeformpieces] will efficiently transform the packed fragments with the MPM particles' deformation gradient point attribute `F`. The __End Frame__ parameter is set to `100`, which matches the end of the MPM simulation so that the node can validate point count consistency throughout the frame range.
+    
+== Learning from this example ==
+
+The purpose of this example is to show that you can extract orientation information from the deformation gradient to do instancing. It also illustrates that you can decompose a deforming collider into multiple rigidly transforming colliders.
+
+:task: Removed randomized rotation of the rocks:
+    On the `orient_from_F_and_set_name` node, comment out the randomization by adding two forward slashes in front of the rotate lines of code.
+    
+    {{{
+        //rotate(rot, fit01(rand(@id%7745), -3.14, 3.14), normalize(fit01(vector(rand(@id%6651)),-1,1)));
+        //rotate(rot, fit01(rand(@id%9531), -3.14, 3.14), normalize(fit01(vector(rand(@id%1232)),-1,1)));
+    }}}
+    
+:task: See the randomized rotation of the particles:
+    Click the [Icon:VIEW/display_particle_origins]__Display Particle Origins__ button in the Display Options toolbar.
+    
+    [Image:/images/mpm/rotation_sand.jpg]
+    
+:task: See the different shaped rocks:
+    # Append an [Exploded View|Node:sop/explodedview] node to the output of the `rocks` node.
+    # Increase the __Uniform Scale__ to spread them out further.
+    
+    [Image:/images/mpm/explode_rocks.jpg]
+
+        

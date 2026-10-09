@@ -1,0 +1,23 @@
+= Copernicus tips =
+
+"""Useful tips and information while using COPs."""
+
+== Overview ==
+
+This page includes additional tips and supplementary information to help you use Copernicus.
+
+== Clear GPU and memory usage == (gpu_memory)
+
+You can enter `copcache -c` in the [textport window|/ref/windows/textport] to clear your GPU and memory usage. This also recooks your scene if you have images displayed in your viewport. See [copcache|/commands/copcache] for more information about this HScript command.
+
+== Move SOP into image space == (move_image_space)
+
+When you import a SOP into COPs using [SOP Import|Node:/cop/sopimport], the geometry is placed in world space. To frame geometry into the canonical camera's view, you can use the [Rasterize Setup COP|Node:/cop/rasterizesetup]. Wire your input geometry into the COP's `source` input and adjust its settings to get the desired framing.
+
+See [Spaces|/copernicus/spaces] for more information about spaces.
+
+== View pixel position == (pixel_position)
+
+You can view the pixel positions of a node in the [Composite|/ref/views/imgview] Viewer. Make sure the node's display flag is on, and then ((RMB)) and click __Inspect__ in the Viewer. Hover over the image to see the pixel details.
+
+See [Inspect individual pixel values|/ref/views/imgview#inspect-individual-pixel-values] for more information about using this tool.

@@ -1,0 +1,86 @@
+= Heighfield nodes =
+
+"""Houdini's set of heightfield nodes."""
+
+The compilation below gives you an overview of the available heightfield nodes and what they do.
+
+== I/O ==
+
+* [Node:sop/heightfield_file] loads height data from a 2D elevation map.
+
+* [Node:sop/lidarimport] can load LIDAR formats (for example e57) as height fields.
+
+* [Node:sop/heightfield_output] writes height data to a 2D elevation map.
+
+* [Node:sop/heightfield_quickshade] adds materials to terrain based on layers and masks, for rendering.
+
+* [Node:sop/heightfield_scatter] scatters points across the 3D surface represented by a height field. This is useful for distributing 3D geometry such as trees/plants across the terrain, or converting the height volume into a point cloud.
+
+* [Node:sop/heightfield_tilesplit] splits a layer into multiple tiles. This can be useful for distributing work, for working on smaller pieces at a time, or for exporting tiles to game engines.
+
+* [Node:sop/heightfield_tilesplice] combines tiles into a single layer.
+
+== Adding features to terrain ==
+
+* [Node:sop/heightfield_layer] composites one height layer over another, allowing you to "paste" a feature into a larger field. The node will properly composite volumes that aren't axis aligned, so you can position and rotate the volumes in 3D space before compositing.
+
+* [Node:sop/heightfield_project] raises or lowers terrain in the shape of 3D geometry.
+
+* [Node:sop/heightfield_paint] lets you paint elevation values into a height layer by hand.
+
+* [Node:sop/heightfield_pattern] generates repeating patterns such as stripes. It includes distortion controls which can make the geometric patterns look more organic. Adding these patterns into a height layer with a mask can create interesting details in terrain.
+
+== Conditioning terrain ==
+
+* [Node:sop/heightfield_blur] smooths out details in terrain.
+
+* [Node:sop/heightfield_noise] and [Node:sop/heightfield_distort] add random detail to terrain.
+
+* [Node:sop/heightfield_clip] flattens areas above and/or below a certain height, for example to create tableland (mesa/tapui).
+
+* [Node:sop/heightfield_terrace] creates flattened steps up slopes, creating looks like terraced farms or waterfall rock formations.
+
+== Simulating natural processes ==
+
+* [Node:sop/heightfield_erode] simulates the process of erosion, creating natural-looking features.
+
+* [Node:sop/heightfield_slump] simulates the process of loose/piled soil moving downhill.
+
+== Making and editing masks ==
+
+* [Node:sop/heightfield_drawmask] lets you draw masked areas by hand.
+
+* [Node:sop/heightfield_maskbyfeature] creates masks based on criteria such as elevation, facing direction, or slope. For example, you can create a mask layer representing snowfall only above a certain elevation and only on a certain side of a mountain.
+
+* [Node:sop/heightfield_maskbyobject] creates a mask from the intersection of a height layer and some 3D geometry.
+
+* Height Field Mask Noise creates a customized [Height Field Noise|Node:sop/heightfield_noise] set up to add noise to a mask layer, which can make it look more organic.
+
+* Height Field Mask Clear creates a customized [Height Field Layer Clear|Node:sop/heightfield_layerclear] set up to clear the mask.
+
+NOTE:
+    If you see odd results when masking nodes, try using [Heightfield Isolate Layer|Node:sop/heightfield_isolatelayer] or [Heightfield Visaulize|Node:sop/heightfield_visualize]'s Custom Tinting range to verify the values in the mask are from 0-1 (inclusive).
+
+    Values from 0-1 appear as red tint in the mask visualization. Zero values appear white, but negative values and values greater than 1 also appear white. If a mask doesn't behave as expected it might be because it contains out-of-range values.
+
+== Layer utilities ==
+
+* [Node:sop/heightfield_xform] moves and rotates the fields in world space.
+
+* [Node:sop/heightfield_visualize] lets you visualize elevation values using a color ramp.
+
+* [Node:sop/heightfield_remap] "redistributes" height values in a layer into a new range, based on a ramp.
+
+* [Node:sop/heightfield_resample] changes the resolution of a field's underlying grid.
+
+* Height Field Wrangle is an alias for [Volume Wrangle|Node:sop/volumewrangle]. It lets you edit the values in a height volume using a [VEX snippet|/vex/snippets].
+
+* Height Field VOP is an alias for [Volume VOP|Node:sop/volumevop] lets you build a VOP network to edit the values in a height volume.
+
+* [Node:sop/heightfield_copylayer] creates a new layer by copying an existing one.
+
+* [Node:sop/heightfield_layerproperty] sets layer options such as how to compute values outside boundaries of the field (__Border type__).
+
+* [Node:sop/heightfield_layerclear] resets the values in a layer to 0.
+
+* [Node:sop/heightfield_isolatelayer]

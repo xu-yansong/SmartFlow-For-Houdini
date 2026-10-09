@@ -1,0 +1,53 @@
+= OpenFX =
+
+"""Describes what OpenFX is and how to use it in your network."""
+
+== Overview ==
+
+The Copernicus network supports the use of OpenFX plug-ins (shared libraries). With these plug-ins, OpenFX brings third party nodes into your network. Use OpenFX nodes when you want more functions than COP nodes provide. OpenFX also lets you use plug-ins that you already have in other applications in Houdini. Image generators are an example node type that OpenFX lets you access.
+
+WARNING:
+    Houdini uses a version of OpenColorIO (OCIO) that's more recent than the version in Boris FX's latest Sapphire plug-ins. This incompatibility produces a warning message from Sapphire. To avoid this warning, you can point your OCIO environment variable to an OCIO color file that's compatible with Sapphire.
+
+OpenFX nodes are in [texture space|/copernicus/spaces].
+
+TIP:
+    If you don't want to load your system's OpenFX plug-ins, set the `HOUDINI_DISABLE_OPENFX_DEFAULT_PATH` [environment variable|/ref/env] to `1`. You also have to remove the `OFX_PLUGIN_PATH` environment variable if it's set.
+
+== Setting up the OpenFX environment variable ==
+
+You must set up the OpenFX [environment variable|/ref/env] in your operating system if you want to use their plug-ins in your Copernicus network.
+
+:platform:Windows
+    # Choose __Start > Edit environment variables for your account__.
+    # Click __New__.
+    # Set __Variable name__ to `OFX_PLUGIN_PATH`.
+    # Set __Variable value__ to `C:\Program Files\Common Files\OFX\Plugins`.
+    # Click __OK__.
+    # Log out and then log back into Houdini to use the OpenFX plug-ins.
+
+:platform:Mac
+    # Open your Terminal application.
+    # Go to your `.zprofile`.
+    # Enter the following command: `export OFX_PLUGIN_PATH=/usr/OFX/Plugins`. This adds the environment variable.
+    # Save your changes.
+    # Log out and then log back into Houdini to use the OpenFX plug-ins.
+
+:platform:Linux
+    # Open your Linux Terminal.
+    # Go to your `.profile`.
+    # Enter the following command: `export OFX_PLUGIN_PATH=/usr/OFX/Plugins`. This adds the environment variable.
+    # Save your changes.
+    # Log out and then log back into Houdini to use the OpenFX plug-ins.
+
+== Using OpenFX in your scene ==
+
+After you [set up a Copernicus network|/copernicus/index#access], press ((Tab)) and enter `OFX`. The list of available OpenFX nodes appears.
+
+== Limitations ==
+
+The following are Copernicus' limitations for OpenFX support:
+
+* Neat Video plug-ins
+* Nodes that require access to time (for example, retimers, trackers, and deflickers)
+* Handles provided by OpenFX (for example, in a roto tool)

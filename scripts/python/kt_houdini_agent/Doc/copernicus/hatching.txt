@@ -1,0 +1,135 @@
+= Hatching =
+"""Describes how to use hatching in your Copernicus network."""
+
+== Overview ==
+
+You can use Copernicus nodes with Content Library HDAs to add [Hatching|Wp:Hatching] in your scene. Use hatching in your Copernicus scene to add a drawing effect. Hatching impacts the light gradient and density of your shading.
+
+[Image:/images/copernicus/hatching_content_library.jpg]
+
+See the [Content Library|https://www.sidefx.com/contentlibrary/hatching] to access and download HDAs for hatching. The project file includes the following built-in HDAs:
+* __Hatching__
+    The Hatching HDA merges hatching layers to apply a crosshatching effect.
+* __Hatch Tile__
+    With the Hatch Tile HDA, you can apply horizontal, vertical, and cross hatching. You can then control the density, scale, and length of the hatches. The [Hex Tile COP|Node:/cop/hextile] in the HDA node's subnetwork controls the Hatches Tiling and Tiling Blend parameters. You can also point the __Hatching Shape__ parameter to a SOP, which applies a geometry shape to your Hatch Tile.
+* __Tangent__
+    The Tangent HDA computes gradients, impacting how the light changes and distributes across the scene.
+
+The following are examples of different hatching types you can apply:
+* Crosshatching
+* Circulism
+* Contouring
+* Scribbling
+* Stippling
+* Blending
+
+See the [Content Library|https://www.sidefx.com/contentlibrary/hatching] for more complex hatching workflows, such as using contour lines and color.
+
+== Adding a Hatch Tile == (add)
+
+Follow these steps to add a Hatch Tile HDA node in your scene.
+
+# Create a [File COP|Node:/cop/file] in your COP network to import an image or video.
+# Add a Hatch Tile HDA node and configure the hatching type.
+# Wire the File COP's `C` output into the Hatch Tile node's `camera_ref` input.
+# (Optional) Add more Hatch Tile nodes and wire the File COP's `C` output into each node's `camera_ref` input.
+
+=== Blending Hatch Tiles ===
+
+Follow these steps to blend multiple Hatch Tile HDA nodes.
+
+# After you [add your Hatch Tiles|#add], add a [Constant COP|Node:/cop/constant], [Ramp COP|Node:/cop/ramp], and [Sequence Blend COP|Node:/cop/sequenceblend].
+# Wire the Constant COP into each Hatch Tile node's `direction` input.
+# Wire the File COP's `C` output into the Ramp COP's `size_ref` input.
+# Wire the Ramp COP into the Sequence Blend COP's `blend` input.
+# Wire the Hatch Tile nodes into the Sequence Blend COP's `image` inputs. There should be an `image` input for each Hatch Tile node.
+
+== Applying uniform direction hatching == (uniform)
+
+Follow these steps to blend your hatches by direct diffuse and add uniform direction hatching. This means all the hatches go in the same direction.
+
+# Create a [File COP|Node:/cop/file] in your COP network to import an image or video.
+# Add the amount of Hatch Tile HDA nodes that you want to blend, and configure the hatching type for each.
+# Add a [Mono COP|Node:/cop/mono].
+# Wire the File COP's `C` output into each Hatch Tile node's `camera_ref` input and the Mono COP's `source` input.
+# Add a [Channel Join COP|Node:/cop/channeljoin] and set __Signature__ to `UV`.
+# Wire the Mono COP into the Channel Join COP's `red` and `green` inputs.
+# Add a [Constant COP|Node:/cop/constant]. This COP's values determine the hatching direction.
+# Wire the Channel Join COP into the Constant COP's `source` input.
+# Wire the Constant COP into each Hatch Tile node's `direction` input.
+# Add a [Sequence Blend COP|Node:/cop/sequenceblend].
+# Wire the Hatch Tile nodes into the Sequence Blend COP's `image` inputs. There should be an `image` input for each Hatch Tile node.
+# Add another Mono COP and rename it to `Direct Diffuse`.
+# Wire the File COP's `directdiffuse` AOV output into the Direct Diffuse node.
+# Add a [Remap COP|Node:/cop/remap].
+# Wire the Direct Diffuse node into the Remap COP's `source` input.
+# Wire the Remap COP into the Sequence Blend COP's `blend` input.
+Turn on the Sequence Blend COP's display flag to see the blended hatches.
+
+== Applying non-uniform direction hatching == (non_uniform)
+
+Follow these steps to add non-uniform direction hatching, which lets you control how the hatches follow the lighting gradient (see the following image example). This workflow reduces the resolution, computes the gradients, and then increases the gradients of the image.
+
+[Image:/images/copernicus/lighting_gradient_hatching.jpg]
+
+# Create a [File COP|Node:/cop/file] in your COP network to import an image or video.
+# Add a Hatch Tile HDA node and configure the hatching type.
+# Wire the File COP's `C` output into the Hatch Tile node's `camera_ref` input.
+# Add a [Null COP|Node:/cop/null].
+# Wire the File COP's `directdiffuse` AOV output into the Null COP.
+# Add a [Denoise AI COP|Node:/cop/denoiseai]. This decreases the difference between neighbors' pixels (noise).
+# Wire the Null COP into the Denoise AI COP's `source` input.
+# Add a [Mono COP|Node:/cop/mono] and rename it to `Direct Diffuse`.
+# Wire the Denoise AI COP into the Direct Diffuse node.
+# Add a Tangent HDA node. Set the __Pixel Scale__ parameter to `2` to further reduce the noise.
+
+    NOTE:
+        If you set the Tangent node's __Pixel Scale__ parameter to `1`, the viewport displays the regional image. 
+
+# Wire the Direct Diffuse node into the Tangent node.
+# Wire the Tangent node into the Hatch Tile node's `direction` input.
+Turn on the Hatch Tile node's display flag to see the hatches distribute around the lighting.
+
+== Combining direction hatching ==
+
+Follow these steps to combine uniform and non-uniform direction hatching. For example, you can add uniform direction hatching to the background and non-uniform direction hatching to characters in your scene.
+
+# Create a [File COP|Node:/cop/file] in your COP network to import an image or video.
+# Add the amount of Hatch Tile HDA nodes that you want to blend, and configure the hatching type for each.
+# Add a [Mono COP|Node:/cop/mono] and rename it to `Direct Diffuse`.
+# Wire the File COP's `directdiffuse` AOV output into the Direct Diffuse node.
+# Wire the Direct Diffuse node into each Hatch Tile node's `camera_ref` input.
+# Add a [Sequence Blend COP|Node:/cop/sequenceblend].
+# Wire the Hatch Tile nodes into the Sequence Blend COP's `image` inputs. There should be an `image` input for each Hatch Tile node.
+# Add a [Remap COP|Node:/cop/remap].
+# Wire the Direct Diffuse node into the Remap COP's `source` input.
+# Wire the Remap COP into the Sequence Blend COP's `blend` input.
+# Add another Mono COP and rename it to `Direct Diffuse`.
+# Wire the File COP's `directdiffuse` AOV output into the Direct Diffuse node.
+# Add a Tangent HDA node. Set the __Pixel Scale__ parameter to `2` to further reduce the noise.
+# Wire the Direct Diffuse node into the Tangent node.
+# Add a [Null COP|Node:/cop/null] and rename it to `LIGHTING_DIRECTION`.
+# Wire the Tangent node into the `LIGHTING_DIRECTION` Null COP.
+# Add a [Constant COP|Node:/cop/constant] and two [Ramp COPs|Node:/cop/ramp].
+# Wire the Constant COP into each Ramp COP's `size_ref` input.
+# Add two more Tangent HDA nodes.
+# Wire each Ramp COP into one Tangent node. The Ramp COPs should wire into different Tangent nodes.
+# Add a [Blend COP|Node:/cop/blend].
+# Wire one Tangent node into the Blend COP's `bg` input, and the other Tangent node into the `fg` input.
+# Add another Null COP and rename it to `STATIC_DIRECTION`.
+# Wire the Blend COP into the `STATIC_DIRECTION` Null COP.
+# Wire the File COP's `CryptoMaterial` AOV output into a mask that removes the objects to which you'll apply non-uniform direction hatching.
+# Add another Blend COP.
+# Wire the `LIGHTING_DIRECTION` Null COP into the Blend COP's `bg` input.
+# Wire the `STATIC_DIRECTION` Null COP into the Blend COP's `fg` input.
+# Wire your mask into the Blend COP's `mask` input.
+# Wire the Blend COP into each Hatch Tile node's `direction` input.
+Turn on the Sequence Blend COP's display flag to see the output with uniform and non-uniform direction hatching applied.
+
+== Notes ==
+
+* Since the Hatch Tile node uses a Hex Tile COP in the subnetwork, you must balance the scale of the hatches (__Hatches Length__) and the tiles (__Tile Size__). For example, an unbalanced scale may display seams between hex tiles. Use __Weight Exp__ to balance the hatches and tiles.
+
+* The `directdiffuse` AOV is channel data taken from rendering that represents direct lighting. You can use this data to compute tangent vectors that control the direction of hatching. You can also use it to create more complex lighting gradients, such as adding reflections. If you map your Hatch Tiles with a `directdiffuse` AOV, make sure the direct diffuse isn't a texture to avoid changing the hatches by texture.
+
+* With animation, using direction hatching can produce a noisy swimming effect. It's recommended that you use [non-uniform direction hatching|#non_uniform] on objects that require a lighting gradient. For other areas in your scene you should use geometry or [uniform direction hatching|#uniform].

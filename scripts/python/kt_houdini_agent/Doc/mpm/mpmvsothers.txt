@@ -1,0 +1,39 @@
+= MPM vs other solvers =
+
+== Overview ==
+
+When to use MPM instead of other solvers is a question that comes up often. The basic answer is that you should use MPM over other solvers if you want multiple materials to interact with each other in the simulation. Currently, MPM is the only solver that can handle this interaction.
+
+MPM was first introduced as a way to efficiently solve elastoplastic "chunky" materials where large chunks are expected to stick together, such as snow and soil. It is best suited for these types of materials, as this effect is very hard to achieve with other solvers.
+
+[Image:/images/mpm/chunky_soil.jpg]
+    
+== MPM vs FLIP ==
+
+MPM is the most similar to FLIP. It uses the same data structure as FLIP, which is particles and background grids. As mentioned above, you should use MPM when you need water to interact with another material. For example, if you have a beach simulation where you need the water and sand to physically interact with each other, you will need to use MPM. However, if you want to simulate a high resolution beach with detailed water where the sand is a static collider, use FLIP.
+
+:col:
+    :video:
+        #src: /videos/mpm/flip_beach.mp4
+        """MPM where the water and sand interact with each other."""
+        
+:col:
+    :fig: [Image:/images/fluid/karma_beach.jpg]
+        """FLIP fluid where the sand is a static collider. Image courtesy of Igor Zanic."""
+        
+FLIP is also better than MPM for handling fluid that has a lot of splashes or other details, since it is well integrated with the whitewater workflow. FLIP is also currently better at handling surface tension.
+
+== MPM vs Bullet ==
+
+MPM allows you to skip the pre-fracturing step and let the forces do the work for you, similar to the way FEM works. The outputted point cloud resulting from an MPM simulation also yields more interesting fracture patterns compared to tetrahedron. 
+
+However, Bullet is a highly specialized solver for rigid bodies, which makes it more efficient for this kind of work. Metal and concrete are both very stiff materials, compared to other MPM material types. These require a very high number of substeps, which leads to slow simulation times.
+
+MPM can be a better option in cases where multiple materials need to interact together seamlessly, such as concrete falling in water.
+
+
+== MPM vs Vellum ==
+
+MPM is very good at keeping large chunks of stiff material together at high resolution, which tends to be hard to do with Vellum. Vellum might crumble more easily, making it harder to create the desired effect. Snow and soil are two very good use cases for MPM. For dry sand, where chunks are not expected, Vellum will usually be a better choice.
+
+Vellum is also more efficient at handling small scale fluid effects, like fluid dripping down collision objects. For example, sweat or blood dripping down a face or body. Grains is also faster to simulate than MPM, and is best for sparse simulations as there is no underlying grid. Both MPM and Vellum can be faster than FLIP for simulating liquids.

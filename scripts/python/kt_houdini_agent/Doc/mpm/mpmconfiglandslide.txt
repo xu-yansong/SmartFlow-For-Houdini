@@ -1,0 +1,60 @@
+= MPM Configure Landslide =
+
+There are several MPM Configure examples available through the [tab menu|/basics/tabmenu]. These are similar to [shelf tools|/shelf/index] that put down networks of nodes for learning purposes. The __MPM Configure Landslide__ example illustrates the use of the “chunky” __Soil__ material type. It puts down a simple network of nodes to simulate a cliff chunk made of soil and grass detaching and sliding down a slope.
+
+:video:
+        #src: /videos/mpm/mpmsoil.mp4
+        
+== Important nodes ==
+
+`landslide_soil`:
+    This is the [MPM Source|Node:sop/mpmsource] that uses the __Soil__ material preset. The main differences are two parameter changes from the default. The __Density__ has been increased to `1500`, the __Compression Hardening__ has been increased to `8`, and the __Stiffness__ has been increased to `5`. This is to make the soil hold together. There is also some initial __Velocity__ added to the soil to help it detach from the cliff.
+    
+`modify_material_attributes`:
+    If you dive inside this subnet there are a few [Attribute Wrangle|Node:sop/attribwrangle] nodes that are used to add details to the soil.
+    
+    `noise_E1`:
+        Adds some spatial variation to the stiffness of the soil by setting bounds for how soft and how stiff the soil can be. 
+    `set_grass_attribs`:
+        Sets up the grass so it behaves differently than the soil beneath. 
+    `set_colors1`:
+        Sets colors to better visualize the grass and soil areas.
+    `tweak_vel`:
+        Modifies the initial velocity set on the MPM Source so that the bottom of the soil is pulled down in the direction of the slope with more intensity than the top, allowing for it to collapse on itself. 
+    `pin_points1`:
+        Pins some points to the surface of the slope collider, which you can visualize when the [MPM Solver|Node:sop/mpmsolver] is selected. This helps with the transition between the sources and the collider, giving it a more organic look.
+
+`slope_smooth` and `slope_sticky`:
+    The slope is split into two [MPM Colliders|Node:sop/mpmcollider] with varying friction. `slope_smooth` represents the sheer face of the slope and has very low __Friction__. This will allow the soil going down the hill to pick up some speed. `slope_sticky` is a collider with much higher friction, which will cause the soil to stick to it and start to tumble and roll as opposed to just sliding down.
+
+
+`mpmcontainer`:
+    The [MPM Container|Node:sop/mpmcontainer] defines the resolution of the simulation using the __Particle Separation__ parameter and sets limits on whether particles should be deleted or bounce on contact with the boundary.    
+    
+`mpmsolver`:
+    This setup uses a default [MPM Solver|Node:sop/mpmsolver], which does the work of solving the scene.
+
+`soil_mesh`:
+    The [MPM Surface|Node:sop/mpmsurface] will generate a polysoup representation of the material's surface that is suitable for rendering. The surface is generated using the [Neural Point Surface|Node:sop/neuralpointsurface] with the __Neural Model__ set to __Granular__. The `Cd` attribute is transferred to the mesh from the MPM particles. The third input uses the original model at rest to transfer UVs onto the dynamic mesh. The fourth input uses the static slope collider as a mask to prune polygons that would not be seen at render time to reduce the memory and disk footprint. The __Adaptivity__ parameter has been set to `0` to prevent frame-to-frame flickering in the UVs.
+    
+== Learning from this example ==
+
+:task: Visualize the areas of varied stiffness in the soil:
+    # Dive inside the `modify_material_attributes` subnet and select the `noise_E1` node.
+    # Remove the two backslashes in this line of code to bind the noise to the color attribute:
+        `//@Cd = noise;`
+        
+        The soil is softer in the black areas and stiffer in the lighter areas. This variation makes the soil look more organic.
+        
+        [Image:/images/mpm/mpmsoil_stiffness.jpg]
+        
+    TIP:
+        You can turn on the __Bypass__ flag on for this node to see how the varied stiffness in the soil affects the way the soil behaves.
+        
+:task: Simplify the example:
+    * Bypass the split slope with varying friction nodes (`high_friction_volume`, `sdf_sticky`, and `slope_sticky`) and just use a single collider to see the difference.
+    
+    * Bypass all of the `modify_material_attributes` to see the difference it makes, then add them back one-by-one to see how each achieves a different effect.
+        
+TIP:
+     You can also try changing the input geometry as a way to learn from this example.

@@ -1,0 +1,1553 @@
+## Cables
+
+Describes what cables are and how to use them in your network.
+
+= Cables =
+
+### Overview
+
+A cable is a wire that's made up of multiple, individual wires (inputs). Cables let you connect multiple wires to an input port using only one wire. This is useful when you want to apply the same node to multiple outputs, since you don't have to wire each output into an input. Cables also allow for variadic inputs and outputs on HDAs.
+
+The wires in a cable are identified by their names (with the collation index used to disambiguate if there are multiple wires sharing the same name). By default, cables maintain their original wire order as they travel through the network. You can use the Cable Sort COP to instead sort the wires alphabetically based on their names.
+
+Cables allow for and simplify several workflows:
+
+* With a cable output, HDAs can export a variable number of results through their fixed ports (see Export all AOVs of a file through an HDA).
+* With a cable port, HDAs can accept a variable number of inputs (see Accept a variable number of layers on an HDA).
+* A cable wired into an ordinary port of a node forces the node to loop over its wires (see Effect of cable inputs).
+* Wires of a cable can be distributed among the inputs of a node, which lets you potentially connect a cable instead of many wires. This works through input overrides or for special variadic inputs.
+* Cables can store structured data. For example, the Preview Material COP outputs a cable that contains all its constituent maps. This makes it easier to carry the material around and combine it with other materials (see Author a material cable and Blend two materials).
+
+=== Input Override and All Outputs cables === (cable_of_all)
+
+Some Copernicus nodes have green blocks on their upper-left or upper-right sides. These are known as the following:
+
+* Upper-left block: __Input Override Port__
+* Upper-left block's wire: __Input Override Cable__
+* Upper-right block: __All Outputs Port__
+* Upper-right block's wire: __All Outputs Cable__
+
+The __Input Override Port__ takes the __Input Override Cable__ and overrides the node's usual inputs. Add this port to any COP node by choosing __Add Input Override Port__ from the parameter editor's  Gear menu. Overrides are applied by matching wire names in the __Input Override Cable__ against the node's input labels.
+
+NOTE:
+    Network wires take precedence over the __Input Override Cable__. For example, if the __Input Override Cable__ has a wire named `bright` and the `bright` input port on the node has a wire connected to it, then that concrete wire is used instead of what comes in through the __Input Override Cable__.
+
+The __All Outputs Port__ generates the __All Outputs Cable__, which packs the node's outputs into a cable. Wires of the __All Outputs Cable__ are named based on output labels of the originating node. This port is especially useful for procedurally grabbing variadic outputs (for example, from the File COP). The __All Outputs Port__ is present on any COP that has the possibility of generating more than one output.
+
+== How to use cable nodes == (how_to)
+
+:task: Create a cable:
+    # Create a Cable Pack COP in your Copernicus network.
+    # Wire node outputs into their own `input#` on the Cable Pack COP. Wire in as many node outputs that you want in the cable.
+    For example, wire in three SDF Shape COPs to pack a circle, star, and diamond together.
+    # Click __Set Fields from Inputs__ to automatically populate the Cable Pack COP with the names of all the connected inputs (wires).
+
+        TIP:
+            You can edit the __Name__ fields.
+    
+        You can now wire the `cable` output into any COP node. These downstream nodes apply to each of the original inputs.
+
+:task: Turn a cable back into multiple wires:
+    # Create a Cable Unpack COP in your Copernicus network.
+    # Wire a cable into the `cable` input.
+    # Click __Set Fields from Input__ to automatically populate the Cable Unpack COP with the information of all the original inputs (wires) that make up the cable.
+    
+        You can now individually wire the outputs into any COP node.
+
+:task: Combine two cables:
+    # Create a Cable Merge COP in your Copernicus network.
+    # Wire a cable into the `input_cable` input and another cable into the `reference` input.
+    # Set __Operation__ to determine how the node merges the cables. For example, set it to `Difference` so that the `merge` output includes every wire in the first cable that's not in the second cable.
+    
+        You can now wire the `merge` output into any COP node.
+
+:task: Switch between two cables:
+    # Create a Cable Switch COP in your Copernicus network.
+    # Wire a cable into the `first` input and another cable into the `second` input.
+    # Set __Select Input__ to determine which cable the node outputs. `0` outputs the `first` input cable and `1` outputs the `second` input cable.
+    
+        You can now switch between which cable is output.
+
+:task: Separate a cable based on filters:
+    # Create a Cable Split COP in your Copernicus network.
+    # Wire a cable into the `cable` input.
+    # Configure the parameters to output two cables: one with the wires that match the filters and one with the wires that don't match the filters.
+    
+        You now have two separate cables that you can wire into any COP node.
+
+:task: Edit a cable:
+    You can use other nodes to edit a cable in the following ways:
+
+    * Wire a cable into the Cable Filter COP to remove empty wires.
+
+        _or_
+
+    * Wire a cable into the Cable Rename COP to rename that cable's wires.
+
+        _or_
+
+    * Wire a cable into the Cable Sort COP to sort that cable's wires alphabetically by name.
+
+=== Effect of cable inputs === (cable_inputs)
+
+Connect cables to ordinary ports to force the node to process each wire of the cable. This is similar to unpacking the cable, connecting each individual wire to a new copy of the target node, and then packing all of those results back into a cable. Likewise, cables of the same size can connect to different inputs of the node. In this case, each cook of the node uses a different set of wires from these cables. If a simple wire is connected to one of the other ports in this scenario, its data is used for cooking every output wire.
+
+For example, you have a `Cable1` that consists of `C` (RGBA), `depth` (Mono), and `diffuse` (RGB) wires and a `Cable2` that consists of `color` (RGBA), `depth` (Mono), and `Cd` (RGB) wires. If you connect `Cable1` and `Cable2` to the Blend COP's `bg` and `fg` inputs, respectively, the `blend` output is a cable with the same structure as `Cable1`. If you also connect a Mono layer to the node's `mask` input, that mask affects the result of blending for all three output wires.
+
+NOTE:
+    Since you can't currently nest cables, the above example doesn't work for operators with prescribed cable outputs.
+
+Many nodes with variadic inputs (for example, Contact Sheet COP and Stamp Points COP) also accept a cable in the variadic port. When a cable is connected to such an input, its wires distribute to subsequent subports. For example, if a cable with four Mono wires connects to a Contact Sheet COP, it acts as if the four wires were individually connected to the node.
+
+== How to utilize cables == (advanced_howto)
+
+:task: Export all AOVs of a file through an HDA:
+    #id: export_aovs
+    # Create a Subnetwork COP in the COP context and dive into the node.
+    # Add a File COP and connect its __All Outputs Cable__ (from the __All Outputs Port__ upper-right block) to the Output COP that pre-exists in this network.
+
+        NOTE:
+            The following steps refer to the File COP's default name, which is `file1`.
+
+    # Go back up to the Copernicus network.
+    # [RMB] the Subnetwork COP and choose __Create Digital Asset__ to turn it into an HDA. The Edit Operator Type Properties window opens after you create the HDA.
+    # In the __Edit Operator Type Properties__ window, click the __Input/Output__ tab and do the following:
+        # Delete the `input1` entry in the Inputs spreadsheet.
+        # In the Outputs spreadsheet, click the `default` signature's cell in the `output1` row and change the type to `Cable`.
+    # Click the __Parameters__ tab and do the following to promote parameters from the contained node:
+        # Click the __From Nodes__ tab in the __Create Parameters__ section.
+        # Find and expand `file1` in the tree view.
+        # Drag its `File Name (filename)` and `Add AOVs from File (addaovs)` parameters to the __Existing Parameters__ section.
+    # Click the __Node__ tab and enter `file1` in the __Editable Nodes__ parameter. This lets that node's parameters be changed by the callback when the __Add AOVs from File__ button is clicked on the HDA.
+    # Click __Accept__ in the __Edit Operator Type Properties__ window.
+    
+    You can now put down an instance of this HDA, select a file, and click __Add AOVs from File__. Its output cable contains every AOV in the selected file.
+
+:task: Accept a variable number of layers on an HDA:
+    #id: accept_layers
+    # Create a Subnetwork COP in the COP context and dive into the node.
+    # Add a Contact Sheet COP and connect its __All Outputs Cable__ (from the __All Outputs Port__ upper-right block) to the Output COP that pre-exists in this network.
+    # Connect the __All Outputs Cable__ of the Input COP that pre-exists in this network to the Contact Sheet COP.
+    # Go back up to the Copernicus network.
+    # [RMB] the Subnetwork COP and choose __Create Digital Asset__ to turn it into an HDA. The Edit Operator Type Properties window opens after you create the HDA.
+    # In the __Edit Operator Type Properties__ window, click the __Input/Output__ tab.
+    # In the Inputs spreadsheet, click the `default` signature's cell in the `input1` row and change the type to `Cable`.
+    # In the Outputs spreadsheet, click the `default` signature's cell in the `output1` row and change the type to `RGBA`.
+    # Click __Accept__ in the __Edit Operator Type Properties__ window.
+    
+    You can now put down an instance of this HDA and connect a cable with several layers to it. The wires of this incoming cable are assembled into a mosaic for the output.
+
+:task: Author a material cable:
+    #id: author_material
+    # Create a Preview Material COP in your Copernicus network.
+    # Adjust its parameters and inputs to create a custom material. The node's `material` cable output contains all the texture maps that go into reconstructing the material. 
+    # Wire the `material` cable into the __Input Override Port__ of another Preview Material COP to apply the material to another geometry.
+
+        NOTE:
+            In the Preview Material's parameter editor, choose __Add Input Override Port__ from the  Gear menu to add an override port.
+
+        TIP:
+            Wire this cable into other Cable COPs (such as Cable Split) to separate out, modify, and re-pack specific layers of the material.
+
+:task: Blend two materials:
+    #id: blend_materials
+    # Follow the Author a material cable steps to create two different materials using two Preview Material COPs.
+    # Add a Blend COP.
+    # Connect the `material` cables of the two Preview Material COPs to the `bg` and `fg` inputs of the Blend COP.
+    # Add another Preview Material COP.
+    # Connect the `blend` cable output of the Blend COP to the __Input Override Port__ of the newest Preview Material COP. This node shows the effect of applying the blended material.
+    
+        NOTE:
+            In the Preview Material's parameter editor, choose __Add Input Override Port__ from the  Gear menu to add an override port.
+
+    # (Optional) Adjust the Blend COP's __Mask__ parameter to control the blending ratio between the two materials. Wire a layer into the Blend COP's `mask` input to spatially vary the blending amount.
+
+    :fig:
+        @related
+- cop/cablepack
+- cop/cableunpack
+- cop/cablefilter
+- cop/cablemerge
+- cop/cablerename
+- cop/cablesort
+- cop/cablesplit
+- cop/cableswitch
+
+============================================================
+
+## Cooking
+
+Details the cooking methods that Copernicus uses.
+
+= Cooking =
+
+### Overview
+
+Cooking is when you run a network to produce its results. You can cook Copernicus networks using the traditional or compiled method. Copernicus doesn't cache data based on time, so it recooks everytime you change frames in the timeline.
+
+Copernicus automatically uses traditional cooking when you view a node in the COP network. The COP Network SOP, ROP Image Output COP, and Image ROP have a __Compiled Cook__ parameter that you can turn on to change from traditional (the default) to compiled cooking. For the COP Network SOP, this parameter only applies when cooking the result of the SOP as a whole because cooking individual COPs in the network still uses traditional cooking.
+
+TIP:
+    When you turn on __Compiled Cook__ in the COP Network SOP, the __Output APEX Graph__ parameter appears. Turn on __Output APEX Graph__ to output the APEX graph.
+
+=== Traditional cooking === (traditional)
+Traditional cooking is the default method that Copernicus uses and is similar to how SOPs cook in the network. Each non-HDA COP grabs all of its inputs and then cooks all of its outputs. Traditional cooking caches intermeditate results on the node, which allows for fast displays of previously-cooked results when you change display flags.
+
+The following are scenarios when traditional cooking is beneficial:
+* Interactive workflows
+* Your network has a large chain of nodes that may benefit from caching
+* You want to save out a huge network where most of the network isn't time dependent
+
+=== Compiled cooking === (compiled)
+Compiled cooking is similar to how Compiled Blocks cook in SOPs. You choose a section of the network to cook, and then Copernicus analyzes the network and builds a program to get the requested results. This means compiled cooking has to build and run a new program to cache the results. Each non-HDA COP grabs only the inputs necessary to compute the required outputs, which means it only cooks the required data. Since storage is reused, Copernicus deletes unnecessary intermediate data and layers to minimize memory usage.
+
+The following are scenarios when compiled cooking is beneficial:
+* Rendering out results
+* You want to cook a section of the network
+
+NOTE:
+    :include /copernicus/_common_notes#comp_sim/:
+
+### Combining traditional and compiled cooking
+You can combine traditional and compiled cooking to cook part of a network.
+
+# In your Copernicus network, wire a Block Begin COP into the first node you want to cook.
+# Wire the last node you want to cook into a Block End COP.
+    TIP:
+        Instead of manually adding a Block Begin and Block End COP, you can add a Block COP in your scene to automatically add the blocks.
+# Do one of the following:
+    * Turn on __Enable Compiling__ in the Block End COP to produce the outputs of the block using compiled cooking.
+    * Add an Invoke Block COP and set __Block End Node__ to the Block End COP. This runs the block as a program with dynamically bound inputs.
+
+### Memory
+Copernicus uses OpenCL, which means it uses GPU memory and can require a lot of video RAM (vRAM). Houdini tracks how much vRAM the COP layers use. If the vRAM fills up, Houdini automatically moves the data into the main memory when the GPU memory is low or the current process uses more than the set amount of OpenCL memory. This can slow down Houdini's processing.
+
+You can use the HOUDINI_OCL_COP_MEMORY variable to control the amount of OpenCL device memory that COPs can use. You can also open the Cache Manager window (choose __Windows > Cache Manager__) to view or clear the current __COP OpenCL Buffer Cache__ memory.
+
+TIP:
+    :include /copernicus/tips#gpu_memory/:
+
+============================================================
+
+## Flow solver
+
+= Flow solver =
+
+:video:
+    #src: /videos/cop/flow.mp4
+
+== Blocks in Copernicus == (blocks)
+
+Blocks in the COP network act similar to compile blocks in the SOP network, as they encapsulate a bunch of nodes that you can treat as a single object. They typically consist of a Block Begin node and a Block End, with other nodes in between. Turning on __Simulate__ enables simulation mode, which ties the process to the frame bar, allowing for caching and checkpointing in memory for faster recooking and scrubbing. 
+
+Another important feature is Live Simulation, which allows Houdini to continuously animate in almost real-time, providing real-time feedback for changes. This is similar to a video game world, where things play whether or not you are actively pressing anything. This mode is not tied to the playbar, but it's still recooking all the time. So if you make a change in the network, you will see its results being played back live in the viewport.
+
+### Flow Blocks
+
+Flow blocks function like a 2D fluid solver, although no actual fluid is involved. It is basically a Flow Block Begin and a Flow Block End with simulation mode turned on by default, and inputs/outputs for color, velocity, and temperature, are already set up. However, just like other blocks, you can turn off simulations, run fixed iterations, or enable live simulation.
+
+Due to its 2D nature where everything has to rotate on a plane, it is not a real fluid simulation. While you could use this to make fire or smoke or liquid, it is generally intended to be an artistic tool to create interesting advection effects for motion graphics.
+
+### Using flow blocks
+
+Once you use the tab menu to put down a __Flow Block__, you can put down a File. For this example, we will use `Mandril.pic` for the __File Name__. Then you can wire the `c` output of the File COP to the `color` input of the Flow Block Begin node. The following image is what you should see in the viewport.
+
+:task: Add some velocity:
+    # Put down a Fractal Noise COP.
+    # Put down a Slope Direction COP.
+    # Connect the Fractal Noise `noise` output to the Slope Direction `height` input.
+    # Connect the Slope Direction output to the default velocity `v` input of the Flow Block Begin node.
+    # Set the __Angle__ on the Slope Direction node to `90` degrees.
+    # Press __Play__ on the playbar to see the distortion.
+    
+    
+    
+:task: Use temperature to drive simulation:
+    # Put down an SDF Shape COP.
+    # Put down an SDF to Mono COP.
+    # Connect the output of the SDF Shape to the input of the SDF to Mono node.
+    # Decrease the radius on the SDF Shape node to `0.2` to create a smaller source.
+    # Connect the SDF to Mono to the `temperature` input of the Flow Block Begin node to set the initial temperature.
+    # Press __Play__ on the playbar to see the temperature rising up.
+    
+    TIP:
+        You can use the __Time Scale__ parameter on the Flow Block End to speed up or slow down the simulation.
+    
+    
+
+:task: Blend in another image:
+    # Complete the steps in __Use temperature to drive simulation__.
+    # Put down another File COP. We will use the `default.pic` butterfly for this example.
+    # Put down a Blend COP.
+    # Connect the `color` output on the Flow Block Begin node to the `bg` input of the Blend node.
+    # Connect the `c` output of the File node to the `fg` input of the Blend node.
+    # Connect the output of the the Blend node to `color` input of the  Flow Block End node.
+    # Reduce the __Mask__ parameter on the Blend node to `0.01` so that it slowly blends into the original image.
+
+    
+
+    This will put the second File COP inside the block, which isn't a problem for small files like this. However, if you were using a larger 2K or 4K texture, it would run significantly slower because it's rerunning the file every frame. To solve this issue, you can instead use the `passthrough` input so that it's only cooked outside of the network once. Re-wire the output of the File node to the `passthrough` input of the Flow Block Begin node, and connect the `passthrough` output to the `fg` input of the Blend node. This will significantly improving performance when using large files.
+
+:task: Use collisions:
+    # Complete the steps in __Use temperature to drive simulation__.
+    # Put down an SDF Shape COP.
+    # Change the __Basic Shape__ to __Squircle__ and reduce the __Blend__ to `0.75` to create in interesting shape.
+    # Put down an SDF to Mono COP and turn on the __Invert__ checkbox.
+    # Connect the SDF Shape node to the SDF to Mono node and wire them into the `passthrough` input of the Flow Block Begin node.
+    # Press Press __Play__ on the playbar to see the temperature rising up, but only in the designated shape.
+    
+    
+    
+    NOTE:
+        The flow solver uses a soft collision technique with a mask field. Increasing collision iterations will improve quality. The cache duration can be set on the Flow Block End node or managed with the Cache COP for expensive file reads.
+
+:task: Use divergence:
+    # Put down an Chorma Key COP and connect the `c` output of the File node to the `source` input.
+    # Adjust the __Hue/Saturation__ to filter out the colour red.
+    # Put down an Invert COP to invert the mask, and connect the `matte` output of the Chroma Key node to the `source` input of the Invert node.
+    # Connect the Invert node to to the `passthrough` input of the Flow Block Begin node.
+    # Press Press __Play__ on the playbar to see the red areas exploding outwards.
+    
+    
+
+The other input/output of the Flow Block is `feedback`. Color, velocity, and temperature are all fed back by default. This input lets you have extra fields, if you need more than just these three.
+
+NOTE:
+    `feedback` and `passthrough` don't have to be a single layer. These two inputs can accept cables as well.
+
+============================================================
+
+## Copernicus glossary
+
+Defines terminology related to Copernicus.
+
+= Copernicus glossary =
+
+### Overview
+
+This glossary defines terms and concepts related to the Copernicus (COPs) network.
+
+== Border types == (border)
+
+The __Border__ parameter controls the sampling behavior outside of the incoming layer's boundaries (represented by the outline in the following images). For a COP Network node and COP Network SOP, this sets the context option `default_border`, which is an integer context option that encodes the border type of layers. 
+
+Border ||
+    Description ||
+        Example ||
+
+Auto |
+    Uses the layer's border property. |
+        The image output varies based on the border property.
+
+Constant |
+    Values outside of the layer evaluate to `0`. |
+        
+
+Clamp |
+    Values outside of the layer evaluate to the closest pixel in the layer. |
+        
+
+Mirror |
+    Values outside of the layer reflect off of the boundaries. |
+        
+
+Wrap |
+    Values outside of the layer wrap around the boundary. |
+        
+
+Clip |
+    Values outside of the layer evaluate to `0`. |
+        
+
+== Cables == (cables)
+
+A cable is a wire that's made up of multiple, individual wires (inputs). Copernicus uses cables to let you connect multiple wires to an input port using only one wire.
+
+See /copernicus/cables for more information.
+
+== Channel extension == (channel_extension)
+
+The channel extension rules apply in the following scenarios:
+
+* When you try to extract a channel that's not in the input layer, Houdini extends the layer with additional values to support the extracted channel. By extending the layers, Houdini automatically converts them into the required layer.
+* When you wire different layers together, Houdini extends the input layer with additional values to make the layers match.
+
+The following are the channel extension rules that Houdini applies. A dash (-) means that the conversion is not supported.
+
+table width="100%">>
+    <tr>
+        <th>Layer</th>
+        <th>Extension</th>
+        <th>Conversion</th>
+    </tr>
+    <tr>
+        <td rowspan="4">mono (G)</td>
+        <td>G</td>
+        <td>mono</td>
+    </tr>
+    <tr>
+        <td>GG</td>
+        <td>uv</td>
+    </tr>
+    <tr>
+        <td>GGG</td>
+        <td>rgb</td>
+    </tr>
+    <tr>
+        <td>GGGG</td>
+        <td>rgba</td>
+    </tr>
+    <tr>
+        <td rowspan="4">uv (UV)</td>
+        <td>-</td>
+        <td>mono</td>
+    </tr>
+    <tr>
+        <td>UV</td>
+        <td>uv</td>
+    </tr>
+    <tr>
+        <td>UV0</td>
+        <td>rgb</td>
+    </tr>
+    <tr>
+        <td>UV01</td>
+        <td>rgba</td>
+    </tr>
+    <tr>
+        <td rowspan="4">rgb (RGB)</td>
+        <td>-</td>
+        <td>mono</td>
+    </tr>
+    <tr>
+        <td>-</td>
+        <td>uv</td>
+    </tr>
+    <tr>
+        <td>RGB</td>
+        <td>rgb</td>
+    </tr>
+    <tr>
+        <td>RGB1</td>
+        <td>rgba</td>
+    </tr>
+    <tr>
+        <td rowspan="4">rgba (RGBA)</td>
+        <td>-</td>
+        <td>mono</td>
+    </tr>
+    <tr>
+        <td>-</td>
+        <td>uv</td>
+    </tr>
+    <tr>
+        <td>-</td>
+        <td>rgb</td>
+    </tr>
+    <tr>
+        <td>RGBA</td>
+        <td>rgba</td>
+    </tr>
+
+== Data types == (data_type)
+
+The type of data that travels through a wire, which the input and output types are based on. See the following type descriptions for more information. ID, Mono, UV, RGB, and RGBA are layer types.
+
+ID:
+    Stores a single integer value per pixel.
+
+Mono:
+    Stores a single floating point value per pixel.
+
+UV:
+    Stores two floating point values per pixel.
+
+RGB:
+    Stores three floating point values per pixel.
+
+RGBA:
+    Stores four floating point values per pixel.
+
+Geometry:
+    Stores arbitrary Houdini geometry.
+
+Integer VDB:
+    Stores a single integer value per voxel of a sparse volume.
+
+Float VDB:
+    Stores a single floating point value per voxel of a sparse volume.
+
+Vector VDB:
+    Stores three floating point values per voxel of a sparse volume.
+
+== Filters == (filter)
+
+The __Filter__ parameter controls how you sample your image. Based on part of the image, this parameter determines the single color that multiple areas of your image combine into if they're treated as a single pixel.
+
+For example, a black and white checkerboard pattern can appear uniformly gray when you view the pattern from far away. The light from multiple areas of the pattern combine to look gray because from a far distance the space between squares is too small to sufficiently and separately resolve each square. You can use the __Filter__ parameter to determine which color the areas of the pattern combine into.
+
+The following table includes examples for each __Filter__ value.
+
+:include /copernicus/_filter_parameter:
+
+== Image space == (spaces)
+
+The Copernicus network uses and refers to image space. For more information, see /copernicus/spaces.
+
+== Masking == (mask)
+
+The __Mask__ parameter mixes the original incoming value with the node operation's value to provide global masking.
+
+COP nodes that support masking also have a mask input for spatially varying the mask.
+
+== Normals == (normals)
+
+Copernicus uses signed and offset normals. For more information, see /copernicus/normals.
+
+== Signatures == (signatures)
+
+A signature refers to the set of input types that a COP node accepts and the output types it generates. A COP node can have multiple signatures. COPs with multiple signatures have a __Signature__ parameter to control them.
+
+NOTE:
+    Each __Signature__ is a string parameter and has an internal name (token). These tokens are the valid values of the parameter. Use `hou.Parm.menuItems()` or `hou.Parm.menuContents()` to view the tokens for a node (see /hom/hou/Parm for more information).
+
+For example, the Checkerboard COP might generate an alternating pattern in a Mono or RGB layer, and these two modes of operation correspond to two different signatures. Another example of a node with multiple signatures is the Remap COP. The Remap COP changes an input layer's values by passing it through a simple function. It supports working on layers of different types. The node can remap a single floating point value (its Mono signature) or work on the components of a 4-channel image (its RGBA signature).
+
+For COP nodes that can determine the output type based on the inputs, the __Signature__ parameter has a `Select Automatically` option that internally picks the signature that best matches the incoming data types. You can change the __Signature__ value to override the node's mode of operation.
+
+For example, you can set the Remap COPs' __Signature__ parameter to `RGBA` so it outputs a 4-channel image even if a single channel input is wired in. In this case, the channel extension rules apply and treat the input Mono layer as the expected input type of the signature (RGBA).
+
+== Signed distance field == (sdf)
+
+A signed distance field (SDF) stores the minimum distance between a point in space and the surface of a shape. The values are negative inside the shape and positive outside of the shape.
+
+== Slap comp == (slap_comp)
+
+The Copernicus network includes a slap composite that lets you view approximate and live results of a final composite. For more information, see /copernicus/slap_comp.
+
+== Type info == (type_info)
+
+The __Type Info__ parameter is used on a layer to determine how the node interprets data. For example, an RGB layer can store colors or 3D positions. See the following value descriptions for more information.
+
+None:
+    The layer doesn't apply the __Type Info__ parameter.
+
+Color:
+    The node interprets the input data as a color.
+
+Position:
+    The node interprets the input data as a position.
+
+Vector:
+    The node interprets the input data as a vector
+
+Signed Normal:
+    The node interprets the input data as a signed normal.
+
+Offset Normal:
+    The node interprets the input data as an offset normal.
+
+Texture Coordinate:
+    The node interprets the input data as a texture coordinate.
+
+ID:
+    The node interprets the input data as an ID.
+
+Mask:
+    The node interprets the input data as a mask.
+
+SDF:
+    The node interprets the input data as an SDF.
+
+Height:
+    The node interprets the input data as height. The height is visualized as heightfields in the Scene View, and as hillshades in the Composite View and preview thumbnail.
+
+============================================================
+
+## Hatching
+
+Describes how to use hatching in your Copernicus network.
+
+= Hatching =
+
+### Overview
+
+You can use Copernicus nodes with Content Library HDAs to add Hatching in your scene. Use hatching in your Copernicus scene to add a drawing effect. Hatching impacts the light gradient and density of your shading.
+
+See the Content Library to access and download HDAs for hatching. The project file includes the following built-in HDAs:
+* __Hatching__
+    The Hatching HDA merges hatching layers to apply a crosshatching effect.
+* __Hatch Tile__
+    With the Hatch Tile HDA, you can apply horizontal, vertical, and cross hatching. You can then control the density, scale, and length of the hatches. The Hex Tile COP in the HDA node's subnetwork controls the Hatches Tiling and Tiling Blend parameters. You can also point the __Hatching Shape__ parameter to a SOP, which applies a geometry shape to your Hatch Tile.
+* __Tangent__
+    The Tangent HDA computes gradients, impacting how the light changes and distributes across the scene.
+
+The following are examples of different hatching types you can apply:
+* Crosshatching
+* Circulism
+* Contouring
+* Scribbling
+* Stippling
+* Blending
+
+See the Content Library for more complex hatching workflows, such as using contour lines and color.
+
+== Adding a Hatch Tile == (add)
+
+Follow these steps to add a Hatch Tile HDA node in your scene.
+
+# Create a File COP in your COP network to import an image or video.
+# Add a Hatch Tile HDA node and configure the hatching type.
+# Wire the File COP's `C` output into the Hatch Tile node's `camera_ref` input.
+# (Optional) Add more Hatch Tile nodes and wire the File COP's `C` output into each node's `camera_ref` input.
+
+#### Blending Hatch Tiles
+
+Follow these steps to blend multiple Hatch Tile HDA nodes.
+
+# After you add your Hatch Tiles, add a Constant COP, Ramp COP, and Sequence Blend COP.
+# Wire the Constant COP into each Hatch Tile node's `direction` input.
+# Wire the File COP's `C` output into the Ramp COP's `size_ref` input.
+# Wire the Ramp COP into the Sequence Blend COP's `blend` input.
+# Wire the Hatch Tile nodes into the Sequence Blend COP's `image` inputs. There should be an `image` input for each Hatch Tile node.
+
+== Applying uniform direction hatching == (uniform)
+
+Follow these steps to blend your hatches by direct diffuse and add uniform direction hatching. This means all the hatches go in the same direction.
+
+# Create a File COP in your COP network to import an image or video.
+# Add the amount of Hatch Tile HDA nodes that you want to blend, and configure the hatching type for each.
+# Add a Mono COP.
+# Wire the File COP's `C` output into each Hatch Tile node's `camera_ref` input and the Mono COP's `source` input.
+# Add a Channel Join COP and set __Signature__ to `UV`.
+# Wire the Mono COP into the Channel Join COP's `red` and `green` inputs.
+# Add a Constant COP. This COP's values determine the hatching direction.
+# Wire the Channel Join COP into the Constant COP's `source` input.
+# Wire the Constant COP into each Hatch Tile node's `direction` input.
+# Add a Sequence Blend COP.
+# Wire the Hatch Tile nodes into the Sequence Blend COP's `image` inputs. There should be an `image` input for each Hatch Tile node.
+# Add another Mono COP and rename it to `Direct Diffuse`.
+# Wire the File COP's `directdiffuse` AOV output into the Direct Diffuse node.
+# Add a Remap COP.
+# Wire the Direct Diffuse node into the Remap COP's `source` input.
+# Wire the Remap COP into the Sequence Blend COP's `blend` input.
+Turn on the Sequence Blend COP's display flag to see the blended hatches.
+
+== Applying non-uniform direction hatching == (non_uniform)
+
+Follow these steps to add non-uniform direction hatching, which lets you control how the hatches follow the lighting gradient (see the following image example). This workflow reduces the resolution, computes the gradients, and then increases the gradients of the image.
+
+# Create a File COP in your COP network to import an image or video.
+# Add a Hatch Tile HDA node and configure the hatching type.
+# Wire the File COP's `C` output into the Hatch Tile node's `camera_ref` input.
+# Add a Null COP.
+# Wire the File COP's `directdiffuse` AOV output into the Null COP.
+# Add a Denoise AI COP. This decreases the difference between neighbors' pixels (noise).
+# Wire the Null COP into the Denoise AI COP's `source` input.
+# Add a Mono COP and rename it to `Direct Diffuse`.
+# Wire the Denoise AI COP into the Direct Diffuse node.
+# Add a Tangent HDA node. Set the __Pixel Scale__ parameter to `2` to further reduce the noise.
+
+    NOTE:
+        If you set the Tangent node's __Pixel Scale__ parameter to `1`, the viewport displays the regional image. 
+
+# Wire the Direct Diffuse node into the Tangent node.
+# Wire the Tangent node into the Hatch Tile node's `direction` input.
+Turn on the Hatch Tile node's display flag to see the hatches distribute around the lighting.
+
+### Combining direction hatching
+
+Follow these steps to combine uniform and non-uniform direction hatching. For example, you can add uniform direction hatching to the background and non-uniform direction hatching to characters in your scene.
+
+# Create a File COP in your COP network to import an image or video.
+# Add the amount of Hatch Tile HDA nodes that you want to blend, and configure the hatching type for each.
+# Add a Mono COP and rename it to `Direct Diffuse`.
+# Wire the File COP's `directdiffuse` AOV output into the Direct Diffuse node.
+# Wire the Direct Diffuse node into each Hatch Tile node's `camera_ref` input.
+# Add a Sequence Blend COP.
+# Wire the Hatch Tile nodes into the Sequence Blend COP's `image` inputs. There should be an `image` input for each Hatch Tile node.
+# Add a Remap COP.
+# Wire the Direct Diffuse node into the Remap COP's `source` input.
+# Wire the Remap COP into the Sequence Blend COP's `blend` input.
+# Add another Mono COP and rename it to `Direct Diffuse`.
+# Wire the File COP's `directdiffuse` AOV output into the Direct Diffuse node.
+# Add a Tangent HDA node. Set the __Pixel Scale__ parameter to `2` to further reduce the noise.
+# Wire the Direct Diffuse node into the Tangent node.
+# Add a Null COP and rename it to `LIGHTING_DIRECTION`.
+# Wire the Tangent node into the `LIGHTING_DIRECTION` Null COP.
+# Add a Constant COP and two Ramp COPs.
+# Wire the Constant COP into each Ramp COP's `size_ref` input.
+# Add two more Tangent HDA nodes.
+# Wire each Ramp COP into one Tangent node. The Ramp COPs should wire into different Tangent nodes.
+# Add a Blend COP.
+# Wire one Tangent node into the Blend COP's `bg` input, and the other Tangent node into the `fg` input.
+# Add another Null COP and rename it to `STATIC_DIRECTION`.
+# Wire the Blend COP into the `STATIC_DIRECTION` Null COP.
+# Wire the File COP's `CryptoMaterial` AOV output into a mask that removes the objects to which you'll apply non-uniform direction hatching.
+# Add another Blend COP.
+# Wire the `LIGHTING_DIRECTION` Null COP into the Blend COP's `bg` input.
+# Wire the `STATIC_DIRECTION` Null COP into the Blend COP's `fg` input.
+# Wire your mask into the Blend COP's `mask` input.
+# Wire the Blend COP into each Hatch Tile node's `direction` input.
+Turn on the Sequence Blend COP's display flag to see the output with uniform and non-uniform direction hatching applied.
+
+### Notes
+
+* Since the Hatch Tile node uses a Hex Tile COP in the subnetwork, you must balance the scale of the hatches (__Hatches Length__) and the tiles (__Tile Size__). For example, an unbalanced scale may display seams between hex tiles. Use __Weight Exp__ to balance the hatches and tiles.
+
+* The `directdiffuse` AOV is channel data taken from rendering that represents direct lighting. You can use this data to compute tangent vectors that control the direction of hatching. You can also use it to create more complex lighting gradients, such as adding reflections. If you map your Hatch Tiles with a `directdiffuse` AOV, make sure the direct diffuse isn't a texture to avoid changing the hatches by texture.
+
+* With animation, using direction hatching can produce a noisy swimming effect. It's recommended that you use non-uniform direction hatching on objects that require a lighting gradient. For other areas in your scene you should use geometry or uniform direction hatching.
+
+============================================================
+
+## Normals
+
+Defines the normals that the Copernicus network uses.
+
+= Normals =
+
+### Overview
+
+Copernicus has two types of normals: signed and offset. Offset normals are signed normals that are scaled and offset to fit in the `0` to `1` range. See the following examples of ways you can control how a node uses a signed or offset normal:
+
+* The Type Info parameter on a node, such as the Layer Properties COP.
+
+* The __Conversion__ parameter on a node, such as the Convert Normal COP.
+
+* The __Normal Type__ parameter on the Height to Normal COP.
+
+### Signed normals
+
+Signed normals match what's used in Karma or SOPs. The value of the RGB channel is the value of the normal. This means the RGB values can be negative, which doesn't work with many game engines. Rendering in Karma outputs signed normals. 
+
+Signed normals have the following features:
+
+* Origin of `(0, 0, 0)`
+
+* Length of `1`
+
+* `N` attribute on geometry
+
+* `N` output of Karma
+
+### Offset normals
+
+Offset normals are remapped to a `0..1` range to match how shaders usually use normal maps. This gives the normals a distinctive blue look that you may find familiar. Shaders in Karma that read normal maps usually require offset normals.
+
+Offset normals have the following features:
+
+* Origin of approximately `(0.5, 0.5, 0.5)`
+
+* Length of `0.5`
+
+* Use normal maps in shaders
+
+============================================================
+
+## Copernicus for Nuke(tm) users
+
+Differences between using Nuke and Copernicus.
+
+= Copernicus for Nuke(tm) users =
+
+### Overview
+
+This page is for users that are familiar with Nuke(tm) and want to accomplish similar tasks in Houdini using Copernicus.
+
+NOTE:
+    Copernicus images are always in 3D.
+
+### Display images side by side in a 2048 by 1024 output
+
+Use the Contact Sheet COP node if you want to display images beside each other in a 2048 x 1024 resolution output. This node is similar to Nuke's Contact Sheet node and an alternative to its Resize node.
+
+NOTE:
+    All images are centered at the origin in image space (-1 to 1) by default. When you use a 2048 x 1024 resolution output, the images also fit within that resolution. This means that your images overlap by default.
+
+# Add a Contact Sheet COP in your node network.
+# Wire the images as separate inputs into the Contact Sheet COP node. The images are output side by side.
+# (Optional) Configure the Contact Sheet COP node to change the images' stacking orientation.
+
+### STMap node
+
+Use the UV Sample node in Copernicus to perform a similar function as Nuke's STMap node.
+
+============================================================
+
+## How to |> use ONNX Inference
+
+Describes how to apply inference using a model in the ONNX Inference node.
+
+= How to |> use ONNX Inference =
+
+### Overview
+
+The ONNX Inference COP lets you perform inference using a pre-trained model on the node's inputs to evaluate and then generate the outputs. The model also has inputs and outputs, which are known as tensors (multi-dimensional data). The following workflows outline how to use the ONNX Inference node to apply inference with one or more tensors.
+
+NOTE:
+    Model refers to the ONNX file and its inputs and outputs.
+
+For more details about the node and its parameters, see ONNX Inference.
+
+### How to apply inference with one tensor
+
+# Download an ONNX model and save it in your $HIP directory. This example uses the Mosiac model.
+# Create an ONNX Inference COP in your Copernicus network.
+# Set the __Model File__ parameter to the path of your ONNX model file (`mosaic-9.onnx` in this example).
+# Click __Setup Shapes from Model__. This populates most parameters in the node, such as the __Name__, __Data__ and __Tensor Shapes__ of the Model tab.
+# Add a File COP in the network.
+# In the File COP, set __Channel Type__ to the input type that the model expects (`RGB` in this example).
+# Wire the File COP into the ONNX Inference COP.
+
+    NOTE:
+        A warning appears if the input image's size doesn't match the model's expected input size. You can resolve this issue in the ONNX Inference COP. Turn on __Resample Size__ in the Input & Output tab and set it to the model's expected size for an input image (`224, 224` in this example).
+
+# (Optional) If your model output is too bright, turn on the output's __Brightness Multiplier__ in the Input & Output tab and set it to `1/255`.
+
+### How to apply inference with multiple tensors
+
+# Download an ONNX model and save it in your $HIP directory. This example uses the Mosiac model.
+# Create an ONNX Inference COP in your Copernicus network.
+# Set the __Model File__ parameter to the path of your ONNX model file (`mosaic-9.onnx` in this example).
+# Click __Setup Shapes from Model__. This populates most parameters in the node, such as the __Name__, __Data__ and __Tensor Shapes__ of the Model tab.
+# Add a File COP in the network.
+# In the File COP, set __Channel Type__ to the input type that the model expects (`RGB` in this example).
+# Add a Channel Split COP in the network.
+# Wire the File COP into the Channel Split COP.
+# In the ONNX Inference COP's Input & Output tab, make sure there's an input for each channel using the __Number of Inputs__ parameter (three in this example).
+# Set the __Type__ for each input in the Input & Output tab to the data type the channels require (`Mono` in this example).
+# Set the __Name__ parameters for each input. In this example, set the following:
+    * first input to `inputR`
+    * second input to `inputG`
+    * third input to `inputB` 
+# Wire the Channel Split COP's outputs into the ONNX Inference COP's inputs. In this example:
+    * `red` into `inputR`
+    * `green` into `inputG`
+    *  `blue` into `inputB`
+    
+    NOTE:
+        A warning appears if the input image's size doesn't match the model's expected input size. You can resolve this issue in the ONNX Inference COP. Turn on __Resample Size__ for each input in the Input & Output tab and set them to the model's expected size for an input image (`224, 224` in this example).
+
+# In the ONNX Inference COP's Model tab, set __Data__ to the names of all inputs in the Input & Output tab (`inputR inputG inputB` in this example).
+# (Optional) If your model output is too bright, turn on the output's __Brightness Multiplier__ in the Input & Output tab and set it to `1/255`.
+
+============================================================
+
+## OpenFX
+
+Describes what OpenFX is and how to use it in your network.
+
+= OpenFX =
+
+### Overview
+
+The Copernicus network supports the use of OpenFX plug-ins (shared libraries). With these plug-ins, OpenFX brings third party nodes into your network. Use OpenFX nodes when you want more functions than COP nodes provide. OpenFX also lets you use plug-ins that you already have in other applications in Houdini. Image generators are an example node type that OpenFX lets you access.
+
+WARNING:
+    Houdini uses a version of OpenColorIO (OCIO) that's more recent than the version in Boris FX's latest Sapphire plug-ins. This incompatibility produces a warning message from Sapphire. To avoid this warning, you can point your OCIO environment variable to an OCIO color file that's compatible with Sapphire.
+
+OpenFX nodes are in texture space.
+
+TIP:
+    If you don't want to load your system's OpenFX plug-ins, set the `HOUDINI_DISABLE_OPENFX_DEFAULT_PATH` environment variable to `1`. You also have to remove the `OFX_PLUGIN_PATH` environment variable if it's set.
+
+### Setting up the OpenFX environment variable
+
+You must set up the OpenFX environment variable in your operating system if you want to use their plug-ins in your Copernicus network.
+
+:platform:Windows
+    # Choose __Start > Edit environment variables for your account__.
+    # Click __New__.
+    # Set __Variable name__ to `OFX_PLUGIN_PATH`.
+    # Set __Variable value__ to `C:\Program Files\Common Files\OFX\Plugins`.
+    # Click __OK__.
+    # Log out and then log back into Houdini to use the OpenFX plug-ins.
+
+:platform:Mac
+    # Open your Terminal application.
+    # Go to your `.zprofile`.
+    # Enter the following command: `export OFX_PLUGIN_PATH=/usr/OFX/Plugins`. This adds the environment variable.
+    # Save your changes.
+    # Log out and then log back into Houdini to use the OpenFX plug-ins.
+
+:platform:Linux
+    # Open your Linux Terminal.
+    # Go to your `.profile`.
+    # Enter the following command: `export OFX_PLUGIN_PATH=/usr/OFX/Plugins`. This adds the environment variable.
+    # Save your changes.
+    # Log out and then log back into Houdini to use the OpenFX plug-ins.
+
+### Using OpenFX in your scene
+
+After you set up a Copernicus network, press [Tab] and enter `OFX`. The list of available OpenFX nodes appears.
+
+### Limitations
+
+The following are Copernicus' limitations for OpenFX support:
+
+* Neat Video plug-ins
+* Nodes that require access to time (for example, retimers, trackers, and deflickers)
+* Handles provided by OpenFX (for example, in a roto tool)
+
+============================================================
+
+## Slap comp
+
+Slap composite (slap comp) is a fast image manipulation you can use to view approximate and live results of a final composite.
+
+= Slap comp =
+
+### Overview
+
+One of Copernicus' main features is the slap composite (slap comp), which is a fast image manipulation you can use to view approximate and live results of a final composite. The viewport slap comp applies a network to the live results of the Solaris viewport render.
+
+NOTE:
+    Though slap comp's main use is as a filter authoring network, you can use it as a compositing tool to quickly view layered elements together.
+
+You can use the slap comp while in the Solaris viewport using Karma CPU or XPU perspective (see Using slap comp). Slap comp appears in the viewport camera, which suspends the output in space because that's what the camera views.
+
+Slap comp stashes and registers all of your AOVs when you converge or end the session, which is when you navigate away from the scene or close the window. This method of handling AOVs means that you can add a new AOV to your slap comp list to start the export process without restarting the render.
+
+:video:
+    #src: /videos/cop/slap_comp_hatching.mp4
+
+#### Errors
+
+The slap comp stays on when you receive errors and the  __Control Slap Comp settings__ button turns into a warning symbol. When you hover over , a message appears pointing you to the Log Viewer. The Log Viewer contains the correct and complete list of all errors and warnings related to the slap comp.
+
+The slap comp also displays errors in the Viewport, though these messages can be less articulate or disappear after you refresh the Viewport.
+
+#### Limitations
+* The input names on the Block Begin COP must match the names of AOVs produced by the renderer. For example, if there's a depth input it looks for the depth AOV. The type of each input must also be consistent with its AOV.
+* When using slap comp with husk, output AOVs must already exist and the output types in COPs must match the AOVs.
+* When using slap comp with husk, the output resolution must be the same as the original resolution.
+* Unlike in the Solaris viewport, the depth AOV isn't exported by default by ROPs so you must turn it on. Add a Karma Render Settings LOP and go to __Image Output > AOVs > Utility__ to turn on __Depth (Camera Space)__.
+
+== Using slap comp == (slapcomp)
+
+You can designate any section of any COP network as slap comp by adding a Block Begin COP before the section and a Block End COP after the section. You must then turn on __Register as Slap Comp Block__ on the Block End COP. This lets you bring your COP network section into the Solaris viewport and adds it to the  __Control Slap Comp settings__ dropdown menu.
+
+TIP:
+    You can use the Slap Comp Block COP to put down a block with __Register as Slap Comp Block__ turned on.
+
+You can use slap comp in the following ways:
+* in the Solaris viewport
+* in the Render Gallery
+* in the COP network using renders from the Solaris viewport
+* in the COP network using Solaris clones
+* using husk for offline rendering
+
+Slap comp is turned off if the Vulkan viewport is active. Slap comp outputs overwrite any inputs that have the same name.
+
+=== Using slap comp in the Solaris viewport === (solaris_viewport)
+
+Use slap comp in the COP network to view approximate results of a final composite.
+
+# Go to the Solaris viewport (`/stage`) and render an image using Karma CPU or XPU.
+# Create a COP Network node or go to an existing COP Network node and dive into the node. This opens a Geometry viewer and removes the previously rendered image.
+# Add a Slap Comp Block COP in your scene. This makes Block Begin and Block End nodes, and you can wire additional nodes between them.
+# Make sure __Register as Slap Comp Block__ is on in the Block End COP.
+# Go back up to `/stage` and click the  __Control Slap Comp settings__ button to turn on slap comp.
+Your non-GL/Vulkan renders are sent through the slap comp network before you see them.
+# [RMB] the  __Control Slap Comp settings__ button and choose the slap comp block you want to run from the dropdown menu.
+This processes C and depth layers by default, but you can add extra AOVs to input and output. You can adjust the nodes in your slap comp block to see live updates.
+# If your Block End COP has an output other than C, choose the AOV that you want to display in the viewport from the __Render Outputs__ dropdown menu. You can now preview your final output.
+
+TIP:
+    Use the Slap Comp Import COP to fetch the layers in live mode that last went through the slap comp process to see how it processes each node. The layers are positioned in 3D space where the camera is, similar to how they are in the real slap comp process. The Slap Comp Import doesn't cook the slap comp.
+
+=== Using slap comp in the Render Gallery === (render_gallery)
+
+Use images in the Render Gallery to view approximate results of a final composite.
+
+# Go to the Solaris viewport (`/stage`) and render an image using Karma CPU, Karma XPU, or the Vulkan viewport.
+# Create a COP Network node or go to an existing COP Network node and dive into the node. This opens a Geometry viewer and removes the previously rendered image.
+# Add a Slap Comp Block COP in your scene. This makes Block Begin and Block End nodes, and you can wire additional nodes between them.
+# Make sure __Register as Slap Comp Block__ is on in the Block End COP.
+# Go back up to `/stage`.
+# Add lights in your scene (see /solaris/kug/lights for more information).
+# Add a camera in your scene (see /solaris/kug/cameras for more information).
+# Click Smallicon:IMAGE/snapshots.svg __Show/Hide snapshot strip__ in the lower-left toolbar to open a sub-pane of the Render Gallery.
+# Click  __Snapshot__ in the Render Gallery sub-pane to create snapshots of your scene.
+# Click __New Pane Tab Type > Solaris > Render Gallery__ to open the Render Gallery pane.
+# Click a snapshot in the sub-pane.
+# Click the  __Control Slap Comp settings__ button to turn on slap comp. Your non-GL/Vulkan renders are sent through the slap comp network before you see them.
+# [RMB] the  __Control Slap Comp settings__ button and choose the slap comp block you want to run from the dropdown menu.
+# Choose `C` or `depth` from the __Image plane__ dropdown menu to display the slap comp output in the Render Gallery. This menu is in the top toolbar beside  __Histogram__.
+
+    NOTE:
+        When you use Vulkan, the Render Gallery snapshot doesn't capture anything aside from the color (`C`) layer. This can cause slap comp to error if your slap comp block has additional AOVs. To fix this, delete the additional AOVs from the Block End COP and re-click .
+
+    TIP:
+        When you use Karma, you can add extra AOVs to input and output from your slap comp block.
+
+You can now preview your final output and adjust the nodes in your slap comp block to see live updates.
+
+=== Using slap comp with renders from the Solaris viewport === (renders)
+
+Use and configure your slap comp block with the viewport results. The viewport adds its render results to the global registry.
+
+# Set up a COP network with slap comp turned on (see Solaris viewport).
+# Dive into the COP Network node and select the Slap Comp Import COP.
+# Turn on __Live Recook__ so that the COP network updates live as the renders in the viewport change.
+# Click __Add AOVs from Last Render__. This populates the node with available inputs from the last render so you don't have to manually add the AOVs. You can now use the viewport's render results in your slap comp block.
+
+NOTE:
+    You can also use the Slap Comp Import COP without a slap comp block or without having turned on use of slap comp in the Solaris viewport. The node just returns the requested AOVs from the last viewport render.
+
+TIP:
+    For each output, the Slap Comp Import has a corresponding fallback input that's passed through if the respective AOV isn't found in the registry. You can therefore plug test inputs into the node (from a File COP set to read rendered plates, for example) that are used when no Solaris viewport render has run.
+
+=== Using slap comp with Solaris clones === (clones)
+
+Houdini clones let you cook and render LOP networks. These clones use less resources when they don't locally run. For example, use this method to set up three different scenes with three different lights that you can connect and render.
+
+# Go to the Solaris viewport (`/stage`).
+# Open the Clone Control Panel.
+# Do the following for each node in the network that you want to render separately and then composite together:
+    # Choose __HQueue Clone__ or __Local Clone__ from the Clones dropdown menu to start up a local or hqueue clone.
+    # Under Node, point the clone to the node in the network you want it to represent.
+    # Under Frame, set the frame you want to render in the timeline. Each clone renders the currently selected frame.
+# Turn on each clone so it renders (it should say Connected beside each clone).
+# Create a COP Network node in `/stage` and dive into the node.
+# Add a File COP for each clone.
+# Configure each File COP with the following. Each File COP should reference a different clone.
+    # Set __Source__ to `Clone`.
+    # Choose the clone you want to import from the __Clone Name__ dropdown menu.
+# Wire the File COPs into Add COPs to connect your renders until the network ends in one Add node. You can now preview your final output.
+
+=== Using slap comp with Husk === (husk)
+
+You can use Husk to do an offline render. You can use the USD Render ROP LOP to apply slap comp after a render.
+
+WARNING:
+    Using SOPs anywhere in the slap comp block, including in HDAs, fails.
+
+# Go to the Solaris viewport (`/stage`).
+# Create a COP Network node or go to an existing COP Network node and dive into the node.
+# Add a Slap Comp Block COP in your scene. This makes Block Begin and Block End nodes, and you can wire additional nodes between them.
+# Make sure __Register as Slap Comp Block__ is on in the Block End COP.
+# Go back up to `/stage`.
+# Add a USD Render ROP LOP.
+# Go to __Husk > Slap Comp__.
+    TIP:
+        Instead of using this tab, you can use the following Husk command line to perform slap comp: `husk scene.usda --slapcomp program.bgeo`
+# Add a slap comp and do one of the following:
+    * Set __Source__ to `COP Network` and __COP Node__ to a Block End COP.
+    * Set __Source__ to `File` and __File__ to a slap comp program that's saved to a geometry file. Use this option when you have a canonical network that you want to apply to different scenes, but you don't want to duplicate the network in every scene file.
+    
+    NOTE:
+        The USD Render ROP LOP has __Map Input__ and __Map Output__ parameters. You don't need to change these parameters if your slap comp's inputs and outputs match the AOVs. These parameters are useful when you have a canonical slap comp program you want to apply, but it has its own input and output names that your current AOVs don't match. The __Map Input__ and __Map Output__ parameters let you map your AOVs to those inputs and outputs.
+# Click __Render to MPlay__. The MPlay window opens and previews your final output offline.
+
+== Saving slap comp == (save_to_geo)
+
+After you author a slap comp network (see Using slap comp), you can save your slap comp program to a geometry file.
+
+# Create a Block to Geometry COP in your COP network.
+# Set __Block End Node__ to the Block End COP of the slap comp block you want to save as a geometry file.
+# Export the geometry out to a file on disk.
+
+### Sending out your effect for 1000 frames
+
+After you make an output using slap comp (see Using slap comp), you can send it out to create 1000 frames.
+
+# Go to the Solaris viewport (`/stage`).
+# Add or select an existing USD Render ROP LOP in your network.
+# Go to __Husk > Slap Comp__.
+# Add a slap comp and set __Source__ to `COP Network`.
+# Set __COP Node__ to the slap comp's Block End COP.
+# Enter a name in the __Label__ parameter that you can use to identify this slap comp operation when husk prints out messages.
+
+### Tips
+
+* To remove all 3D transformations from your image and place it in canonical instead of camera space, wire the Block Begin COP into the first input of a Match Camera COP. This makes the image act as expected through the network. You can then wire the Block End COP into the first input of another Match Camera COP to restore your image back to its original location.
+* When working in LOPs, input layers can bring in cameras so the view is consistent with what's rendering spacially. To control whether to bring in these cameras, the Block End COP has an __Import Cameras with Slap Comp Inputs__ parameter you can turn on to place the input layer where the camera's view is. When this parameter is off (the default setting), the slap comp places the input layer in the canonical default position (image space). A parameter of the same name is also present on the Slap Comp Import COP.
+* If you add a File COP in your slap comp block, the file initially displays its default resolution. You can add a Resample COP to change this resolution. Wire the File COP into the first input of the Resample COP, wire the Block Begin COP's first output into the second input of the Resample COP, and then set the Resample COP's __Size Control__ parameter to `Aspect Ratio` and turn on __Reframe to Destination__.
+
+============================================================
+
+## Spaces
+
+Defines the spaces that the Copernicus network uses.
+
+= Spaces =
+
+### Overview
+
+The Copernicus network uses and refers to the following spaces:
+
+* Buffer: The samples of the image, which correspond to the data layout in the memory.
+
+* Pixel: A canonical pixel-sized area. The pixel's origin coordinates are the lower-left corner of the pixel. The display window determines the image's location in this pixel array. The data window determines the Buffer's location. See View pixel position for tips.
+
+* Texture: Maps from `0` through `1` across the data window and Buffer space, which stretches the texture.
+
+* Image: Maps from `-1` through `1` across the display window, which scales the image to fit to preserve the pixel aspect ratio.
+    NOTE:
+        The preview thumbnail for a COP node displays the output in a `-1` to `1` window.
+
+* World: A 3D location in the modelling space. For example, the viewport applies this space when you use a Transform 3D COP.
+
+NOTE:
+    A pixel is also known as a picture element. A buffer element is the pixel-equivalent for buffer space.
+
+Instead of always using texture space, Copernicus uses image space. Since Copernicus is linear first, it can use negative values. This means Copernicus values are in their natural space (a requirement for HDR) instead of being normalized. The following are additional benefits of keeping values in their original space:
+
+* You don't need metadata that indicates the value's actual range.
+
+* Ranges aren't clamped. This means HDR, vectors, and such aren't limited.
+
+* The values are one-to-one with the SOP version of attribtues.
+
+### View images
+
+The 3D viewport imports Copernicus nodes using world space, which by default is the same as image space. This frames the image in a `-1` to `1` square, which creates borders for non-square images since their coordinates cover only some of the `-1` to `1` range. In comparison, the texture space always covers the `0` to `1` range for the image data.
+
+:compare_images:
+    #image1: /images/copernicus/texture_space_cropped.jpg
+    #image2: /images/copernicus/image_space.jpg
+
+#### Cropping
+
+When you Crop in image space (set __Units__ to `Image`), the default crops from `-1` to `1`. This makes a non-square image bleed outside of texture space to fill the image space. An image space crop is an absolute crop. For example, if you wire in two identical Crop nodes where __Lower Left__ is `0, 0` and __Upper Right__ is `1, 1`, the final output is a quarter of the original image since the values of the two Crop nodes aren't applied on top of each other.
+
+:fig: 
+    #display: half left
+
+    When you Crop in texture space (set __Units__ to `Texture`), the node crops the image based on the incoming image's data window. This prevents a non-square image from bleeding outside of texture space. A texture space crop is a relative crop. For example, if you wire in two identical Crop nodes where __Lower Left__ is `0.5, 0.5` and __Upper Right__ is `1, 1`, the final output is a sixteenth of the original image since the values of the two Crop nodes are applied on top of each other.
+
+NOTE:
+    The image doesn't move in the viewport when you adjust the Crop settings if it's in texture space and the Crop node's __Mode__ is set to `Discard Cropped`. For information about how to change this setting and reframe the cropped image, see the Crop COP's Mode parameter settings.
+
+:fig: 
+    #display: half left
+
+    When you Crop in pixel space (set __Units__ to `Pixels`), the node crops the image based on the exact pixel values you set in the node.
+
+:fig: 
+    #display: half left
+
+    === Visualization ===
+
+Visualizing refers to when you perform UV mapping in the viewport instead of displaying the real colors of an image.
+
+When you wire a Crop node into a UV Map that has __UV Space__ set to `Image`, the output displays the remaining section in the color that originally occupied the section.
+
+:compare_images:
+    #image1: /images/copernicus/image_space_cropped_uv.jpg
+    #image2: /images/copernicus/image_space_uv.jpg
+
+When you wire a Crop node into a UV Map that has __UV Space__ set to `Texture`, the output displays the remaining section in the entire color gradient of the original image.
+
+:compare_images:
+    #image1: /images/copernicus/texture_space_cropped_uv.jpg
+    #image2: /images/copernicus/texture_space_uv.jpg
+
+============================================================
+
+## Copernicus for Substance 3D Designer(tm) users
+
+Differences between using Substance 3D Designer and Copernicus.
+
+= Copernicus for Substance 3D Designer(tm) users =
+
+### Overview
+
+This page is for users that are familiar with Substance 3D Designer(tm) and want to accomplish similar tasks in Houdini using Copernicus.
+
+### Nodes
+
+The following table outlines where to find certain Substance 3D Designer node operations in Copernicus. For more information, see COP nodes.
+
+Substance 3D Designer ||
+    Copernicus ||
+
+Distance node |
+    Feather and Extrapolate Boundaries nodes
+
+    See Distance node for more information about how to configure these COPs so they act like a Distance node.
+
+Gradient nodes |
+    Ramp nodes
+
+Histogram nodes |
+    Remap nodes
+
+Flood Fill nodes |
+    Segment by Connectivity and UV Map by ID nodes
+
+### Use cases
+
+The following are examples of how to set up certain COP nodes so that they work similarly to the relevant Substance 3D Designer nodes.
+
+=== Distance node === (distance)
+
+A common workflow in Substance 3D Designer is to make edges and then add those edges to a flood fill. This often results in ragged edges. As an alternative to their Distance node, you can use the Feather COP or Extrapolate Boundaries COP to clean up the edges' outline.
+
+==== Feather COP ====
+
+The following is an example of how to clean up the outlines of edges with the Feather COP.
+
+# Create a Tile Pattern COP in your Copernicus network.
+# Add a Feather COP.
+# Wire the Tile Pattern COP's `tiles` output into the Feather COP's `source` input.
+# In the Feather COP, set __Feather Direction__ to `Circle`. This creates smoother results.
+# (Optional) Turn on the __Feather from High to Low__ parameter to expand the outer edges of the pattern shape into the background.
+# Adjust the __Distance for Unit Change__ parameter until you get the desired output.
+
+You can also use the Feather COP to expand and shrink shapes.
+
+# Create a Tile Pattern COP in your Copernicus network.
+# Add a Feather COP.
+# Wire the Tile Pattern COP's `tiles` output into the Feather COP's `source` input.
+# In the Feather COP, adjust the __Distance for Unit Change__ parameter until you get the desired output.
+# Add a Remap COP.
+# In the Remap COP, set __Operation__ to `Threshold` and __Threshold When__ to `Greater`.
+# Adjust the __Threshold__ parameter until you get the desired output.
+# Wire the Feather COP's `feather` output into the Remap COP's `source` input.
+# Turn on the Remap COP's display flag and select the Feather COP.
+# Turn the __Feather from High to Low__ parameter on to expand the outer edges of the pattern shape into the background or off to shrink the outer edges of the pattern shape inwards.
+
+==== Extrapolate Boundaries COP ====
+
+The following is an example of how to clean up the outlines of edges with the Extrapolate Boundaries COP.
+
+# Create an Extrapolate Boundaries COP in your Copernicus network.
+# Wire the design into the Extrapolate Boundaries COP's `source` input.
+# Wire the base shape into the Extrapolate Boundaries COP's `fillarea` input.
+    TIP:
+        To smooth small segments that can produce grainy artifacts, apply a Blur COP to the base shape before you wire it into the `fillarea`.
+# Wire the cracks into the Extrapolate Boundaries COP's `mask` input. This makes the blending stay within the cracks.
+# In the Extrapolate Boundaries COP, set __Exterior__ to `Unchanged`.
+# Adjust the __Threshold__ and __Edge Padding__ parameters until you get the desired output. See the following image for an example.
+
+    NOTE:
+        If your `fillarea` input is the inverse of your `source` input, you can adjust the Extrapolate Boundaries COP's __Edge Padding__ to make each dot's value expand outwards until it reaches the next expanding dot's edge. For example, you can do this to create cell patterns.
+
+    :fig: 
+        #display: half
+
+============================================================
+
+## Copernicus tips
+
+Useful tips and information while using COPs.
+
+= Copernicus tips =
+
+### Overview
+
+This page includes additional tips and supplementary information to help you use Copernicus.
+
+== Clear GPU and memory usage == (gpu_memory)
+
+You can enter `copcache -c` in the textport window to clear your GPU and memory usage. This also recooks your scene if you have images displayed in your viewport. See copcache for more information about this HScript command.
+
+== Move SOP into image space == (move_image_space)
+
+When you import a SOP into COPs using SOP Import, the geometry is placed in world space. To frame geometry into the canonical camera's view, you can use the Rasterize Setup COP. Wire your input geometry into the COP's `source` input and adjust its settings to get the desired framing.
+
+See Spaces for more information about spaces.
+
+== View pixel position == (pixel_position)
+
+You can view the pixel positions of a node in the Composite Viewer. Make sure the node's display flag is on, and then [RMB] and click __Inspect__ in the Viewer. Hover over the image to see the pixel details.
+
+See Inspect individual pixel values for more information about using this tool.
+
+============================================================
+
+## Copernicus for Houdini users
+
+Differences between the Compositing and Copernicus networks.
+
+= Copernicus for Houdini users =
+
+### Overview
+
+As of Houdini 20.5, use Copernicus nodes instead of Compositing nodes. Though both networks still exist, the Compositing network is now designated as `COP Network - Old`.
+
+Though there are some similarities between the Copernicus and Compositing networks, this page explains key differences between the two.
+
+== Data and display windows == (data_display)
+
+Data and display windows both provide coordinates for a rectangle.
+
+The data window determines which region (in pixel space) of the viewer contains pixel data. The display window determines the file's boundaries (in pixel space) based on pixel coordinates in the upper-left and lower-right corners. For files that either don't have all pixel data in the display window or have pixel data outside of the display window's boundaries, the extra pixel data appears between the data and display windows.
+
+(Thanks to OpenEXR and fnord software blog for reference.)
+
+== Limit node == (limit)
+
+The Compositing network has the Limit node, which lets you limit the pixel range. Use the Clamp node to perform a similar function in Copernicus.
+
+== Mosaic and demosaic == (mosaic)
+
+Use the Contact Sheet COP in Copernicus to perform a similar function as the Mosaic COP2 node. To offset file sequences, update `$F#` (`$F4` for example) in the File COP's __File Name__ to `<F#>` (`<F4>`). This lets you set the __Video Start Frame__ to the frame number from where you want the sequence to start playing. `$F#` doesn't use the __Video Start Frame__.
+
+Turn on __Extract Tile__ in the Crop COP to perform a similar function as the Labs Demosaic COP2 node.
+
+== Wires == (wires)
+
+The Compositing network could support multiple layers on one wire. Instead, each Copernicus wire supports only one layer. Use Cables to connect multiple wires to an input port using only one wire to imitate the capabilities of a Compositing wire.
+
+============================================================
+
+## VDBs
+
+= VDBs =
+
+### Importing SOP geometry
+
+There are two ways to get geometry into a COP network. You can either use a SOP Import COP which points to an existing SOP to grab the geometry, or you can use a SOP Geometry COP and dive inside to create the geometry directly inside. Although these are two separate options in the tab menu, they both put down the same node.
+
+For more information, see Bringing SOPs into COPs.
+
+### Creating VDBs from surface
+
+# Put down a SOP Geometry COP and dive inside to create the geometry, for example a Rubber Toy Test Geometry.
+
+# Connect a VDB from Polygons node to convert it into a VDB volume.
+
+# Increase the __Voxel Size__ to `0.05` to give it a higher resolution.
+
+# Navigate back to the COP network, and you will see the VDB representation in the viewport. You will also have a `geometry` output on your SOP Geometry node, and you're able to click [MMB] on the node to see the info window.
+    
+# To use it in Copernicus you will need to convert it into a VDB Layer. You can do this by putting down a Geometry to VDB node, and connecting it to your SOP Geometry COP. This node extracts a specifically named volume or VDB from the geometry and creates the the single wire out of it. If you click [MMB] to see the info window on this node, you will get slightly less information, since it's just one VDB and not the whole geometry.
+
+:col:
+    
+:col:
+    
+
+### Creating VDBs from fog volume
+
+# Put down a SOP Geometry COP and dive inside to create the geometry, for example a Pig Head Test Geometry.
+
+# Connect a VDB from Polygons node to convert it into a VDB volume.
+
+# Turn off the __Distance VDB__ checkbox and turn on the __Fog VDB__ checkbox to create a fog volume.
+
+# Navigate back to the COP network, and you will see the VDB representation in the viewport. You will also have a `geometry` output on your SOP Geometry node, and you're able to click [MMB] on the node to see the info window.
+
+# To use it in Copernicus you will need to convert it into a VDB Layer. You can do this by putting down a Geometry to VDB node, and connecting it to your SOP Geometry COP. This node extracts a specifically named volume or VDB from the geometry and creates the the single wire out of it. If you click [MMB] to see the info window on this node, you will get slightly less information, since it's just one VDB and not the whole geometry.
+
+    :col:
+        
+    :col:
+        
+
+# Next you can put down a Layer form VDB node and connect the `output` of the Geometry to VDB node to the `vdb` input. This dips one of our 2D volumes into the VDB, so you can see what it looks like.
+
+# In order to get difference slices of the pig head, put down a Layer node and a Transform 3D node.
+
+# Connect them together and then wire the `output` of the Transform 3D node to the `size_ref` input of the Layer form VDB node.
+
+# With the Transform 3D node selected, you can press [Enter] in the viewport to activate the state, and use the handles to rotate and transform the slice.
+
+    :col:
+        
+    :col:
+        
+    
+TIP:
+    You can use the Rasterize Volume COP to simulate camera views by sending rays, like in Karma.
+    
+NOTE:
+    Most of the COP nodes for working with monochrome images or vector RGB images can also be used in VBDs.
+
+============================================================
+
+## Working with Copernicus nodes
+
+Provides next steps and workflows for how to use Copernicus nodes.
+
+= Working with Copernicus nodes =
+
+### Viewing your output
+
+You can view your Copernicus output in the Scene Viewer as a volume and Composite Viewer as an image. The output is a pixel representation of a voxel grid. Since some data is hard to visualize in the viewer, what the viewport displays isn't always what's in the data. Copernicus uses a default visualizer to enhance the visibility of the output. Height is visualized as heightfields in the Scene Viewer, and as hillshades in the Composite Viewer and preview thumbnail.
+
+TIP:
+    :include /copernicus/tips#gpu_memory/:
+
+In the Scene Viewer, there are two different levels where you can view your COP network output:
+
+* When viewing a node inside a COP network, the Scene View displays the first output of the COP node that has the display flag on.
+
+    For nodes with multiple outputs, click the output name in the bottom right of the node to change which output appears in the viewer. This does not impact what outputs output in your SOP network.
+
+    TIP:
+        You can also [RMB] the node and choose the output name from the __Flags > Output for View__ drop-down menu.
+
+* When viewing a node inside the SOP network, the Scene View displays a SOP. When the COP Network node display flag is on, you're looking at a SOP that contains a COP network.
+
+    For a COP node with the display flag on and multiple outputs in the COP network, you can use the COP Network node to control which output appears in the Scene View. In the COP Network node, turn on __Single Output__ and then use __Output__ to control which output appears in the Scene View. When __Single Output__ is off, all outputs appear in the Scene View.
+
+The Composite Viewer displays multiple views. For a COP node with the display flag on and multiple outputs in the COP network, you can use the main toolbar to choose from the output drop-down menu which output it displays.
+
+=== Default COP Network settings === (default)
+
+The /ref/windows/copernicus controls the global context options for Copernicus, which sets the default settings of the COP nodes. These control the default settings of COP nodes that don't have their own input or values for these settings.
+
+The COP Network and COP Network SOP can override some of the Copernicus Default Settings window's settings. They control the default settings of COP nodes that don't have their own input or settings. A node no longer uses these default settings if it has a node wired into it with values for these settings. If you unwire the nodes, the nodes return to their previous settings.
+
+When you dive into the COP Network node, you can use the toolbar above your Copernicus network to view or change some of the following settings of the COP Network node.
+* Resolution
+* Pixel Scale (drives the __Proxy 1:#__ parameter in the COP network toolbar)
+    NOTE:
+        You can use the __Proxy 1:#__ scale in the toolbar to cook the node resolution at a percentage of the scale. For example, turning on __Proxy 1:2__ cooks the nodes at half the resolution.
+* Border
+* Precision
+* Tile Visualization
+    NOTE:
+        Replicates your input a set number of times. For example, set this to `3` to replicate your input three times. Tile Visualization is useful when you want to test whether your input properly tiles.
+* UDIM
+
+=== Python states and handles === (states_handles)
+
+Copernicus Python states run in the Composite and Scene Views (see /hom/state_cops for more information). You can use the Operator Type Properties window to bind 2D and 3D handles to COP nodes.
+
+The following are HOM classes and functions related to Copernicus nodes:
+* Hom:hou.CompositorViewer
+* Hom:hou.copNodeTypeCategory
+* Hom:hou.Drawable2D
+* Hom:hou.Viewport2D
+
+See the following pages for some next steps:
+* /hom/python_states
+* /hom/python_handles
+* Registering a python viewer handle
+* /hom/handle_events
+
+### Adding files from disk in COPs
+The following steps outline how you add files from disk directly in your COP network.
+
+# Create a File COP in your COP network.
+# Set __File Name__ to the image, MP4, or EXR file you want in your scene.
+# For files with multiple AOVs, click __Add AOVs from File__ to specify which AOVs to bring in.
+# Configure the File COP further for the following:
+    * For MP4 files, set the __Video Start Frame__ to the frame number from where you want the video to start playing.
+    * For EXR files, update `$F#` (`$F4` for example) in the __File Name__ to `<F#>` (`<F4>`). This lets you set the __Video Start Frame__ to the frame number from where you want the sequence to start playing. `$F#` doesn't use the __Video Start Frame__.
+
+### Saving COPs
+The following procedures outline how to save COP nodes in your COP network. Most COP networks require the Multiple saves approach.
+
+=== Multiple saves === (multiple_save)
+Follow these steps if you plan to save a COP file in your network multiple times.
+
+# Create an image output node in one of the following networks:
+    * In a COP network, add a ROP Image Output COP.
+    * In a ROP network (`/out`), add an Image ROP.
+# Set __COP Path__ to the node you want to save. In a COP network, a wire attaches the node to the ROP Image Output COP.
+    TIP:
+        In a COP network, you can also drag the node you want to save into the __COP Path__ parameter. The parameter adds the pathname.
+# For nodes with multiple AOVs, click __Add AOVs from COP__ to bring in all AOVs.
+# Under File Layout, make sure that each __Port__ is set to the node's AOV port you want to save out.
+
+#### Single save
+Follow these steps if you plan to save a COP file in your network once. This saves the COP node from the current cook.
+
+# [RMB] the node you want to save in your COP network.
+# Choose __Image__ from the __Save__ drop-down menu. The Save As window opens.
+# Configure your saving details and click __Save__.
+
+NOTE:
+    In the Composite Viewer, you can also [RMB] and choose __Save Frame__ to open the Save As window.
+
+### Referencing COP networks
+Copernicus lets you bring your COP network into other networks. You can reference other COP and SOP networks while working in a COP network. You can also reference your COP network while working in a SOP network. 
+
+TIP:
+    If you want to reference a node that's inside your COP network but don't want to use it as an output, wire that node into a Null COP. You can then reference that Null COP's path outside of the COP network. You must prefix the Null COP's path with `op:` (for more information, see /io/op_syntax).
+
+=== Bringing COPs into COPs === (cops_into_cops)
+Follow these steps to bring another COP's results into your COP network.
+
+# Create a Fetch COP in your COP network.
+# Set __COP Path__ to the path of a COP node in another network.
+# Click __Set Outputs from Selected COP__. This pulls in the outputs from the target node, which become the outputs of the Fetch COP node.
+
+=== Bringing SOPs into COPs === (sops_into_cops)
+Follow these steps to bring a SOP network into your COP network.
+
+# Create a SOP Import COP in your COP network.
+# Configure the SOP Import COP to do one of the following:
+    * Bring in an internal SOP.
+        # Dive into the SOP Import COP.
+        # Add and configure SOP nodes.
+        # Set the display flag on the SOP node you want to import.
+    * Bring in an external SOP.
+        # Turn on __Use External SOP__.
+        # Set __SOP Path__ to the path of a SOP node that's outside of the COP network.
+# If your SOP is a two-dimensional volume, do the following to turn it into a layer:
+    # Add a Geometry to Layer COP. Wire the SOP Import into this node.
+    # In the Geometry to Layer COP, set __Signature__ to correspond to the volume's type.
+
+    TIP:
+        You can also use the Rasterize Geometry COP to take the piece of geometry and rasterize it into a layer. The node rasterizes the geometry based on the canonical camera unless you wire in a `camera_ref` input. To move the SOP back into view of the canonical camera, see Move SOP into image space.
+
+=== Bringing COPs into SOPs === (cops_sops)
+Follow these steps to bring a COP network into your SOP network.
+
+# Create a COP Network SOP in your SOP network.
+# Configure the COP Network SOP to do one of the following:
+    * Bring in an internal COP.
+        # Dive into the COP Network SOP.
+        # Add and configure COP nodes.
+        # Set the display flag on the COP node you want to appear in the SOP network.
+            TIP:
+                [Ctrl + LMB] a node's display flag to turn on the 3D output flag, which overrides the display flag.
+    * Bring in an external COP.
+        # Turn on __Use External COP__.
+        # Set __COP Path__ to the path of a COP node that's outside of the SOP network.
+
+    You can now wire the COP Network SOP into other SOP nodes in the network.
+
+NOTE:
+    Some SOP nodes let you point to a COP network. SOPs that supported this for `COP Network - Old` now support this for the new `COP Network`. 
+
+#### Bringing COPs into LOPs for materials
+You can create a Quick Surface Material LOP in your Solaris network to bring a COP network into your LOP network for use in MaterialX. See Quick Materials for how to use this LOP.
+
+You can also use a Scene Import LOP to bring a SOP with a COP Preview Material into your LOP network.
+
+As an alternative, you can follow these steps to bring COPs into LOPs using a Karma Material Builder subnetwork.
+# Create a Material Library LOP in your Solaris network.
+# Dive into the Material Library LOP.
+# Add and dive into the Karma Material Builder subnetwork node.
+# Add a MtlX Tiled Image VOP.
+# Set __File__ to the path of a node in a COP network. You must prefix the node's path with `op:`. For more more information about the `op:` prefix, see /io/op_syntax.
+    You can now use the COP node's pattern and data in your MaterialX workflow.
+
+### Using COPs as materials
+Follow these steps to apply COP outputs as materials on SOP (geometry) nodes.
+
+# Create a COP Preview Material SOP in your SOP network.
+    TIP:
+        In the Copernicus network, you can instead use the Preview Material COP and wire your nodes into the different inputs to test how the materials display.
+# Wire the SOP on which you want to add materials into the COP Preview Material SOP.
+# Go to __Material > Base__ in the COP Preview Material SOP.
+# Under Base Color, set __Source__ to `COP`.
+# Set __Base Color COP__ to the path of a node in a COP network.
+# (Optional) To render your geometry with the materials applied, go to `/stage` and add a Scene Import (All) LOP. This brings in your geometry so you can render it using Karma.
+
+== Using SOPs from COPs == (sops_from_cops)
+Follow these steps to alter geometry wires with SOPs. The SOP Invoke COP streamlines the processing of geometry in a COP network.
+
+# Create geometry in your COP network. For example, add a SOP Geometry COP and dive into the node to create geometry.
+# Add a SOP Invoke COP.
+# Wire the geometry into the SOP Invoke COP's `input#`.
+# Dive into the SOP Invoke COP.
+# Add and configure SOP nodes between the Block Begin Compile and Block End Compile SOPs. These nodes run on the input geometry. The node parameters in the invoked block are evaluated in their original locations.
+    NOTE:
+        Only compileable SOPs can be used in this block.
+# Go back up to the COP network. The SOP Invoke COP `output#` contains the altered geometry, which you can wire directly into a COP node.
+
+NOTE:
+    The SOP Invoke COP takes geometry wires to run SOPs onto, while the SOP Import and SOP Geometry COPs read a SOP network from which they create a geometry wire.
+
+### Starting a live render
+See Live rendering in Solaris for information about how to start and stop a live render session.

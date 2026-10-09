@@ -1,0 +1,172 @@
+= Slap comp =
+
+"""Slap composite (slap comp) is a fast image manipulation you can use to view approximate and live results of a final composite."""
+
+== Overview ==
+
+One of Copernicus' main features is the slap composite (slap comp), which is a fast image manipulation you can use to view approximate and live results of a final composite. The viewport slap comp applies a network to the live results of the Solaris viewport render.
+
+NOTE:
+    Though slap comp's main use is as a filter authoring network, you can use it as a compositing tool to quickly view layered elements together.
+
+You can use the slap comp while in the Solaris viewport using Karma CPU or XPU perspective (see [Using slap comp|#slapcomp]). Slap comp appears in the viewport camera, which suspends the output in space because that's what the camera views.
+
+Slap comp stashes and registers all of your AOVs when you converge or end the session, which is when you navigate away from the scene or close the window. This method of handling AOVs means that you can add a new AOV to your slap comp list to start the export process without restarting the render.
+
+:video:
+    #src: /videos/cop/slap_comp_hatching.mp4
+
+=== Errors ===
+
+The slap comp stays on when you receive errors and the [Icon:BUTTONS/slapcomp] __Control Slap Comp settings__ button turns into a warning symbol. When you hover over [Icon:BUTTONS/slapcomp], a message appears pointing you to the [Log Viewer|/ref/panes/logviewer]. The Log Viewer contains the correct and complete list of all errors and warnings related to the slap comp.
+
+The slap comp also displays errors in the Viewport, though these messages can be less articulate or disappear after you refresh the Viewport.
+
+=== Limitations ===
+* The input names on the [Block Begin COP|Node:/cop/block_begin] must match the names of AOVs produced by the renderer. For example, if there's a depth input it looks for the depth AOV. The type of each input must also be consistent with its AOV.
+* When using [slap comp with husk|#husk], output AOVs must already exist and the output types in COPs must match the AOVs.
+* When using [slap comp with husk|#husk], the output resolution must be the same as the original resolution.
+* Unlike in the [Solaris viewport|#solaris_viewport], the depth AOV isn't exported by default by ROPs so you must turn it on. Add a [Karma Render Settings LOP|Node:/lop/karmarenderproperties] and go to __Image Output > AOVs > Utility__ to turn on __Depth (Camera Space)__.
+
+== Using slap comp == (slapcomp)
+
+You can designate any section of any COP network as slap comp by adding a [Block Begin COP|Node:/cop/block_begin] before the section and a [Block End COP|Node:/cop/block_end] after the section. You must then turn on __Register as Slap Comp Block__ on the Block End COP. This lets you bring your COP network section into the Solaris viewport and adds it to the [Icon:BUTTONS/slapcomp] __Control Slap Comp settings__ dropdown menu.
+
+TIP:
+    You can use the Slap Comp Block COP to put down a block with __Register as Slap Comp Block__ turned on.
+
+You can use slap comp in the following ways:
+* in the [Solaris viewport|#solaris_viewport]
+* in the [Render Gallery|#render_gallery]
+* in the COP network [using renders from the Solaris viewport|#renders]
+* in the COP network [using Solaris clones|#clones]
+* [using husk|#husk] for offline rendering
+
+Slap comp is turned off if the Vulkan viewport is active. Slap comp outputs overwrite any inputs that have the same name.
+
+=== Using slap comp in the Solaris viewport === (solaris_viewport)
+
+Use slap comp in the COP network to view approximate results of a final composite.
+
+# Go to the Solaris viewport (`/stage`) and render an image using Karma CPU or XPU.
+# Create a [COP Network node|Node:/manager/copnet] or [go to an existing COP Network node|/copernicus/index#access] and dive into the node. This opens a Geometry viewer and removes the previously rendered image.
+# Add a Slap Comp Block COP in your scene. This makes [Block Begin|Node:/cop/block_begin] and [Block End|Node:/cop/block_end] nodes, and you can wire additional nodes between them.
+# Make sure __Register as Slap Comp Block__ is on in the Block End COP.
+# Go back up to `/stage` and click the [Icon:BUTTONS/slapcomp] __Control Slap Comp settings__ button to turn on slap comp.
+Your non-GL/Vulkan renders are sent through the slap comp network before you see them.
+# ((RMB)) the [Icon:BUTTONS/slapcomp] __Control Slap Comp settings__ button and choose the slap comp block you want to run from the dropdown menu.
+This processes C and depth layers by default, but you can add extra AOVs to input and output. You can adjust the nodes in your slap comp block to see live updates.
+# If your Block End COP has an output other than C, choose the AOV that you want to display in the viewport from the __Render Outputs__ dropdown menu. You can now preview your final output.
+
+TIP:
+    Use the [Slap Comp Import COP|Node:/cop/slapcompimport] to fetch the layers in live mode that last went through the slap comp process to see how it processes each node. The layers are positioned in 3D space where the camera is, similar to how they are in the real slap comp process. The Slap Comp Import doesn't cook the slap comp.
+
+=== Using slap comp in the Render Gallery === (render_gallery)
+
+Use images in the Render Gallery to view approximate results of a final composite.
+
+# Go to the Solaris viewport (`/stage`) and render an image using Karma CPU, Karma XPU, or the Vulkan viewport.
+# Create a [COP Network node|Node:/manager/copnet] or [go to an existing COP Network node|/copernicus/index#access] and dive into the node. This opens a Geometry viewer and removes the previously rendered image.
+# Add a Slap Comp Block COP in your scene. This makes [Block Begin|Node:/cop/block_begin] and [Block End|Node:/cop/block_end] nodes, and you can wire additional nodes between them.
+# Make sure __Register as Slap Comp Block__ is on in the Block End COP.
+# Go back up to `/stage`.
+# Add lights in your scene (see [/solaris/kug/lights] for more information).
+# Add a camera in your scene (see [/solaris/kug/cameras] for more information).
+# Click [Smallicon:IMAGE/snapshots.svg] __Show/Hide snapshot strip__ in the lower-left toolbar to open a sub-pane of the [Render Gallery|/ref/panes/rendergallery].
+# Click [Icon:BUTTONS/shutter] __Snapshot__ in the Render Gallery sub-pane to [create snapshots|/ref/panes/rendergallery#use] of your scene.
+# Click __New Pane Tab Type > Solaris > Render Gallery__ to open the Render Gallery pane.
+# Click a snapshot in the sub-pane.
+# Click the [Icon:BUTTONS/slapcomp] __Control Slap Comp settings__ button to turn on slap comp. Your non-GL/Vulkan renders are sent through the slap comp network before you see them.
+# ((RMB)) the [Icon:BUTTONS/slapcomp] __Control Slap Comp settings__ button and choose the slap comp block you want to run from the dropdown menu.
+# Choose `C` or `depth` from the __Image plane__ dropdown menu to display the slap comp output in the Render Gallery. This menu is in the top toolbar beside [Icon:IMAGE/view_histogram] __Histogram__.
+
+    NOTE:
+        When you use Vulkan, the Render Gallery snapshot doesn't capture anything aside from the color (`C`) layer. This can cause slap comp to error if your slap comp block has additional AOVs. To fix this, delete the additional AOVs from the Block End COP and re-click [Icon:BUTTONS/slapcomp].
+
+    TIP:
+        When you use Karma, you can add extra AOVs to input and output from your slap comp block.
+
+You can now preview your final output and adjust the nodes in your slap comp block to see live updates.
+
+=== Using slap comp with renders from the Solaris viewport === (renders)
+
+Use and configure your slap comp block with the viewport results. The viewport adds its render results to the global registry.
+
+# Set up a COP network with slap comp turned on (see [Solaris viewport|#solaris_viewport]).
+# Dive into the COP Network node and select the [Slap Comp Import COP|Node:/cop/slapcompimport].
+# Turn on __Live Recook__ so that the COP network updates live as the renders in the viewport change.
+# Click __Add AOVs from Last Render__. This populates the node with available inputs from the last render so you don't have to manually add the AOVs. You can now use the viewport's render results in your slap comp block.
+
+NOTE:
+    You can also use the Slap Comp Import COP without a slap comp block or without having turned on use of slap comp in the Solaris viewport. The node just returns the requested AOVs from the last viewport render.
+
+TIP:
+    For each output, the Slap Comp Import has a corresponding fallback input that's passed through if the respective AOV isn't found in the registry. You can therefore plug test inputs into the node (from a [File COP|Node:/cop/file] set to read rendered plates, for example) that are used when no Solaris viewport render has run.
+
+=== Using slap comp with Solaris clones === (clones)
+
+Houdini clones let you cook and render LOP networks. These clones use less resources when they don't locally run. For example, use this method to set up three different scenes with three different lights that you can connect and render.
+
+# Go to the Solaris viewport (`/stage`).
+# Open the [Clone Control Panel|/ref/panes/clonecontrol].
+# Do the following for each node in the network that you want to render separately and then composite together:
+    # Choose __HQueue Clone__ or __Local Clone__ from the Clones dropdown menu to start up a local or hqueue clone.
+    # Under Node, point the clone to the node in the network you want it to represent.
+    # Under Frame, set the frame you want to render in the timeline. Each clone renders the currently selected frame.
+# Turn on each clone so it renders (it should say Connected beside each clone).
+# Create a [COP Network node|Node:/manager/copnet] in `/stage` and dive into the node.
+# Add a [File COP|Node:/cop/file] for each clone.
+# Configure each File COP with the following. Each File COP should reference a different clone.
+    # Set __Source__ to `Clone`.
+    # Choose the clone you want to import from the __Clone Name__ dropdown menu.
+# Wire the File COPs into [Add COPs|Node:/cop/blend] to connect your renders until the network ends in one Add node. You can now preview your final output.
+
+=== Using slap comp with Husk === (husk)
+
+You can use [Husk|/ref/utils/husk] to do an offline render. You can use the [USD Render ROP LOP|Node:/out/usdrender] to apply slap comp after a render.
+
+WARNING:
+    Using SOPs anywhere in the slap comp block, including in HDAs, fails.
+
+# Go to the Solaris viewport (`/stage`).
+# Create a [COP Network node|Node:/manager/copnet] or [go to an existing COP Network node|/copernicus/index#access] and dive into the node.
+# Add a Slap Comp Block COP in your scene. This makes [Block Begin|Node:/cop/block_begin] and [Block End|Node:/cop/block_end] nodes, and you can wire additional nodes between them.
+# Make sure __Register as Slap Comp Block__ is on in the Block End COP.
+# Go back up to `/stage`.
+# Add a USD Render ROP LOP.
+# Go to __Husk > Slap Comp__.
+    TIP:
+        Instead of using this tab, you can use the following Husk command line to perform slap comp: `husk scene.usda --slapcomp program.bgeo`
+# Add a slap comp and do one of the following:
+    * Set __Source__ to `COP Network` and __COP Node__ to a Block End COP.
+    * Set __Source__ to `File` and __File__ to a slap comp program that's [saved to a geometry file|#save_to_geo]. Use this option when you have a canonical network that you want to apply to different scenes, but you don't want to duplicate the network in every scene file.
+    
+    NOTE:
+        The USD Render ROP LOP has __Map Input__ and __Map Output__ parameters. You don't need to change these parameters if your slap comp's inputs and outputs match the AOVs. These parameters are useful when you have a canonical slap comp program you want to apply, but it has its own input and output names that your current AOVs don't match. The __Map Input__ and __Map Output__ parameters let you map your AOVs to those inputs and outputs.
+# Click __Render to MPlay__. The MPlay window opens and previews your final output offline.
+
+
+== Saving slap comp == (save_to_geo)
+
+After you author a slap comp network (see [Using slap comp|#slapcomp]), you can save your slap comp program to a geometry file.
+
+# Create a [Block to Geometry COP|Node:/cop/blocktogeo] in your COP network.
+# Set __Block End Node__ to the Block End COP of the slap comp block you want to save as a geometry file.
+# [Export the geometry out to a file on disk|/io/geo#export].
+
+== Sending out your effect for 1000 frames ==
+
+After you make an output using slap comp (see [Using slap comp|#slapcomp]), you can send it out to create 1000 frames.
+
+# Go to the Solaris viewport (`/stage`).
+# Add or select an existing [USD Render ROP LOP|Node:/out/usdrender] in your network.
+# Go to __Husk > Slap Comp__.
+# Add a slap comp and set __Source__ to `COP Network`.
+# Set __COP Node__ to the slap comp's Block End COP.
+# Enter a name in the __Label__ parameter that you can use to identify this slap comp operation when husk prints out messages.
+
+== Tips ==
+
+* To remove all 3D transformations from your image and place it in canonical instead of [camera space|/copernicus/spaces], wire the [Block Begin COP|Node:/cop/block_begin] into the first input of a [Match Camera COP|Node:/cop/matchcamera]. This makes the image act as expected through the network. You can then wire the [Block End COP|Node:/cop/block_end] into the first input of another Match Camera COP to restore your image back to its original location.
+* When working in LOPs, input layers can bring in cameras so the view is consistent with what's rendering spacially. To control whether to bring in these cameras, the [Block End COP|Node:/cop/block_end] has an __Import Cameras with Slap Comp Inputs__ parameter you can turn on to place the input layer where the camera's view is. When this parameter is off (the default setting), the slap comp places the input layer in the canonical default position ([image space|/copernicus/spaces]). A parameter of the same name is also present on the [Slap Comp Import COP|Node:/cop/slapcompimport].
+* If you add a [File COP|Node:/cop/file] in your slap comp block, the file initially displays its default resolution. You can add a [Resample COP|Node:/cop/resample] to change this resolution. Wire the File COP into the first input of the Resample COP, wire the [Block Begin COP's|Node:/cop/block_begin] first output into the second input of the Resample COP, and then set the Resample COP's __Size Control__ parameter to `Aspect Ratio` and turn on __Reframe to Destination__.

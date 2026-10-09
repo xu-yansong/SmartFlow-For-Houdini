@@ -1,0 +1,921 @@
+# -*- coding: utf-8 -*-
+"""
+Header UI 构建 — 顶部设置栏（模型选择、Provider、Web/Think 开关等）
+
+从 ai_tab.py 中拆分出的 Mixin，所有方法通过 self 访问 AITab 实例状态。
+样式由全局 style_template.qss 通过 objectName 选择器控制。
+"""
+
+from houdini_agent.qt_compat import QtWidgets, QtCore
+from .i18n import tr, get_language, set_language, language_changed
+
+
+class HeaderMixin:
+    """顶部设置栏构建与交互逻辑"""
+
+    def _build_header(self) -> QtWidgets.QWidget:
+        """顶部设置栏 — 单行：Provider + Model + keyStatus + Web + Think + ⋯ 溢出菜单"""
+        header = QtWidgets.QFrame()
+        header.setObjectName("headerFrame")
+        
+        outer = QtWidgets.QVBoxLayout(header)
+        outer.setContentsMargins(8, 2, 8, 2)
+        outer.setSpacing(0)
+        
+        # -------- 单行：Provider + Model + keyStatus + Web + Think + ⋯ --------
+        row = QtWidgets.QHBoxLayout()
+        row.setSpacing(4)
+        
+        # 提供商
+        self.provider_combo = QtWidgets.QComboBox()
+        self.provider_combo.setObjectName("providerCombo")
+        self.provider_combo.addItem("DeepSeek", 'deepseek')
+        self.provider_combo.addItem("GLM", 'glm')
+        self.provider_combo.addItem("OpenAI", 'openai')
+        self.provider_combo.addItem("Duojie", 'duojie')
+        self.provider_combo.addItem("OpenRouter", 'openrouter')
+        self.provider_combo.addItem("Custom", 'custom')
+        self.provider_combo.setMinimumWidth(70)
+        self.provider_combo.setSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Fixed)
+        row.addWidget(self.provider_combo)
+        
+        # Custom 配置按钮（仅在 Custom provider 时可见）
+        self.btn_custom_config = QtWidgets.QPushButton("⚙")
+        self.btn_custom_config.setObjectName("btnCustomConfig")
+        self.btn_custom_config.setFixedSize(22, 22)
+        self.btn_custom_config.setCursor(QtCore.Qt.PointingHandCursor)
+        self.btn_custom_config.setToolTip("配置 Custom Model 的 URL、API Key 和模型名")
+        self.btn_custom_config.setVisible(False)
+        self.btn_custom_config.clicked.connect(self._open_custom_provider_dialog)
+        row.addWidget(self.btn_custom_config)
+
+        # CodeMaker 登录按钮（仅在 CodeMaker provider 且未登录时可见）
+        self.btn_codemaker_login = QtWidgets.QPushButton("🔑")
+        self.btn_codemaker_login.setObjectName("btnCodemakerLogin")
+        self.btn_codemaker_login.setFixedSize(22, 22)
+        self.btn_codemaker_login.setCursor(QtCore.Qt.PointingHandCursor)
+        self.btn_codemaker_login.setToolTip("CodeMaker 一键登录：自动安装 CLI（如缺失）并启动浏览器 OAuth")
+        self.btn_codemaker_login.setVisible(False)
+        self.btn_codemaker_login.clicked.connect(self._on_codemaker_login_clicked)
+        row.addWidget(self.btn_codemaker_login)
+        
+        # 模型
+        self.model_combo = QtWidgets.QComboBox()
+        self.model_combo.setObjectName("modelCombo")
+        self._model_map = {
+            'deepseek': ['deepseek-v4-flash', 'deepseek-v4-pro', 'deepseek-v4-flash-vision-exp'],
+            'glm': ['glm-4.7'],
+            'openai': ['gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna', 'gpt-5.5'],
+            'duojie': [
+                'claude-opus-5',
+                'claude-sonnet-5',
+                'claude-opus-4-8',
+                'gpt-5.6-sol',
+                'gpt-5.6-terra',
+                'gpt-5.6-luna',
+                'gpt-5.5',
+                'gpt-5.6-sol-pro',
+                'glm-5.3',
+                'glm-5.3-flash',
+                'glm-5.2',
+                'glm-5-turbo',
+                'grok-4.6',
+                'grok-4.5',
+                'deepseek-v4-flash',
+            ],
+            'openrouter': [
+                'anthropic/claude-opus-5',
+                'anthropic/claude-sonnet-5',
+                'anthropic/claude-opus-4.8',
+                'anthropic/claude-haiku-4.5',
+                'openai/gpt-5.6-sol',
+                'openai/gpt-5.6-terra',
+                'openai/gpt-5.6-luna',
+                'openai/gpt-5.5',
+                'google/gemini-3.8-flash',
+                'google/gemini-3.1-pro-preview',
+                'deepseek/deepseek-v4-flash',
+                'deepseek/deepseek-v4-pro',
+                'z-ai/glm-5.3',
+                'x-ai/grok-4.6',
+                'moonshotai/kimi-k3',
+                'minimax/minimax-m3',
+            ],
+            'custom': [],  # 由用户通过配置对话框动态填充
+        }
+        # Custom provider 的运行时配置（从持久化配置加载）
+        self._custom_provider_config = {
+            'api_url': '',
+            'api_key': '',
+            'models': [],           # 用户配置的模型名列表
+            'context_limit': 128000,
+            'supports_vision': False,
+            'supports_fc': True,    # 是否支持 Function Calling
+            'anthropic_protocol': False,  # True → Anthropic Messages 格式；False → OpenAI Chat Completions 格式
+        }
+        self._load_custom_provider_config()
+        self._model_context_limits = {
+            # DeepSeek 直连
+            'deepseek-v4-flash': 1048576, 'deepseek-v4-pro': 1048576,
+            'deepseek-v4-flash-vision-exp': 1048576,
+            # GLM 直连
+            'glm-4.7': 200000,
+            # OpenAI 直连
+            'gpt-5.6-sol': 1000000, 'gpt-5.6-terra': 1000000,
+            'gpt-5.6-luna': 1000000, 'gpt-5.5': 1000000,
+            # Duojie 模型（Claude 走 200K 保守值）
+            'claude-opus-5': 200000, 'claude-sonnet-5': 200000, 'claude-opus-4-8': 200000,
+            'gpt-5.6-sol-pro': 1000000,
+            'glm-5.3': 1048576, 'glm-5.3-flash': 1048576, 'glm-5.2': 1048576,
+            'glm-5-turbo': 200000,
+            'grok-4.6': 500000, 'grok-4.5': 500000,
+            # OpenRouter 模型
+            'anthropic/claude-opus-5': 1000000,
+            'anthropic/claude-sonnet-5': 1000000,
+            'anthropic/claude-opus-4.8': 1000000,
+            'anthropic/claude-haiku-4.5': 200000,
+            'openai/gpt-5.6-sol': 1000000,
+            'openai/gpt-5.6-terra': 1000000,
+            'openai/gpt-5.6-luna': 1000000,
+            'openai/gpt-5.5': 1000000,
+            'google/gemini-3.8-flash': 1048576,
+            'google/gemini-3.1-pro-preview': 1048576,
+            'deepseek/deepseek-v4-flash': 1048576,
+            'deepseek/deepseek-v4-pro': 1048576,
+            'z-ai/glm-5.3': 1048576,
+            'x-ai/grok-4.6': 500000,
+            'moonshotai/kimi-k3': 1048576,
+            'minimax/minimax-m3': 1048576,
+            # CodeMaker（网易）
+            # claude-opus-5 / claude-opus-4-8 / glm-5.3 / glm-5.3-flash 已在上方定义
+            'deepseek-flash': 1048576,
+            'gpt-6-astra': 1000000,
+            'glm-5.1': 1048576,
+        }
+        # 模型特性配置
+        _pc_vis = {'supports_prompt_caching': True, 'supports_vision': True}
+        _pc_txt = {'supports_prompt_caching': True, 'supports_vision': False}
+        self._model_features = {
+            # DeepSeek
+            'deepseek-v4-flash':          dict(_pc_txt),
+            'deepseek-v4-pro':            dict(_pc_txt),
+            'deepseek-v4-flash-vision-exp': dict(_pc_vis),
+            # GLM
+            'glm-4.7':                    dict(_pc_txt),
+            # OpenAI
+            'gpt-5.6-sol':                dict(_pc_vis),
+            'gpt-5.6-terra':              dict(_pc_vis),
+            'gpt-5.6-luna':               dict(_pc_vis),
+            'gpt-5.5':                    dict(_pc_vis),
+            # Duojie - Claude
+            'claude-opus-5':              dict(_pc_vis),
+            'claude-sonnet-5':            dict(_pc_vis),
+            'claude-opus-4-8':            dict(_pc_vis),
+            # Duojie - GPT
+            'gpt-5.6-sol-pro':            dict(_pc_vis),
+            # Duojie - GLM
+            'glm-5.3':                    dict(_pc_txt),
+            'glm-5.3-flash':              dict(_pc_vis),
+            'glm-5.2':                    dict(_pc_txt),
+            'glm-5-turbo':                dict(_pc_txt),
+            # Duojie - Grok
+            'grok-4.6':                   dict(_pc_vis),
+            'grok-4.5':                   dict(_pc_vis),
+            # OpenRouter 模型
+            'anthropic/claude-opus-5':            dict(_pc_vis),
+            'anthropic/claude-sonnet-5':          dict(_pc_vis),
+            'anthropic/claude-opus-4.8':          dict(_pc_vis),
+            'anthropic/claude-haiku-4.5':         dict(_pc_vis),
+            'openai/gpt-5.6-sol':                 dict(_pc_vis),
+            'openai/gpt-5.6-terra':               dict(_pc_vis),
+            'openai/gpt-5.6-luna':                dict(_pc_vis),
+            'openai/gpt-5.5':                     dict(_pc_vis),
+            'google/gemini-3.8-flash':            dict(_pc_vis),
+            'google/gemini-3.1-pro-preview':      dict(_pc_vis),
+            'deepseek/deepseek-v4-flash':         dict(_pc_txt),
+            'deepseek/deepseek-v4-pro':           dict(_pc_txt),
+            'z-ai/glm-5.3':                       dict(_pc_txt),
+            'x-ai/grok-4.6':                      dict(_pc_vis),
+            'moonshotai/kimi-k3':                 dict(_pc_vis),
+            'minimax/minimax-m3':                 dict(_pc_vis),
+            # CodeMaker（网易）
+            'deepseek-flash':                     dict(_pc_txt),
+            'gpt-6-astra':                        dict(_pc_vis),
+            'glm-5.1':                            dict(_pc_txt),
+        }
+        self._refresh_models('deepseek')
+        self.model_combo.setMinimumWidth(100)
+        self.model_combo.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Fixed)
+        self.model_combo.setEditable(False)  # 默认不可编辑，Custom 时切换为可编辑
+        row.addWidget(self.model_combo, 1)
+        
+        # API Key 状态 — 紧凑指示（行内，限宽 + 省略号）
+        self.key_status = QtWidgets.QLabel()
+        self.key_status.setObjectName("keyStatus")
+        self.key_status.setMaximumWidth(90)
+        self.key_status.setMinimumWidth(0)
+        from houdini_agent.qt_compat import QtCore as _qc
+        self.key_status.setTextInteractionFlags(_qc.Qt.NoTextInteraction)
+        row.addWidget(self.key_status)
+        
+        # Web / Think 开关
+        self.web_check = QtWidgets.QCheckBox("Web")
+        self.web_check.setObjectName("chkWeb")
+        self.web_check.setChecked(True)
+        row.addWidget(self.web_check)
+        
+        self.think_check = QtWidgets.QCheckBox("Think")
+        self.think_check.setObjectName("chkThink")
+        self.think_check.setChecked(True)
+        self.think_check.setToolTip(tr('header.think.tooltip'))
+        row.addWidget(self.think_check)
+        
+        # ⋯ 溢出菜单按钮
+        self.btn_overflow = QtWidgets.QPushButton("···")
+        self.btn_overflow.setObjectName("btnOverflow")
+        self.btn_overflow.setFixedSize(24, 22)
+        self.btn_overflow.setCursor(QtCore.Qt.PointingHandCursor)
+        self.btn_overflow.clicked.connect(self._show_overflow_menu)
+        row.addWidget(self.btn_overflow)
+        
+        outer.addLayout(row)
+        
+        # -------- 隐藏按钮（保持 self.btn_xxx 引用兼容 _wire_events）--------
+        # 这些按钮不加入布局，仅用于信号连接
+        self.btn_key = QtWidgets.QPushButton("Key")
+        self.btn_key.setObjectName("btnSmall")
+        self.btn_key.setVisible(False)
+        
+        self.btn_clear = QtWidgets.QPushButton("Clear")
+        self.btn_clear.setObjectName("btnSmall")
+        self.btn_clear.setVisible(False)
+        
+        self.btn_cache = QtWidgets.QPushButton("Cache")
+        self.btn_cache.setObjectName("btnSmall")
+        self.btn_cache.setVisible(False)
+        
+        self.btn_optimize = QtWidgets.QPushButton("Opt")
+        self.btn_optimize.setObjectName("btnOptimize")
+        self.btn_optimize.setVisible(False)
+        
+        self.btn_update = QtWidgets.QPushButton("Update")
+        self.btn_update.setObjectName("btnUpdate")
+        self.btn_update.setVisible(False)
+        
+        self.btn_font_scale = QtWidgets.QPushButton("Aa")
+        self.btn_font_scale.setObjectName("btnFontScale")
+        self.btn_font_scale.setVisible(False)
+        
+        # 语言下拉框（隐藏，仅用于引用 + 信号）
+        self.lang_combo = QtWidgets.QComboBox()
+        self.lang_combo.setObjectName("langCombo")
+        self.lang_combo.addItem("中文", "zh")
+        self.lang_combo.addItem("EN", "en")
+        self.lang_combo.setCurrentIndex(0 if get_language() == 'zh' else 1)
+        self.lang_combo.currentIndexChanged.connect(self._on_language_changed)
+        self.lang_combo.setVisible(False)
+        
+        return header
+
+    def _show_overflow_menu(self):
+        """显示溢出菜单：低频功能集中在此"""
+        menu = QtWidgets.QMenu(self)
+        
+        menu.addAction("API Key", self.btn_key.click)
+        menu.addAction("Clear Chat", self.btn_clear.click)
+        menu.addAction("Export Chat", self._export_chat)
+        menu.addAction("Cache", self.btn_cache.click)
+        menu.addAction("Optimize", self.btn_optimize.click)
+        menu.addSeparator()
+        menu.addAction("Update", self.btn_update.click)
+        menu.addAction("Font (Aa)", self.btn_font_scale.click)
+        menu.addSeparator()
+        menu.addAction(tr('rules.menu_label'), self._open_rules_editor)
+        menu.addAction(tr('plugin.menu_label'), self._open_plugin_manager)
+
+        # 长期记忆系统全局开关（默认关闭）—— checkable action
+        act_memory = menu.addAction(tr('memory.menu_label'))
+        act_memory.setCheckable(True)
+        act_memory.setChecked(bool(getattr(self, '_memory_enabled', False)))
+        act_memory.setToolTip(tr('memory.menu_tooltip'))
+        act_memory.toggled.connect(self._on_memory_toggle_from_menu)
+
+        # Cook 实时模式开关（默认开启）—— checkable action
+        act_cook = menu.addAction(tr('cook.menu_label'))
+        act_cook.setCheckable(True)
+        act_cook.setChecked(bool(getattr(self, '_cook_realtime_mode', True)))
+        act_cook.setToolTip(tr('cook.menu_tooltip'))
+        act_cook.toggled.connect(self._on_cook_mode_toggle_from_menu)
+
+        menu.addSeparator()
+        
+        # 语言子菜单
+        lang_menu = menu.addMenu("Language")
+        act_zh = lang_menu.addAction("中文")
+        act_en = lang_menu.addAction("EN")
+        current_lang = get_language()
+        act_zh.setCheckable(True)
+        act_en.setCheckable(True)
+        act_zh.setChecked(current_lang == 'zh')
+        act_en.setChecked(current_lang == 'en')
+        act_zh.triggered.connect(lambda: self._set_lang_from_menu('zh'))
+        act_en.triggered.connect(lambda: self._set_lang_from_menu('en'))
+        
+        # 弹出位置：溢出按钮下方
+        menu.exec_(self.btn_overflow.mapToGlobal(
+            QtCore.QPoint(0, self.btn_overflow.height())
+        ))
+
+    def _open_rules_editor(self):
+        """打开用户自定义规则编辑器"""
+        try:
+            from .cursor_widgets import RulesEditorDialog
+            dlg = RulesEditorDialog(parent=self)
+            dlg.exec_()
+        except Exception as e:
+            print(f"[Header] Failed to open rules editor: {e}")
+
+    def _open_plugin_manager(self):
+        """打开插件管理面板"""
+        try:
+            from .cursor_widgets import PluginManagerDialog
+            dlg = PluginManagerDialog(parent=self)
+            dlg.pluginStateChanged.connect(self._on_plugin_state_changed)
+            dlg.exec_()
+        except Exception as e:
+            print(f"[Header] Failed to open plugin manager: {e}")
+
+    def _on_plugin_state_changed(self):
+        """插件状态变化后的回调（重新挂载按钮等）"""
+        try:
+            from ..utils.hooks import get_hook_manager
+            bridge = get_hook_manager().get_ui_bridge()
+            if bridge:
+                bridge.mount_buttons()
+        except Exception:
+            pass
+
+    def _on_cook_mode_toggle_from_menu(self, checked: bool):
+        """溢出菜单切换 Cook 实时模式开关"""
+        try:
+            self.set_cook_realtime_mode(bool(checked))
+        except Exception as e:
+            print(f"[Header] Cook mode toggle failed: {e}")
+
+    def _on_memory_toggle_from_menu(self, checked: bool):
+        """溢出菜单切换长期记忆系统开关"""
+        try:
+            self.set_memory_enabled(bool(checked))
+        except Exception as e:
+            print(f"[Header] Memory toggle failed: {e}")
+
+    def _set_lang_from_menu(self, lang: str):
+        """从溢出菜单切换语言"""
+        if lang != get_language():
+            set_language(lang)
+            # 同步隐藏的 lang_combo（保持状态一致）
+            expected_idx = 0 if lang == 'zh' else 1
+            if self.lang_combo.currentIndex() != expected_idx:
+                self.lang_combo.blockSignals(True)
+                self.lang_combo.setCurrentIndex(expected_idx)
+                self.lang_combo.blockSignals(False)
+
+    def _on_language_changed(self, index: int):
+        """语言下拉框切换"""
+        lang = self.lang_combo.itemData(index)
+        if lang and lang != get_language():
+            set_language(lang)
+
+    def _retranslate_header(self):
+        """语言切换后更新 Header 区域所有翻译文本"""
+        self.think_check.setToolTip(tr('header.think.tooltip'))
+        self.btn_cache.setToolTip(tr('header.cache.tooltip'))
+        self.btn_optimize.setToolTip(tr('header.optimize.tooltip'))
+        self.btn_update.setToolTip(tr('header.update.tooltip'))
+        self.btn_font_scale.setToolTip(tr('header.font.tooltip'))
+        # 同步下拉框选中项（防止外部调用 set_language 后不同步）
+        lang = get_language()
+        expected_idx = 0 if lang == 'zh' else 1
+        if self.lang_combo.currentIndex() != expected_idx:
+            self.lang_combo.blockSignals(True)
+            self.lang_combo.setCurrentIndex(expected_idx)
+            self.lang_combo.blockSignals(False)
+
+    # ============================================================
+    # Custom Provider 配置
+    # ============================================================
+
+    def _load_custom_provider_config(self):
+        """从持久化配置文件加载 Custom Provider 设置"""
+        try:
+            from shared.common_utils import load_config
+            cfg, _ = load_config('ai', dcc_type='houdini')
+            if cfg:
+                self._custom_provider_config['api_url'] = cfg.get('custom_api_url', '')
+                self._custom_provider_config['api_key'] = cfg.get('custom_api_key', '')
+                models_str = cfg.get('custom_models', '')
+                if models_str:
+                    self._custom_provider_config['models'] = [m.strip() for m in models_str.split(',') if m.strip()]
+                try:
+                    self._custom_provider_config['context_limit'] = int(cfg.get('custom_context_limit', '128000'))
+                except (ValueError, TypeError):
+                    pass
+                self._custom_provider_config['supports_vision'] = cfg.get('custom_supports_vision', 'false').lower() == 'true'
+                self._custom_provider_config['supports_fc'] = cfg.get('custom_supports_fc', 'true').lower() != 'false'
+                self._custom_provider_config['anthropic_protocol'] = cfg.get('custom_anthropic_protocol', 'false').lower() == 'true'
+                # 更新模型列表
+                self._model_map['custom'] = self._custom_provider_config['models']
+                # 同步到 AIClient（如果已初始化）
+                self._sync_custom_to_client()
+        except Exception as e:
+            print(f"[Header] 加载 Custom 配置失败: {e}")
+
+    def _save_custom_provider_config(self):
+        """将 Custom Provider 设置持久化到配置文件"""
+        try:
+            from shared.common_utils import load_config, save_config
+            cfg, _ = load_config('ai', dcc_type='houdini')
+            cfg = cfg or {}
+            cc = self._custom_provider_config
+            cfg['custom_api_url'] = cc['api_url']
+            cfg['custom_api_key'] = cc['api_key']
+            cfg['custom_models'] = ','.join(cc['models'])
+            cfg['custom_context_limit'] = str(cc['context_limit'])
+            cfg['custom_supports_vision'] = 'true' if cc['supports_vision'] else 'false'
+            cfg['custom_supports_fc'] = 'true' if cc['supports_fc'] else 'false'
+            cfg['custom_anthropic_protocol'] = 'true' if cc.get('anthropic_protocol') else 'false'
+            save_config('ai', cfg, dcc_type='houdini')
+        except Exception as e:
+            print(f"[Header] 保存 Custom 配置失败: {e}")
+
+    def _sync_custom_to_client(self):
+        """将 Custom 配置同步到 AIClient"""
+        try:
+            client = getattr(self, 'client', None)
+            if client is None:
+                return
+            cc = self._custom_provider_config
+            if cc['api_url']:
+                client.set_custom_provider(
+                    api_url=cc['api_url'],
+                    api_key=cc['api_key'],
+                    supports_fc=cc['supports_fc'],
+                    anthropic_protocol=cc.get('anthropic_protocol', False),
+                )
+            if cc['api_key']:
+                client._api_keys['custom'] = cc['api_key']
+        except Exception as e:
+            print(f"[Header] 同步 Custom 配置到 Client 失败: {e}")
+
+    def _on_provider_changed_custom_visibility(self):
+        """Provider 切换时更新 Custom/CodeMaker 按钮可见性和模型下拉框可编辑状态"""
+        provider = self._current_provider()
+        is_custom = (provider == 'custom')
+        self.btn_custom_config.setVisible(is_custom)
+        # Custom 模式下允许用户直接在 model_combo 中输入模型名
+        self.model_combo.setEditable(is_custom)
+        if is_custom and not self._custom_provider_config.get('api_url'):
+            # 首次选择 Custom 且未配置，自动弹出配置对话框
+            QtCore.QTimer.singleShot(100, self._open_custom_provider_dialog)
+
+        # CodeMaker 登录按钮：仅在 codemaker provider 且未登录时显示
+        is_codemaker = (provider == 'codemaker')
+        client = getattr(self, 'client', None)
+        codemaker_logged_in = False
+        if client is not None:
+            try:
+                codemaker_logged_in = bool(client.has_api_key('codemaker'))
+            except Exception:
+                codemaker_logged_in = False
+        self.btn_codemaker_login.setVisible(is_codemaker and not codemaker_logged_in)
+
+    def _open_custom_provider_dialog(self):
+        """打开 Custom Provider 配置对话框"""
+        dlg = _CustomProviderDialog(self._custom_provider_config, parent=self)
+        if dlg.exec_() == QtWidgets.QDialog.Accepted:
+            new_cfg = dlg.get_config()
+            self._custom_provider_config.update(new_cfg)
+            # 更新模型列表
+            self._model_map['custom'] = new_cfg['models']
+            # 动态注册模型特性和上下文限制
+            for m in new_cfg['models']:
+                self._model_context_limits[m] = new_cfg['context_limit']
+                self._model_features[m] = {
+                    'supports_prompt_caching': True,
+                    'supports_vision': new_cfg['supports_vision'],
+                }
+            # 同步到 AIClient
+            self._sync_custom_to_client()
+            # 持久化
+            self._save_custom_provider_config()
+            # 刷新 UI
+            if self._current_provider() == 'custom':
+                self._refresh_models('custom')
+                self._update_key_status()
+
+
+    # ============================================================
+    # CodeMaker 一键登录
+    # ============================================================
+
+    def _on_codemaker_login_clicked(self):
+        """启动 CodeMaker 一键登录流程（后台线程跑安装+登录，避免冻结 UI）"""
+        reply = QtWidgets.QMessageBox.question(
+            self,
+            "CodeMaker 登录",
+            "即将自动检测/安装 CodeMaker CLI 并启动登录流程。\n\n"
+            "1. 如未安装，会自动调用 PowerShell 安装（约 1 分钟）\n"
+            "2. 然后弹出 CLI 窗口，会自动打开浏览器完成 OAuth 登录\n"
+            "3. 登录完成后请关闭弹出的 CLI 窗口\n\n"
+            "继续？",
+            QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
+            QtWidgets.QMessageBox.Yes,
+        )
+        if reply != QtWidgets.QMessageBox.Yes:
+            return
+
+        self._codemaker_progress = QtWidgets.QProgressDialog(
+            "正在准备 CodeMaker...", None, 0, 0, self
+        )
+        self._codemaker_progress.setWindowTitle("CodeMaker 登录")
+        self._codemaker_progress.setWindowModality(QtCore.Qt.WindowModal)
+        self._codemaker_progress.setMinimumDuration(0)
+        self._codemaker_progress.setCancelButton(None)
+        self._codemaker_progress.show()
+
+        self._codemaker_thread = _CodemakerLoginThread(self)
+        self._codemaker_thread.progress.connect(self._codemaker_progress.setLabelText)
+        self._codemaker_thread.finished_with_result.connect(self._on_codemaker_login_done)
+        self._codemaker_thread.start()
+
+    def _on_codemaker_login_done(self, success, message, api_key):
+        """CodeMaker 登录结束（成功或失败）后的回调，主线程执行"""
+        try:
+            if hasattr(self, '_codemaker_progress') and self._codemaker_progress:
+                self._codemaker_progress.close()
+                self._codemaker_progress = None
+        except Exception:
+            pass
+
+        if success and api_key:
+            client = getattr(self, 'client', None)
+            if client is not None:
+                try:
+                    client._api_keys['codemaker'] = api_key
+                except Exception:
+                    pass
+            try:
+                self._update_key_status()
+                self._on_provider_changed_custom_visibility()
+            except Exception:
+                pass
+            QtWidgets.QMessageBox.information(
+                self, "CodeMaker 登录", f"登录成功！\n{message}"
+            )
+        else:
+            QtWidgets.QMessageBox.warning(
+                self, "CodeMaker 登录失败", message or "未知错误"
+            )
+
+
+class _CodemakerLoginThread(QtCore.QThread):
+    """后台线程跑 CodeMaker 安装/登录 —— 避免阻塞 Houdini 主线程"""
+
+    progress = QtCore.Signal(str)
+    finished_with_result = QtCore.Signal(bool, str, str)  # (success, message, api_key)
+
+    def run(self):
+        try:
+            from ..utils.codemaker_auth import ensure_codemaker_ready
+
+            def _cb(msg):
+                try:
+                    self.progress.emit(msg)
+                except Exception:
+                    pass
+
+            ok, msg, key = ensure_codemaker_ready(progress_cb=_cb)
+            self.finished_with_result.emit(bool(ok), msg or "", key or "")
+        except Exception as e:
+            self.finished_with_result.emit(False, f"内部错误: {e}", "")
+
+
+class _CustomProviderDialog(QtWidgets.QDialog):
+    """Custom Provider 配置对话框 — 配置 API URL、Key、模型名等"""
+
+    def __init__(self, current_config: dict, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Custom Model 配置")
+        self.setMinimumWidth(460)
+        self.setObjectName("customProviderDialog")
+        self._build_ui(current_config)
+
+    def _build_ui(self, cfg: dict):
+        layout = QtWidgets.QVBoxLayout(self)
+        layout.setSpacing(10)
+        layout.setContentsMargins(16, 16, 16, 16)
+
+        # 说明
+        info = QtWidgets.QLabel(
+            "配置任何兼容 OpenAI API 协议的服务端点。\n"
+            "例如：LM Studio、vLLM、Text Generation WebUI、其他中转站等。"
+        )
+        info.setWordWrap(True)
+        info.setStyleSheet("color: #aaa; font-size: 12px; margin-bottom: 4px;")
+        layout.addWidget(info)
+
+        form = QtWidgets.QFormLayout()
+        form.setSpacing(8)
+        form.setLabelAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
+
+        # API URL
+        self._url_edit = QtWidgets.QLineEdit()
+        self._url_edit.setPlaceholderText("https://integrate.api.nvidia.com/v1 或 .../v1/chat/completions")
+        self._url_edit.setText(cfg.get('api_url', ''))
+        self._url_edit.setMinimumHeight(28)
+        form.addRow("API URL:", self._url_edit)
+
+        # API Key
+        self._key_edit = QtWidgets.QLineEdit()
+        self._key_edit.setPlaceholderText("sk-xxxx（留空则不发送 Authorization 头）")
+        self._key_edit.setText(cfg.get('api_key', ''))
+        self._key_edit.setEchoMode(QtWidgets.QLineEdit.Password)
+        self._key_edit.setMinimumHeight(28)
+        # 显示/隐藏按钮
+        key_row = QtWidgets.QHBoxLayout()
+        key_row.setSpacing(4)
+        key_row.addWidget(self._key_edit)
+        self._btn_show_key = QtWidgets.QPushButton("👁")
+        self._btn_show_key.setFixedSize(28, 28)
+        self._btn_show_key.setCheckable(True)
+        self._btn_show_key.toggled.connect(
+            lambda checked: self._key_edit.setEchoMode(
+                QtWidgets.QLineEdit.Normal if checked else QtWidgets.QLineEdit.Password
+            )
+        )
+        key_row.addWidget(self._btn_show_key)
+        form.addRow("API Key:", key_row)
+
+        # 模型名 — 可编辑 ComboBox + 获取模型按钮
+        self._models_combo = QtWidgets.QComboBox()
+        self._models_combo.setEditable(True)
+        self._models_combo.setMinimumHeight(28)
+        self._models_combo.setMaxVisibleItems(20)
+        self._models_combo.setSizePolicy(
+            QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Fixed
+        )
+        self._models_combo.lineEdit().setPlaceholderText("model-name（可手动输入或点击右侧按钮获取）")
+        for m in cfg.get('models', []):
+            self._models_combo.addItem(m)
+        if cfg.get('models'):
+            self._models_combo.setCurrentText(cfg['models'][0])
+
+        models_row = QtWidgets.QHBoxLayout()
+        models_row.setSpacing(4)
+        models_row.addWidget(self._models_combo)
+
+        self._btn_fetch_models = QtWidgets.QPushButton("⟳")
+        self._btn_fetch_models.setFixedSize(28, 28)
+        self._btn_fetch_models.setToolTip("从 API 获取可用模型列表")
+        self._btn_fetch_models.clicked.connect(self._fetch_models)
+        models_row.addWidget(self._btn_fetch_models)
+
+        form.addRow("模型名:", models_row)
+
+        # 上下文长度
+        self._ctx_spin = QtWidgets.QSpinBox()
+        self._ctx_spin.setRange(1024, 10000000)
+        self._ctx_spin.setSingleStep(1024)
+        self._ctx_spin.setValue(cfg.get('context_limit', 128000))
+        self._ctx_spin.setSuffix(" tokens")
+        self._ctx_spin.setMinimumHeight(28)
+        form.addRow("上下文长度:", self._ctx_spin)
+
+        # 协议选择
+        protocol_row = QtWidgets.QHBoxLayout()
+        protocol_row.setSpacing(12)
+        self._chk_anthropic = QtWidgets.QCheckBox("Anthropic Messages 协议")
+        self._chk_anthropic.setChecked(cfg.get('anthropic_protocol', False))
+        self._chk_anthropic.setToolTip(
+            "勾选后使用 Anthropic /v1/messages 格式（适用于 Claude 兼容中转）；\n"
+            "不勾选则使用 OpenAI /v1/chat/completions 格式（适用于 LM Studio、vLLM 等）。"
+        )
+        protocol_row.addWidget(self._chk_anthropic)
+        protocol_row.addStretch()
+        form.addRow("协议:", protocol_row)
+
+        # 特性开关
+        features_row = QtWidgets.QHBoxLayout()
+        features_row.setSpacing(12)
+        self._chk_vision = QtWidgets.QCheckBox("支持图片输入")
+        self._chk_vision.setChecked(cfg.get('supports_vision', False))
+        features_row.addWidget(self._chk_vision)
+        self._chk_fc = QtWidgets.QCheckBox("支持 Function Calling")
+        self._chk_fc.setChecked(cfg.get('supports_fc', True))
+        features_row.addWidget(self._chk_fc)
+        features_row.addStretch()
+        form.addRow("特性:", features_row)
+
+        layout.addLayout(form)
+
+        # 测试连接按钮
+        test_row = QtWidgets.QHBoxLayout()
+        test_row.addStretch()
+        self._btn_test = QtWidgets.QPushButton("测试连接")
+        self._btn_test.setMinimumWidth(100)
+        self._btn_test.setMinimumHeight(28)
+        self._btn_test.clicked.connect(self._test_connection)
+        test_row.addWidget(self._btn_test)
+        self._test_status = QtWidgets.QLabel("")
+        self._test_status.setStyleSheet("font-size: 12px;")
+        test_row.addWidget(self._test_status)
+        test_row.addStretch()
+        layout.addLayout(test_row)
+
+        # 按钮
+        btn_box = QtWidgets.QDialogButtonBox(
+            QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel
+        )
+        btn_box.accepted.connect(self._on_accept)
+        btn_box.rejected.connect(self.reject)
+        layout.addWidget(btn_box)
+
+        # 样式
+        self.setStyleSheet("""
+            QDialog#customProviderDialog {
+                background: #1e1e1e;
+                color: #ddd;
+            }
+            QLabel { color: #ccc; }
+            QLineEdit, QSpinBox, QComboBox {
+                background: #2a2a2a;
+                color: #eee;
+                border: 1px solid #444;
+                border-radius: 4px;
+                padding: 4px 8px;
+            }
+            QLineEdit:focus, QSpinBox:focus, QComboBox:focus {
+                border-color: #6a9eff;
+            }
+            QComboBox::drop-down {
+                border: none;
+                width: 24px;
+                subcontrol-position: center right;
+            }
+            QComboBox::down-arrow {
+                image: none;
+                border-left: 5px solid transparent;
+                border-right: 5px solid transparent;
+                border-top: 6px solid #aaa;
+                margin-right: 6px;
+            }
+            QComboBox QAbstractItemView {
+                background: #2a2a2a;
+                color: #eee;
+                border: 1px solid #555;
+                selection-background-color: #3a5a8a;
+                outline: none;
+            }
+            QCheckBox { color: #ccc; }
+            QPushButton {
+                background: #333;
+                color: #ddd;
+                border: 1px solid #555;
+                border-radius: 4px;
+                padding: 4px 12px;
+            }
+            QPushButton:hover { background: #444; border-color: #6a9eff; }
+        """)
+
+    def _normalize_chat_url(self, url: str) -> str:
+        """将基础 URL 规范化为 chat completions 端点"""
+        url = url.rstrip('/')
+        if url.endswith('/chat/completions'):
+            return url
+        if url.endswith('/v1'):
+            return url + '/chat/completions'
+        return url
+
+    def _fetch_models(self):
+        """从 API 获取可用模型列表并填充到下拉框"""
+        url = self._url_edit.text().strip()
+        key = self._key_edit.text().strip()
+
+        if not url:
+            self._test_status.setText("⚠ 请先填写 API URL")
+            self._test_status.setStyleSheet("color: #f5a623; font-size: 12px;")
+            return
+
+        self._btn_fetch_models.setEnabled(False)
+        self._test_status.setText("获取模型列表中...")
+        self._test_status.setStyleSheet("color: #aaa; font-size: 12px;")
+
+        try:
+            import requests
+            base = url.rstrip('/')
+            if base.endswith('/chat/completions'):
+                base = base[:-len('/chat/completions')]
+            models_url = base + '/models'
+
+            headers = {'Content-Type': 'application/json'}
+            if key:
+                headers['Authorization'] = f'Bearer {key}'
+
+            resp = requests.get(models_url, headers=headers, timeout=15)
+            if resp.status_code == 200:
+                data = resp.json()
+                model_ids = [m.get('id', '') for m in data.get('data', []) if m.get('id')]
+                if model_ids:
+                    current_text = self._models_combo.currentText()
+                    self._models_combo.clear()
+                    for mid in sorted(model_ids):
+                        self._models_combo.addItem(mid)
+                    if current_text and current_text in model_ids:
+                        self._models_combo.setCurrentText(current_text)
+                    else:
+                        self._models_combo.setCurrentIndex(0)
+                    self._test_status.setText(f"✅ 发现 {len(model_ids)} 个模型")
+                    self._test_status.setStyleSheet("color: #4caf50; font-size: 12px;")
+                    self._models_combo.showPopup()
+                else:
+                    self._test_status.setText("⚠ 未发现可用模型")
+                    self._test_status.setStyleSheet("color: #f5a623; font-size: 12px;")
+            else:
+                err = resp.text[:120]
+                self._test_status.setText(f"❌ HTTP {resp.status_code}: {err}")
+                self._test_status.setStyleSheet("color: #f44336; font-size: 12px;")
+        except Exception as e:
+            self._test_status.setText(f"❌ {str(e)[:100]}")
+            self._test_status.setStyleSheet("color: #f44336; font-size: 12px;")
+        finally:
+            self._btn_fetch_models.setEnabled(True)
+
+    def _test_connection(self):
+        """测试 Custom API 连接"""
+        url = self._url_edit.text().strip()
+        key = self._key_edit.text().strip()
+        model = self._models_combo.currentText().strip() or 'test'
+
+        if not url:
+            self._test_status.setText("⚠ 请先填写 API URL")
+            self._test_status.setStyleSheet("color: #f5a623; font-size: 12px;")
+            return
+
+        chat_url = self._normalize_chat_url(url)
+
+        self._btn_test.setEnabled(False)
+        self._test_status.setText("连接中...")
+        self._test_status.setStyleSheet("color: #aaa; font-size: 12px;")
+
+        try:
+            import requests
+            headers = {'Content-Type': 'application/json'}
+            if key:
+                headers['Authorization'] = f'Bearer {key}'
+            payload = {
+                'model': model,
+                'messages': [{'role': 'user', 'content': 'Hi'}],
+                'max_tokens': 5,
+                'stream': False,
+            }
+            resp = requests.post(chat_url, json=payload, headers=headers, timeout=15)
+            if resp.status_code == 200:
+                data = resp.json()
+                recv_model = data.get('model', model)
+                self._test_status.setText(f"✅ 连接成功（{recv_model}）")
+                self._test_status.setStyleSheet("color: #4caf50; font-size: 12px;")
+            else:
+                err = resp.text[:120]
+                self._test_status.setText(f"❌ HTTP {resp.status_code}: {err}")
+                self._test_status.setStyleSheet("color: #f44336; font-size: 12px;")
+        except Exception as e:
+            self._test_status.setText(f"❌ {str(e)[:100]}")
+            self._test_status.setStyleSheet("color: #f44336; font-size: 12px;")
+        finally:
+            self._btn_test.setEnabled(True)
+
+    def _on_accept(self):
+        """确认前校验必填项"""
+        url = self._url_edit.text().strip()
+        model_text = self._models_combo.currentText().strip()
+        if not url:
+            QtWidgets.QMessageBox.warning(self, "提示", "请填写 API URL。")
+            return
+        if not model_text:
+            QtWidgets.QMessageBox.warning(self, "提示", "请填写至少一个模型名。")
+            return
+        self.accept()
+
+    def get_config(self) -> dict:
+        """返回用户配置的字典"""
+        model = self._models_combo.currentText().strip()
+        models = [model] if model else []
+        return {
+            'api_url': self._url_edit.text().strip(),
+            'api_key': self._key_edit.text().strip(),
+            'models': models,
+            'context_limit': self._ctx_spin.value(),
+            'supports_vision': self._chk_vision.isChecked(),
+            'supports_fc': self._chk_fc.isChecked(),
+            'anthropic_protocol': self._chk_anthropic.isChecked(),
+        }

@@ -1,0 +1,217 @@
+= Solitary mountains =
+
+"""Create custom hills and mountains where you need them."""
+
+The introduction's [Generating a height field from scratch|index#basehf] chapter explains how to create a complete terrain with hills and valleys. However, sometimes you only need a single hill or just more control where mountains should appear. You can, for example, use such a solitary mountain as a [patch|patching] and merge it with another heightfield.
+
+One solution is to draw a custom map, load it to Houdini and extrude it. The advantage is that you can directly add features by combining different layers inside an image processing software. The [Heightfields from maps|maps] pages describes in detail how to create terrains from images. If you have to change something, you must redraw the map.
+
+You can also [project|projection] an object onto an empty heightfield, for example a cone or any other geometry that looks similar to a mountain. Then you can distort and erode the object to make it look natural.
+
+Another method for creating a mountain is to open the [Terrain FX|/shelf/index#terrainx] shelf tool and click [Terrain: Mountain|/shelf/terrain_mountain]. This tool uses heightfield projection.
+
+Below, you can also find a workflow that scatters objects over an irregular area and uses a few lines of VEX code to create a mountain.
+
+Finally, it's possible to use a certain type of noise from the [HeightField Noise SOP|Node:sop/heightfield_noise] and draw a mask to create a solitary peak.
+
+== Masking method ==
+
+You can create a mask through a [HeightField Draw Mask SOP|Node:sop/heightfield_drawmask], a HeightField Mask Noise SOP or both. The mountain appears inside the red areas of the mask.
+
+[Image:/images/heightfields/hills_masking.jpg]
+
+# On the _obj_ level, create a [HeightField OBJ|Node:sop/heightfield]. Double click the new node to dive inside, where you find the actual object.
+# Lay down a HeightField Draw Mask SOP and connect its input with the heightfield's output.
+# Hover the mouse cursor over the viewport and press ((Enter)). You're now in drawing mode.
+# Press and hold the ((LMB)) to draw an arbitrary shape onto the plane. Press ((Esc)) when you're finished and leave the drawing mode.
+# On the mask node's __Masking__ tab. increase __Blur Radius__ to `50` to get smooth borders.
+
+TIP:
+    For a more natural and eroded shape without a hard-edged plateau, set __Blur Method__ to __Box Blur__.
+
+[Image:/images/heightfields/hills_drawmask.jpg]
+
+=== Remapping ===
+
+To turn the mask into a mountain, you can [remap|workflows#remap] the heightfield.
+
+# Add a [HeightField Remap SOP|Node:sop/heightfield_remap] to your network.
+# Connect the remap node's _first_ input with the output of the heightfield. The _second_ input is linked to the output of the mask.
+# Increase __Output Max__ to elevate the masked area. Start with a value of `400` to see a decent effect. The blurred edges create a smooth base.
+
+[Image:/images/heightfields/hills_remapping.jpg]
+
+Now you can apply any other heightfield node to shape the mountain, typically noise, distortion and erosion. Distortion is of particular interest, because it adds structure to the vertical "walls" of the mountain. 
+
+You can also use the mask you've created to shape the mountain, to prevent the ground from being eroded. On the __Main__ and __Advanced__ tabs you can find __Erodability__ and __Removeal Rate Masks__. Open their associated drop-down menus and choose __Mask on__. Then, substitute their default entry with `mask`.
+
+== Scatter method ==
+
+Instead of a mask you can also use any geometry and turn it into heightfield. The magic word is scattering, a method that is explained in detail on the [Heightfield scattering|scattersop] page. Here you'll learn how to create an interesting base shape for a mountain.
+
+[Image:/images/heightfields/hills_scatter.jpg]
+
+The following method might appear a bit cumbersome and there are definitely faster and more convenient ways to create a mountain. But, the example is a concept that illustrates how to achieve a goal with alternative paths. It's also a very flexible method that has lots of knobs for customizing and randomizing your terrain.
+
+The idea is to define an irregular polygon object that serves as a ground that is covered with points. Then you scatter a base object, e.g. a tube, across the points. The distance of each tube from the ground object's position determines its height: tubes, closer to the center are high, those near the object's borders are low. What you get is a mountain shape that you can project onto an empty heightfield.
+
+=== Mountain base ===
+
+The base object's size and shape defines the foot of the mountain.
+
+# On the _obj_ level, create a [Geometry OBJ|Node:obj/geo]. Double click the new node to dive inside.
+# Add a [Circle (Polygons) SOP|Node:sop/circle]. The circle will be deformed to create the irregular structures.
+# Right now, the circle is oriented along the ZX plane. From the __Orientation__ dropdown menu, choose __ZX Plane__.
+# Turn on __Reverse__ to make the circle's normals point upwards.
+# __Uniform Scale__ is the first parameter for customizing the mountain. Considering that a default heightfield is 1000 m by 1000 m, this value shouldn't be too small. Start with `300` to create a disk with a diameter of 600 m.
+# Increase __Division__ to `200` to get more edges and jags.
+
+=== Deformation ===
+
+Noise is a common method to add variation to masks, object, point clouds, maps, etc. In this scene, noise will deform the base object.
+
+# Add an [Attribute Noise SOP|Node:sop/attribnoise] and connect its input with the output of the circle node. You'll now see a disk with colored stripes.
+# The colors come from the __Attribute Names__ parameter's default `Cd` entry. Change the name to `P` for "position".
+# Next to __Attribute Names__ you can see __XYZ__ buttons. Deformation should only be applied in XZ direction. Click the __Y__ button to turn off the circle's Y direction.
+# Go to the __Noise Value__ section's __Amplitude__ and change the value to `200`. Higher values create more distortion.
+# The __Noise Pattern__ section provides an __Element Size__ parameter to control the amount of noise. Set the value to `250` for a moderate distortion.
+
+NOTE:
+    You can also use a [Point Jitter SOP|Node:sop/pointjitter] to randomize the ground object's shape. The result will be pretty much the same.
+
+Here's an image that shows the transformation from a circle to a polysurface.
+
+[Image:/images/heightfields/hills_deformation.jpg]
+
+=== Translation ===
+
+You can also see that the circle was displaced and its center is no longer in the scene's origin. This will, of course, affect the position of the mountain, so it's better to reset the object to the scene origin.
+
+In contrast to vertex, point or primitive attributes, a detail attribute is a property of an object itself, not its components. An example: if you say "the ball is red" then you're talking about a detail attribute, because you mean the entire ball, not the individual components it's made from.
+
+For the reset you need three lines of VEX code (yes, VEX scripts can be very short). It's possible to use a [Transform SOP|Node:sop/xform] and click the __Move Centroid to Origin__ to reset the object, but you _always_ have to click this button when you change the circle's shape or scale. Therefore it's better to have an automatic position update.
+
+# Add an [Attribute Wrangle SOP|Node:sop/attribwrangle] and connect its _first_ input with the output of the Attribute Noise SOP.
+# On the __Code__ tab, set __Run Over__ to __Detail (only once)__.
+# Go to the __VEXpression__ input field and enter
+
+    {{{
+    #!vex
+    vector base_pos = getbbox_center(0);
+
+    f@base_pos_x = base_pos.x;
+    f@base_pos_z = base_pos.z;
+    }}}
+
+    The code calculates a position vector `base_pos`. To do this, you get the center of the bounding box around the deformed circle. The `(0)` part indicates that the function takes the object from the wrangle's _first_ input. Then the script extracts the X and Z components of `base_pos` and stores them in appropriate attributes: `@base_pos_x` and `@base_pos_z`.
+
+# Add a [Transform SOP|Node:sop/xform] and connect its input with the wrangle's output.
+# On the __Translate.X__ parameter, enter `-@base_pos_x`. 
+# For __Translate.Z__, type `-@base_pos_z`.
+
+Now, the deformed circle will always sit exactly in the scene's origin.
+
+=== Scatter points === (scattering)
+
+Scattering is the process of distributing objects over a surface or another object. Here you'll be scattering a tube and control its size with the help of a customized `pscale` attribute.
+
+# Lay down a [Scatter SOP|Node:sop/scatter] and connect its input with the output of the transform node.
+# Open the __Options__ tab and go to __Force Total Count__. This parameter determines the number of scatter points and finally the number of tubes. Enter a value of `10000` to get a structure that is dense enough to create a solid object.
+# For a less random distribution of points, increase __Options > Relax Iterations__ to `100`.
+
+[Image:/images/heightfields/hills_scatterpoints.jpg]
+
+=== Instance object ===
+
+The instance object in this example is a tube, but you can use any other object as well.
+
+# Add a [Tube SOP|Node:sop/tube].
+# Turn on __End Caps__ to create a closed object.
+# The lower cap should sit exactly on the heightfield's zero level. Go to __Center.Y__ and enter `0.5`. This is half the tube's __Height__ value of `1`.
+# Put down a [Copy to Points SOP|Node:sop/copytopoints]. Connect its _first_ input with the output of the tube, and the _second_ input with the output of the scatter node.
+
+When you turn on the copy node's blue __Display/Render__ flag, you will see 10000, rather small, tubes with the same height and radius. Another [VEX script|#scalecontrol] lets you scale the tubes and create the outlines of a mountain.
+
+[Image:/images/heightfields/hills_instances1.jpg]
+
+=== Scale control === (scalecontrol)
+
+To change the height of each instance based on its distance to the distorted circle's center you need another VEX script. This script also changes the tubes' diameter and contains custom parameters. A `ch[type]` statement introduces custom parameters,
+
+# Add a new Attribute Wrangle SOP and place it between the scatter and copy nodes to connect its _first_ input.
+# Copy ((Ctrl + C)) the code below and paste ((Ctrl + V)) it to the __VEXpression__ input field.
+
+{{{
+#!vex
+vector peak_position = set(chf("offset_x"), 0, chf("offset_z"));
+
+float base_scale = chf("base_scale");
+float dist_scale  = exp(chf("steepness") * distance(peak_position, @P));
+
+@scale = set(base_scale, fit(noise(@ptnum), 0, dist_scale, 0, chf("height")), base_scale);
+}}}
+
+# Next to __VEXpression__ click the [Smallicon:BUTTONS/create_parm_from_ch] __Create spare parameters...__ button to create the custom parameters.
+# Use the following values for the custom parameters
+
+    * Set __Base Scale__ to `20` to create overlapping tubes.
+    * Increase __Height__ to `30`. This is the maximum height of the mountain.
+    * With __Offset X__ and __Offset Y__ you can shift the mountain's peak.
+    * Lower __Steepness__ values create a more natural mountain. This parameter is very sensitive, so start with a value around `0.007`.
+
+Here's the explanation of the VEX code.
+
+    * `base_scale` is a custom float parameter that lets you define the tube's diameter.
+    * `origin` is a position vector that uses custom `offset_x` and `offset_z` parameters to shift the mountain's peak.
+    * `dist_scale` uses an exponential function and a tube's distance from the `origin`. This function creates a bell-shaped height distribution.
+    * `@scale` defines the size of each tube instance. The X and Z components (= diameter) are defined by the custom `base_scale` parameter. The Y component determines a tube's height and that's a more complex expression. The `noise` function is responsible for the smooth look of the mountain.
+
+        `fit` takes the original values that range between `0` and `height_scale`. The original values are mapped to a range between `0` and the product of the ramp values and the custom `height` parameter. To get a more realistic result, the function uses the current point number `@ptnum` to drive a noise function.
+
+With __Offset X__ set to `50` and __Offset Z__ set to `200`,  you should get a mountain like in the image below.
+
+[Image:/images/heightfields/hills_instances2.jpg]
+
+=== Projection ===
+
+Now you can project the geometry onto the empty heightfield and apply some blur to seamlessly blend both objects.
+
+# Add a [HeightField Project SOP|Node:sop/heightfield_project] and connect its _first_ input with the output of the HeightField SOP. Link the _second_ input to the output of the Copy to Points SOP.
+# The result is still a bit "blocky" (upper part of the image below), but you can smooth the surface with a [HeightField Blur SOP|Node:sop/heightfield_blur] (lower part of the image).
+
+[Image:/images/heightfields/hills_projection.jpg]
+
+=== Hilly landscape ===
+
+The scattering method is not only good for a single mountain or hill, but also for complete landscapes. You can even use already existing point clouds with exactly defined positions to place the hills where you want them to appear. As scatter objects you can use cones, hemispheres or any other geometry - and combinations of different shapes.
+
+With just a few scatter points and cones, for example, it's possible to create a mountain chain with summits and [patch|patching] it to a base terrain.
+
+== Noise and mask ==
+
+The last method we want to discuss, uses a HeightField Noise SOP and mask. The idea ist to scale and shift the noise in a way to get just one or two peaks. Then you draw a mask to restrict the creation of the terrain to a certain area, and blur the mask to make the mountain fade out. You can improve the result by distorting and eroding the mountain as shown in the image below.
+
+[Image:/images/heightfields/hills_noiseresult.jpg]
+
+Of course, you can use the HeightField Noise SOP's default __Noise Type__ called __Sparse Convultion__, However, to get a more natural appearance with peaks and ridges, change the dropdown menu to __Worely Cellular F1__.
+
+# On the noise node, change __Amplitude__ to `400`.
+# Increase __Element Size__ to `600`.
+# For __Offset__, enter `0, 0, 500` to shift the noise pattern along the Z axis.
+# If not already done, go to __Noise Type__ and choose __Worely Cellular F1__.
+
+[Image:/images/heightfields/hills_noisenoise.jpg]
+
+=== Masking ===
+
+Now you'll draw a mask to fade out the terrain and create a mountain you can then use as a patch.
+
+# Add a HeightField Draw Mask SOP and place it between the HeightField and HeightField Noise SOPs. Connect the mask's output with _both_ inputs of the noise node.
+# Hover the mouse over the viewport and press ((2)) to see the terrain from top view. Press ((H)) to center the heightfield.
+# Now, press ((Enter)) to turn on the node's drawing mode. Use the ((LMB)) to draw a mask onto the heightfield grid. The mask doesn't have to be a perfect circle and it can even be irregular. You'll see a red area with surface structures inside.
+# Leave the drawing mode with ((ESC)).
+# On the mask node, increase __Blur Radius__ to `150` or more to get smooth edges.
+
+Here you can see the result with the mask still visible.
+
+[Image:/images/heightfields/hills_noisemask.jpg]

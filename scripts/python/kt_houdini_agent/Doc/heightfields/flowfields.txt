@@ -1,0 +1,54 @@
+= Flow fields =
+
+"""Let it flow (down the mountain)."""
+
+Flow fields are available with the [Heightfield Erode SOP|Node:sop/heightfield_erode], [HeightField Slump SOP|Node:sop/heightfield_slump], but also a separate [HeightField Flow Field SOP|Node:sop/heightfield_flowfield]. You can, for example, use the fields as distortion layers for the [HeightField Distort by Layer SOP|Node:sop/heightfield_distortbylayer]. Another field of application for the layers is [masking|masking]. Or you can use the fields for [scattering|scattersop] rocks, trees, and other landscape elements. Flow fields are interesting for all kinds of erosion where material is removed and transported.
+
+When you calculate a flow field, you'll get two layers: `flow` and `flowdir`. The first layer represents the cumulative material flow in voxel space. The second layer shows the average direction of flow at each voxel. The `flowdir` layer doesn't contain any height information. The image below shows the `flow` layer (white) of an erosion node.
+
+[Image:/images/heightfields/flowfields_erosion.jpg]
+
+== Example: Erosion channels ==
+
+The following example illustrates how to use a flow field to create deep erosion channels through distortion.
+
+NOTE:
+    All explanations and examples use a very basic terrain, consisting of a [HeightField SOP|Node:sop/heightfield] and a [HeightField Noise SOP|Node:sop/heightfield_noise] to get some mountains and rocky structures. To get enough detail, set the heightfield node's __Grid Spacing__ to `1`.
+
+    For more information on how to work with this fundamental setup, please read the [Generating a heightfield from scratch|index#basehf] introduction.
+
+# On the HeightField Noise SOP, turn off __Center Noise__, because you'll be using a Worley noise for the terrain that already comes with a vertical offset.
+# Set __Amplitude__ to `400`. This will slightly decrease the height of the mountains.
+# Go to the __Noise Settings__ section. From the __Noise Type__ dropdown menu, choose __Worley Cellular F1__. You will now see a mountain range with sharp peaks and ridges.
+# Lay down a [HeightField Distort by Noise SOP|Node:sop/heightfield_distort] and connect its _first_ input with the output of the noise node. This node breaks up the regular fractal and creates small rocky structures.
+# To get more detail, change __Element Size__ to `75`.
+
+=== Flow ===
+
+Here, you'll be creating the flow field that will later control the amount of erosion. You can consider the HeightField Flow Field SOP a modified [HeightField Slump SOP|Node:sop/heightfield_slump]. This node simulates how debris and lose material behaves when it's sliding down a hill and there's a separate [chapter|slump] about this node.
+
+# Lay down a HeightField Flow Field SOP and connect its input with the output of the distort node. After a couple of moments you'll see a red mask.
+# Go to the __Flow__ tab and change __Slump Mode__ to __Smooth__. With this mode, the water spreads out in every possible direction.
+# Change __Rain Amount__ to `0.4` to simulate stronger precipitation. The mask now becomes slightly denser, because there's an increased probability for raindrops to cover larger areas of the terrain. With __Rain Density__ you can also simulate different types of rain form normal to intense.
+
+=== Flow layers ===
+
+As mentioned in the introduction, the flow field nodes creates several layers that represent how water spreads over the terrain, but there's also a `water` layer itself. The `water` layer is directly affected by the node's __Rain Amount__ and __Rain Density__ and where the water collects in the terrain.
+
+You can use a [HeightField Visualize SOP|Node:sop/heightfield_visualize] to make the flow field layers visible. Just use the visualize node's __Layer__ parameters and apply a __Color__. The image shows the flow field node's layers: `flowdir.x`, `water`, `flow` and `flowdir.z`.
+
+[Image:/images/heightfields/flowfields_masktypes.jpg]
+
+=== Distortion ===
+
+In this step you'll use the `flow` layer to scale the displacement of the terrain to control the size and depth of erosion channels.
+
+# Add a HeightField Distort by Layer SOP and connect _both_ inputs with the output of the flow field node. The _second_ input makes the existing layers available to all relevant parameters.
+# Open the __Scale Field__ parameter's dropdown and choose `flow`. This field will be used to displace the terrain inside the masked area.
+# Set __Displace Scale__ to `2` to create deeper and more pronounced channels.
+
+[Image:/images/heightfields/flowfields_distorted.jpg]
+
+If you still think the channels are too deep or show tiny spikes, you can add a [HeightField Blur SOP|Node:sop/heightfield_blur] after the distortion node. Set __Radius__ to `0.5` or `1` to keep as much detail as possible.
+
+And to get rid of the mask, terminate the network with a [HeightField Mask Clear SOP|Node:sop/heightfield_layerclear]. The default entry for __Layer 1__ is already `mask`, so you don't have to change anything. Then turn on the node's blue __Display/Render__ flag to see the final result.

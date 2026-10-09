@@ -1,0 +1,5 @@
+#type: include
+
+== Compiled simulation == (comp_sim)
+
+Compiled COP networks don't support simulation.

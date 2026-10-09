@@ -1,0 +1,39 @@
+= Normals =
+
+"""Defines the normals that the Copernicus network uses."""
+
+== Overview ==
+
+Copernicus has two types of normals: signed and offset. Offset normals are signed normals that are scaled and offset to fit in the `0` to `1` range. See the following examples of ways you can control how a node uses a signed or offset normal:
+
+* The [Type Info parameter|/copernicus/glossary#type_info] on a node, such as the [Layer Properties COP|Node:/cop/layerproperties].
+
+* The __Conversion__ parameter on a node, such as the [Convert Normal COP|Node:/cop/convertnormal].
+
+* The __Normal Type__ parameter on the [Height to Normal COP|Node:/cop/heighttonormal].
+
+== Signed normals == 
+
+Signed normals match what's used in Karma or SOPs. The value of the RGB channel is the value of the normal. This means the RGB values can be negative, which doesn't work with many game engines. Rendering in Karma outputs signed normals. 
+
+Signed normals have the following features:
+
+* Origin of `(0, 0, 0)`
+
+* Length of `1`
+
+* `N` attribute on geometry
+
+* `N` output of Karma
+
+== Offset normals ==
+
+Offset normals are remapped to a `0..1` range to match how shaders usually use normal maps. This gives the normals a distinctive blue look that you may find familiar. Shaders in Karma that read normal maps usually require offset normals.
+
+Offset normals have the following features:
+
+* Origin of approximately `(0.5, 0.5, 0.5)`
+
+* Length of `0.5`
+
+* Use normal maps in shaders

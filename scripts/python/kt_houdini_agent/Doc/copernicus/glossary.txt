@@ -1,0 +1,242 @@
+= Copernicus glossary =
+
+"""Defines terminology related to Copernicus."""
+
+== Overview ==
+
+This glossary defines terms and concepts related to the [Copernicus (COPs) network|index].
+
+== Border types == (border)
+
+The __Border__ parameter controls the sampling behavior outside of the incoming layer's boundaries (represented by the outline in the following images). For a [COP Network node|Node:/manager/copnet] and [COP Network SOP|Node:/sop/copnet], this sets the context option `default_border`, which is an integer context option that encodes the border type of layers. 
+
+Border ||
+    Description ||
+        Example ||
+
+Auto |
+    Uses the layer's border property. |
+        The image output varies based on the border property.
+
+Constant |
+    Values outside of the layer evaluate to `0`. |
+        [Image:/images/nodes/cop/border_constant.jpg]
+
+Clamp |
+    Values outside of the layer evaluate to the closest pixel in the layer. |
+        [Image:/images/nodes/cop/border_clamp.jpg]
+
+Mirror |
+    Values outside of the layer reflect off of the boundaries. |
+        [Image:/images/nodes/cop/border_mirror.jpg]
+
+Wrap |
+    Values outside of the layer wrap around the boundary. |
+        [Image:/images/nodes/cop/border_wrap.jpg]
+
+Clip |
+    Values outside of the layer evaluate to `0`. |
+        [Image:/images/nodes/cop/border_clip.jpg]
+
+== Cables == (cables)
+
+A cable is a wire that's made up of multiple, individual wires (inputs). Copernicus uses cables to let you connect multiple wires to an input port using only one wire.
+
+See [/copernicus/cables] for more information.
+
+== Channel extension == (channel_extension)
+
+The channel extension rules apply in the following scenarios:
+
+* When you try to extract a channel that's not in the input layer, Houdini extends the layer with additional values to support the extracted channel. By extending the layers, Houdini automatically converts them into the required layer.
+* When you wire different layers together, Houdini extends the input layer with additional values to make the layers match.
+
+The following are the channel extension rules that Houdini applies. A dash (-) means that the conversion is not supported.
+
+table width="100%">>
+    <tr>
+        <th>Layer</th>
+        <th>Extension</th>
+        <th>Conversion</th>
+    </tr>
+    <tr>
+        <td rowspan="4">mono (G)</td>
+        <td>G</td>
+        <td>mono</td>
+    </tr>
+    <tr>
+        <td>GG</td>
+        <td>uv</td>
+    </tr>
+    <tr>
+        <td>GGG</td>
+        <td>rgb</td>
+    </tr>
+    <tr>
+        <td>GGGG</td>
+        <td>rgba</td>
+    </tr>
+    <tr>
+        <td rowspan="4">uv (UV)</td>
+        <td>-</td>
+        <td>mono</td>
+    </tr>
+    <tr>
+        <td>UV</td>
+        <td>uv</td>
+    </tr>
+    <tr>
+        <td>UV0</td>
+        <td>rgb</td>
+    </tr>
+    <tr>
+        <td>UV01</td>
+        <td>rgba</td>
+    </tr>
+    <tr>
+        <td rowspan="4">rgb (RGB)</td>
+        <td>-</td>
+        <td>mono</td>
+    </tr>
+    <tr>
+        <td>-</td>
+        <td>uv</td>
+    </tr>
+    <tr>
+        <td>RGB</td>
+        <td>rgb</td>
+    </tr>
+    <tr>
+        <td>RGB1</td>
+        <td>rgba</td>
+    </tr>
+    <tr>
+        <td rowspan="4">rgba (RGBA)</td>
+        <td>-</td>
+        <td>mono</td>
+    </tr>
+    <tr>
+        <td>-</td>
+        <td>uv</td>
+    </tr>
+    <tr>
+        <td>-</td>
+        <td>rgb</td>
+    </tr>
+    <tr>
+        <td>RGBA</td>
+        <td>rgba</td>
+    </tr>
+
+== Data types == (data_type)
+
+The type of data that travels through a wire, which the [input and output types|/copernicus/index#input_output] are based on. See the following type descriptions for more information. ID, Mono, UV, RGB, and RGBA are layer types.
+
+ID:
+    Stores a single integer value per pixel.
+
+Mono:
+    Stores a single floating point value per pixel.
+
+UV:
+    Stores two floating point values per pixel.
+
+RGB:
+    Stores three floating point values per pixel.
+
+RGBA:
+    Stores four floating point values per pixel.
+
+Geometry:
+    Stores arbitrary Houdini geometry.
+
+Integer VDB:
+    Stores a single integer value per voxel of a sparse volume.
+
+Float VDB:
+    Stores a single floating point value per voxel of a sparse volume.
+
+Vector VDB:
+    Stores three floating point values per voxel of a sparse volume.
+
+== Filters == (filter)
+
+The __Filter__ parameter controls how you sample your image. Based on part of the image, this parameter determines the single color that multiple areas of your image combine into if they're treated as a single pixel.
+
+For example, a black and white checkerboard pattern can appear uniformly gray when you view the pattern from far away. The light from multiple areas of the pattern combine to look gray because from a far distance the space between squares is too small to sufficiently and separately resolve each square. You can use the __Filter__ parameter to determine which color the areas of the pattern combine into.
+
+The following table includes examples for each __Filter__ value.
+
+:include /copernicus/_filter_parameter:
+
+== Image space == (spaces)
+
+The Copernicus network uses and refers to image space. For more information, see [/copernicus/spaces].
+
+== Masking == (mask)
+
+The __Mask__ parameter mixes the original incoming value with the node operation's value to provide global masking.
+
+COP nodes that support masking also have a mask input for spatially varying the mask.
+
+== Normals == (normals)
+
+Copernicus uses signed and offset normals. For more information, see [/copernicus/normals].
+
+== Signatures == (signatures)
+
+A signature refers to the set of [input types|/copernicus/index#input_output] that a COP node accepts and the [output types|/copernicus/index#input_output] it generates. A COP node can have multiple signatures. COPs with multiple signatures have a __Signature__ parameter to control them.
+
+NOTE:
+    Each __Signature__ is a string parameter and has an internal name (token). These tokens are the valid values of the parameter. Use `hou.Parm.menuItems()` or `hou.Parm.menuContents()` to view the tokens for a node (see [/hom/hou/Parm] for more information).
+
+For example, the [Checkerboard COP|Node:/cop/checkerboard] might generate an alternating pattern in a Mono or RGB layer, and these two modes of operation correspond to two different signatures. Another example of a node with multiple signatures is the [Remap COP|Node:/cop/remap]. The Remap COP changes an input layer's values by passing it through a simple function. It supports working on layers of different types. The node can remap a single floating point value (its Mono signature) or work on the components of a 4-channel image (its RGBA signature).
+
+For COP nodes that can determine the output type based on the inputs, the __Signature__ parameter has a `Select Automatically` option that internally picks the signature that best matches the incoming [data types|#data_type]. You can change the __Signature__ value to override the node's mode of operation.
+
+For example, you can set the Remap COPs' __Signature__ parameter to `RGBA` so it outputs a 4-channel image even if a single channel input is wired in. In this case, the [channel extension rules|#channel_extension] apply and treat the input Mono layer as the expected input type of the signature (RGBA).
+
+== Signed distance field == (sdf)
+
+A signed distance field (SDF) stores the minimum distance between a point in space and the surface of a shape. The values are negative inside the shape and positive outside of the shape.
+
+== Slap comp == (slap_comp)
+
+The Copernicus network includes a slap composite that lets you view approximate and live results of a final composite. For more information, see [/copernicus/slap_comp].
+
+== Type info == (type_info)
+
+The __Type Info__ parameter is used on a layer to determine how the node interprets data. For example, an RGB layer can store colors or 3D positions. See the following value descriptions for more information.
+
+None:
+    The layer doesn't apply the __Type Info__ parameter.
+
+Color:
+    The node interprets the input data as a color.
+
+Position:
+    The node interprets the input data as a position.
+
+Vector:
+    The node interprets the input data as a vector
+
+Signed Normal:
+    The node interprets the input data as a signed normal.
+
+Offset Normal:
+    The node interprets the input data as an offset normal.
+
+Texture Coordinate:
+    The node interprets the input data as a texture coordinate.
+
+ID:
+    The node interprets the input data as an ID.
+
+Mask:
+    The node interprets the input data as a mask.
+
+SDF:
+    The node interprets the input data as an SDF.
+
+Height:
+    The node interprets the input data as height. The height is visualized as heightfields in the Scene View, and as hillshades in the Composite View and preview thumbnail.

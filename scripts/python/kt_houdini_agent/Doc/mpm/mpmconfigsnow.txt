@@ -1,0 +1,48 @@
+= MPM Configure Rolling Snowball =
+
+There are several MPM Configure examples available through the [tab menu|/basics/tabmenu]. These are similar to [shelf tools|/shelf/index] that put down networks of nodes for learning purposes. The __MPM Configure Rolling Snowball__ example illustrates the use of the "chunky" __Snow__ material type. 
+
+:video:
+    #src: /videos/mpm/mpmsnow.mp4
+
+It puts down a simple network of nodes to simulate a snowball rolling down a slope.
+
+== Important nodes ==
+
+`snowball`:
+    This is the MPM Source that uses the __Snow__ material preset. The main differences are two parameter changes from the default. The __Density__ has been increased to `900`, to make sure that the snowball has enough weight to sink into the snow of the slope. Additionally, the __Stiffness__ has been increased to `28`, to make sure that the snowball does not collapse on itself and preserves its shape while it's rolling down the slope. There is also some initial __Velocity__ added to the snowball to push it down the hill.
+    
+`snow_slope`:
+    This is another [MPM Source|Node:sop/mpmsource], which uses the basic __Snow__ material preset.
+    
+`static_slope`:
+    This is the [MPM Collider|Node:sop/mpmcollider], which uses the default __Static__ collider type.
+    
+`mpmcontainer`:
+    This setup uses a default [MPM Container|Node:sop/mpmcontainer], which defines the resolution of the simulation using the __Particle Separation__ parameter, and can sets limits on whether particles should be deleted or bounce on contact with the boundary. 
+    
+`mpmsolver`:
+    This setup uses a default [MPM Solver|Node:sop/mpmsolver], which does the work of solving the scene.
+
+`build_sdf`:
+    The [MPM Surface|Node:sop/mpmsurface] will generate a signed distance field (SDF) representation of the snow's surface, which is required by multiple downstream tasks. Some __Filtering__ options are used to make the surface smoother and more representative of the underlying material.
+
+`build_density`:
+    This [MPM Surface|Node:sop/mpmsurface] will generate the density representation of the snow that is suitable for rendering. It takes the MPM particles as the first input to rasterize the points to a density grid and uses the precomputed SDF as a mask to clip some of the fuzzy details at the surface and add low frequency structures to the snow surface.
+
+`secondary_emission`:
+    This [MPM Debris Source|Node:sop/mpmdebrissource] will generate the source points used to drive a secondary simulation to add high frequency details to the MPM simulation. Both __Replicate Points__ parameters have been reduced to limit the amount of points to be emitted per frame.
+
+`secondary_sim`:
+    This [DOP Network|Node:sop/dopnet] is a simple POP network using the SDF representation of the MPM simulation as a deforming collider.
+
+`build_secondaries_density`:
+    This [MPM Surface|Node:sop/mpmsurface] will rasterize the secondary simulation to a density grid using the same resolution as the `build_density` node through an expression added to the __Voxel Size__ parameter.
+
+`combine_vdbs`:
+    Both density VDBs are combined into a single VDB for efficient rendering.
+
+== Learning from this example ==
+
+:task: Make the snowball break apart as it rolls down the hill:
+    Decrease the __Stiffness__ parameters on the `snowball` [MPM Source|Node:sop/mpmsource] node.

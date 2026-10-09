@@ -1,0 +1,45 @@
+= ML-related nodes for volumes =
+
+These ML-related nodes incorporate ML in their process or end product, either through training data or during inference. They are not intended as building blocks for ML pipelines.
+
+
+__ML Train Volume Upres__ recipe |
+    #width: 25%
+
+    Train your own pyro upres model. A trained model can be used to make a lowres pyro sim look more like a highres pyro sim, without actually running a highres pyro sim.
+
+
+[ML Volume Tile Component|Node:sop/ml_volumetilecomponent] |
+
+    Crop tiles from a given volume at one or multiple provided point positions. This is useful for creating training data from 3D volumes. This node is part of the __ML Train Volume Upres__ recipe.
+
+[ML Volume Tile Inference|Node:sop/ml_volumetileinference] |
+
+    Run an ONNX model on a volume without creating any seams by splitting it up into tiles.
+
+
+[ML Volume Res|Node:sop/ml_volumeupres] |
+
+    Run an ONNX model that was trained using the new __ML Train Volume Upres__ recipe.
+
+
+[Sparse Billowy Smoke|/shelf/pyrosimplebillowysmoke] shelf tool |
+
+    Updated to use [ML Volume Upres|Node:sop/ml_volumeupres] node to upscale and sharpen the smoke simulation using a pretrained ONNX machine learning model. It creates thick cloud-like smoke rising from a spherical base and is useful as a starting point for simulating scenarios such as chimney smoke or cooling tower steam.
+
+[Neural Point Surface SOP|Node:sop/neuralpointsurface] |
+
+    Takes a point cloud as input and reconstructs a VDB surface from it. It contains multiple specialized pretrained models to yield specific looks depending on the material being surfaced. In general, this node should allow users to reconstruct smooth surfaces while preserving the sharp, high frequency, details described by the point cloud.
+
+    :col:
+        :video:
+            #src: /videos/sopflip/NPS_beach.mp4
+    
+    :col:
+        :video:
+            #src: /videos/sopflip/NPS_snow.mp4
+
+[MPM Surface SOP|Node:sop/mpmsurface] |
+
+    Has options to use [Neural Model|/mpm/nps].
+

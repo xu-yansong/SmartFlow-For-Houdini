@@ -1,0 +1,667 @@
+# Houdini Agent
+
+**[English](README.md)** | **[中文](README_CN.md)**
+
+独立运行的 SideFX Houdini AI 智能助手，支持自主多轮工具调用、**Meshy AI 3D 生成**（文/图生 3D、概念图画廊、图生图/二次编辑、重打材质、重拓扑）、**云资产库**、联网搜索、VEX/Python 代码执行、Plan 模式规划复杂任务、大脑启发式长期记忆系统、插件 Hook 系统支持社区扩展、用户自定义上下文规则，配备现代 **QML/Qt Quick** 桌面 UI 与双语支持。
+
+从 **v2.0** 起，Houdini Agent 以**独立桌面程序**形式运行，通过轻量 **Bridge** 连接正在运行的 Houdini（不再嵌入 Houdini 进程内），前端完全用 **QML/Qt Quick** 重写（Mono Editorial 设计风格）。
+
+基于 **OpenAI Function Calling** 协议，Agent 可以读取节点网络、创建/修改/连接节点、编写 VEX Wrangle、用 Meshy 生成并导入 3D 资产、执行系统命令、联网搜索、查询本地文档、创建结构化执行计划、从历史交互中持续学习、通过插件扩展能力 —— 全部在自主循环中迭代完成。统一的 **ToolRegistry** 集中管理核心工具、技能脚本和插件工具，支持基于模式的访问控制。
+
+## 核心特性
+
+### Agent 循环
+
+AI 以自主 **Agent 循环** 运行：接收用户请求 → 规划步骤 → 调用工具 → 检查结果 → 继续调用 → 直到任务完成。提供三种模式：
+
+- **Agent 模式** — 完整权限，AI 可以使用全部 50+ 工具，创建、修改、连接、删除节点，设置参数，执行脚本，生成并导入 3D 资产，保存场景。
+- **Ask 模式** — 只读模式，AI 只能查询场景结构、检查参数、搜索文档和提供分析。所有修改类工具被 `ToolRegistry` 模式守卫拦截。
+- **Plan 模式** — AI 进入规划阶段：只读调研当前场景，通过 `ask_question` 澄清需求，然后生成带 DAG 流程图的结构化执行计划。用户审核确认后方可执行。内置 **自动续接机制**，检测 AI 过早终止并强制继续执行直到所有步骤完成。
+
+```
+用户请求 → AI 规划 → 调用工具 → 检查结果 → 调用更多工具 → … → 最终回复
+```
+
+- **多轮工具调用** — AI 自主决定调用哪些工具、以什么顺序执行
+- **Todo 任务系统** — 复杂任务自动拆分为子任务，实时跟踪状态
+- **流式输出** — 实时显示思考过程和回复内容
+- **深度思考** — 原生支持推理模型（DeepSeek-R1、GLM-4.7、Claude `<think>` 标签）
+- **随时中断** — 可在任意时刻停止正在运行的 Agent 循环
+- **智能上下文管理** — 按轮次裁剪对话，永不截断用户/助手消息，仅压缩工具结果
+- **长期记忆** — 大脑启发式三层记忆系统（事件记忆、抽象知识、策略记忆），基于奖励驱动的学习与自动反思
+- **插件系统** — 通过 `plugins/` 目录支持外部社区扩展，包含 Hook 事件、自定义工具、UI 按钮和设置
+- **用户规则** — 类似 Cursor Rules 的持久上下文规则，自动注入到每次 AI 请求中
+
+### 支持的 AI 提供商
+
+| 提供商 | 模型 | 说明 |
+|--------|------|------|
+| **DeepSeek** | `deepseek-v4-flash`、`deepseek-v4-pro`、`deepseek-v4-flash-vision-exp` | V4：显式 thinking 参数 + reasoning_effort；1M 上下文；`deepseek-chat` / `deepseek-reasoner` 已于 2026/07/24 下线 |
+| **智谱 GLM** | `glm-4.7` | 国内访问稳定，原生推理与工具调用 |
+| **OpenAI** | `gpt-5.6-sol`、`gpt-5.6-terra`、`gpt-5.6-luna`、`gpt-5.5` | GPT-5.6 系列（1M 上下文），完整 Function Calling 与 Vision 支持 |
+| **拼好饭**（中转） | `claude-opus-5`、`claude-sonnet-5`、`claude-opus-4-8`、`gpt-5.6-sol`、`gpt-5.6-terra`、`gpt-5.6-luna`、`gpt-5.5`、`gpt-5.6-sol-pro`、`glm-5.3`、`glm-5.3-flash`、`glm-5.2`、`glm-5-turbo`、`grok-4.6`、`grok-4.5`、`deepseek-v4-flash` | 通过中转接口使用 Claude、GPT、GLM、Grok、DeepSeek（清单与中转站实时 `/v1/models` 一致） |
+| **OpenRouter** | `claude-opus-5`、`claude-sonnet-5`、`claude-opus-4.8`、`claude-haiku-4.5`、`gpt-5.6-sol/terra/luna`、`gpt-5.5`、`gemini-3.8-flash`、`gemini-3.1-pro-preview`、`deepseek-v4-flash/pro`、`glm-5.3`、`grok-4.6`、`kimi-k3`、`minimax-m3` 共 16 个 | 通过单一 API Key 使用所有主流提供商的模型 |
+| **自定义** | 用户可配置 | 任何 OpenAI 兼容端点（LM Studio、vLLM 等）；可配置 URL、API Key、模型名、上下文限制、Vision 和 FC 支持 |
+
+### 图片/多模态输入
+
+- **多模态消息** — 为支持视觉的模型附加图片（PNG/JPG/GIF/WebP）
+- **粘贴与拖拽** — `Ctrl+V` 从剪贴板粘贴图片，或直接拖拽图片文件到输入框
+- **文件选择器** — 点击「Img」按钮从磁盘选择图片
+- **图片预览** — 发送前在输入框上方显示缩略图，支持单独移除；**点击缩略图可放大查看**（弹出全尺寸预览窗口）
+- **模型感知** — 自动检测当前模型是否支持视觉；不支持的模型会给出明确提示
+- 已支持：OpenAI GPT-5.5/5.6、Claude（所有变体）、Gemini、Grok
+
+### QML/Qt Quick 界面（Mono Editorial）
+
+整个前端用 **QML/Qt Quick** 重写（`houdini_agent/ui_qml/`），由一个精简的 Python `Controller` 把 Agent 状态以信号流式推送给模块化的 QML 组件库。设计风格为 **Mono Editorial** —— 近黑画布配米色点缀，内置编辑设计字体（Fraunces / Newsreader / Space Mono）。
+
+- 现代 Mono Editorial 深色主题，左侧可折叠**资产库抽屉** + 右侧对话栏布局
+- 思考过程、工具调用、节点操作、执行结果均可折叠/展开
+- **Meshy 生成卡片** — 文/图生 3D、重打材质、重拓扑的实时进度；带「转入后台」按钮
+- **概念图画廊卡片** — 概念图转 3D / 文生图 / 图生图的交互式多选画廊，支持改提示词、重新生成、二次编辑、把选中的升级成 3D
+- **云资产库** — 侧滑抽屉列出你在 Meshy 的历史生成结果（带缩略图），一键导入 Houdini，支持翻页和账号/额度显示
+- 内置 **Python Shell** 和 **系统 Shell** 区块，支持语法高亮
+- **可点击节点路径** — 回复中的 `/obj/geo1/box1` 等路径自动变为链接，点击即可跳转到对应节点
+- **节点上下文栏**：实时显示当前选中的 Houdini 节点（Plan 规划阶段为只读）
+- **Todo 列表**：显示在对话区域上方，带实时状态图标
+- **Token 分析** — 实时显示 Token 用量、推理 Token、Cache 命中率和按模型计费的费用估算（点击查看详细分析面板）
+- **流式 VEX 代码预览** — 类似 Cursor Apply 的实时代码书写动画
+- 多会话标签页 — 同时运行多个独立对话
+- AI 回复一键复制；`Ctrl+Enter` 发送消息
+- **字号缩放** — 滑块弹窗实时缩放界面，偏好持久化
+- **双语 UI** — 切换中文/英文界面，所有 UI 元素和系统提示词动态重译
+- **更新通知** — 检测到新版本时显示横幅，支持「立即更新」和关闭
+- **管理面板** — 应用内插件管理器、规则编辑器、长期记忆浏览
+- **输入法支持** — 完整的中文/日文/韩文输入法支持（Windows 和 macOS）
+
+## 可用工具（50+）
+
+### 节点操作
+
+| 工具 | 说明 |
+|------|------|
+| `create_wrangle_node` | **优先使用** — 创建 Wrangle 节点并设置 VEX 代码（point/prim/vertex/volume/detail） |
+| `create_node` | 创建单个节点 |
+| `create_nodes_batch` | 批量创建节点并自动连接 |
+| `connect_nodes` | 连接两个节点（支持指定输入端口） |
+| `delete_node` | 删除节点 |
+| `copy_node` | 复制/克隆节点到同一或其他网络 |
+| `set_node_parameter` | 设置单个参数值（智能纠错、内联红绿 Diff 预览、一键撤销） |
+| `batch_set_parameters` | 批量设置多个节点的同一参数 |
+| `set_display_flag` | 设置节点的显示/渲染标志 |
+| `save_hip` | 保存当前 HIP 文件 |
+| `undo_redo` | 撤销或重做 |
+
+### 查询与检查
+
+| 工具 | 说明 |
+|------|------|
+| `get_network_structure` | 获取节点网络拓扑 — **NetworkBox 感知**：有分组时自动折叠为概览（名称+注释+节点数），传 `box_name` 可钻入查看详情；大型网络显著节省 Token |
+| `get_node_parameters` | 获取节点参数 + 状态标志、错误信息、输入输出连接（已合并原 `get_node_details`） |
+| `list_children` | 列出子节点及标志（类似 `ls`） |
+| `read_selection` | 读取视口中当前选中的节点 |
+| `search_node_types` | 按关键词搜索 Houdini 节点类型 |
+| `semantic_search_nodes` | 自然语言搜索节点类型（如"在表面上随机分布点"） |
+| `find_nodes_by_param` | 按参数值搜索节点（类似 `grep`） |
+| `get_node_inputs` | 获取节点输入端口信息（210+ 常用节点已预缓存） |
+| `check_errors` | 检查 Houdini 节点 cooking 错误和警告 |
+| `verify_and_summarize` | 验证网络完整性并生成总结报告（已内置 `get_network_structure`，无需提前单独调用） |
+
+### 可视化
+
+| 工具 | 说明 |
+|------|------|
+| `capture_viewport` | 截取 3D 视口截图 — 返回 base64 JPEG 给视觉模型，或保存到文件；可配置分辨率（最高 1920×1080） |
+
+### 3D 生成（Meshy）
+
+自包含集成（`houdini_agent/meshy/`），封装 [Meshy](https://meshy.ai) 生成式 3D API。网络调用跑在 App 后台线程（绝不进 Houdini）；得到的 GLB + PBR 贴图在主线程导入 Houdini 并自动接成 Principled Shader。生成类工具消耗 Meshy credits，受**执行前确认**门控。密钥用 `MESHY_API_KEY`（环境变量或 `houdini_ai.ini`），或应用内菜单 →**Meshy API Key…**。
+
+| 工具 | 描述 |
+|------|------|
+| `meshy_text_to_3d` | 文字 → 带贴图 3D 模型（自动 preview→refine），下载 GLB + PBR 贴图到缓存；`count` 可并行出多个变体 |
+| `meshy_image_to_3d` | 图片（URL / data URI / 本地路径 / 对话附图）→ 带贴图 3D 模型 |
+| `meshy_text_to_image` | 文字 → 并行生成 N 张 2D 概念图/参考图（`prompt`+`count` 出同词变体，或 `prompts` 数组出不同方向）；弹画廊（多选、改提示词重生、只保留图片或把选中的升级成 3D） |
+| `meshy_image_to_image` | **图生图 / 2D 二次编辑** — 参考图 + 提示词 → 新图片（换风格、换背景、出变体）；用户附了图时自动取最近一张作参考；同样弹交互画廊（重生、二次编辑、升级成 3D） |
+| `meshy_concept_to_3d` | 概念图驱动、人在环：并行生成 N 张概念图 → 画廊卡片（多选 + 可改提示词 + 重新生成）→ 对选中的图分别做 image-to-3d（原生任务串接） |
+| `meshy_retexture` | 给已有模型重打 PBR 材质（文字/图片提示）— 配合 `export_node_to_glb` 可给场景里已有几何重打材质 |
+| `meshy_remesh` | 重拓扑 / 改面数（quad/triangle，目标面数） |
+| `meshy_balance` | 查询 Meshy 剩余 credits（免费） |
+| `meshy_task_status` | 查询【转入后台】运行中的生成任务进度（免费）；不带参数列全部，`op` 指定某个任务 |
+| `import_3d_asset` | 把 GLB/FBX/OBJ 导入 `/obj`（File SOP），并用 PBR 贴图搭建并指派 Principled Shader |
+| `export_node_to_glb` | 把场景节点几何导出成 GLB（喂给 `meshy_retexture`） |
+
+价值在接缝处：Meshy 生成**种子资产**，Houdini 程序化**放大**它（scatter、copy-to-points、碎裂、地形）。生成过程有实时 `MeshyCard` 进度卡片；结果落地为可导入资产，由 agent 串进场景。
+
+**交互式画廊** —— `meshy_text_to_image`、`meshy_image_to_image`、`meshy_concept_to_3d` 会弹出 `ConceptGalleryCard`，分 `生成 → 挑选 → 转 3D → 完成` 几个阶段：多选你满意的图、改提示词重新生成、对选中的图做二次图生图编辑，或把选中的升级成 3D —— 全程人在环。
+
+**后台任务** —— 任何耗时的 Meshy 生成都可以**转入后台**运行。Agent 循环不被阻塞继续往下走；完成后结果作为一条新消息自动送回，画廊类任务会自动弹出可交互的 `ConceptGalleryCard`（若 Agent 仍在运行则排队到空闲时弹出），仍可挑选/编辑/升级。也可用 `meshy_task_status` 主动查询进度。
+
+**云资产库** —— 侧滑抽屉（`LibraryContent.qml`）按页聚合你在 Meshy 的历史生成（文/图生 3D、重打材质、重拓扑）并带缩略图；一键即可把任意资产导入 Houdini（下载 GLB + 贴图 → `import_3d_asset`）。抽屉顶部显示账号连接状态与剩余额度。
+
+### 代码执行
+
+| 工具 | 说明 |
+|------|------|
+| `execute_python` | 在 Houdini Python Shell 中运行代码（可使用 `hou` 模块），带 stop-event 保护和 30s 超时 |
+| `execute_shell` | 执行系统命令（pip、git、ssh、scp、ffmpeg 等），带超时、安全检查和进程树清理保护 |
+
+### 联网与文档
+
+| 工具 | 说明 |
+|------|------|
+| `web_search` | 联网搜索（Brave/DuckDuckGo 自动降级，带缓存） |
+| `fetch_webpage` | 获取网页正文内容（分页、编码自适应） |
+| `search_local_doc` | 搜索本地 Houdini 文档索引（节点/VEX 函数/HOM 类） |
+| `get_houdini_node_doc` | 获取节点帮助文档（本地帮助服务器 → SideFX 在线文档 → 节点类型信息） |
+
+### Skill 脚本
+
+| 工具 | 说明 |
+|------|------|
+| `run_skill` | 执行预定义 Skill 脚本 |
+| `list_skills` | 列出所有可用 Skill |
+
+### NetworkBox（节点分组）
+
+| 工具 | 说明 |
+|------|------|
+| `create_network_box` | 创建 NetworkBox（分组框），支持语义颜色预设（input/processing/deform/output/simulation/utility），可在创建时直接包含指定节点 |
+| `add_nodes_to_box` | 将节点添加到已有的 NetworkBox，支持自动调整大小 |
+| `list_network_boxes` | 列出网络中所有 NetworkBox 及其内容和元数据 |
+
+### 节点布局
+
+| 工具 | 说明 |
+|------|------|
+| `layout_nodes` | 自动布局节点 — 支持 `auto`（智能）、`grid`（网格）、`columns`（按拓扑深度分列）策略，可调间距 |
+| `get_node_positions` | 获取节点位置信息（x/y 坐标和类型），用于检查布局效果或手动微调 |
+
+### 性能分析
+
+| 工具 | 说明 |
+|------|------|
+| `perf_start_profile` | 启动 Houdini perfMon 性能分析 — 可选强制 cook 指定节点以触发完整 cook 链 |
+| `perf_stop_and_report` | 停止性能分析并返回详细的 cook 时间 / 内存报告（分页） |
+
+### 任务管理
+
+| 工具 | 说明 |
+|------|------|
+| `add_todo` | 添加任务到 Todo 列表 |
+| `update_todo` | 更新任务状态（pending / in_progress / done / error） |
+
+### 长期记忆
+
+| 工具 | 说明 |
+|------|------|
+| `search_memory` | 搜索语义记忆库 — 按类别、抽象层级和置信度评分检索相关的历史经验、规则和策略 |
+
+### Plan 模式
+
+| 工具 | 说明 |
+|------|------|
+| `create_plan` | 创建结构化执行计划，包含阶段、步骤、依赖关系、风险评估和 DAG 流程图 — 以交互式卡片展示，供用户审核确认 |
+| `update_plan_step` | 执行过程中更新计划步骤的状态和结果摘要 |
+| `ask_question` | 在规划阶段向用户提出澄清问题（附带选项和推荐方案） |
+
+## Skill 系统
+
+Skill 是预优化的 Python 脚本，在 Houdini 环境中运行，用于可靠的几何体分析。涉及几何分析时优先使用 Skill，而非手写 `execute_python`。所有 Skill 自动注册到 `ToolRegistry` 中，工具名以 `skill:xxx` 格式命名。用户还可以通过设置 **用户技能目录** 加载自定义 Skill。
+
+| Skill | 说明 |
+|-------|------|
+| `analyze_geometry_attribs` | 属性统计（min/max/mean/std/NaN/Inf），支持 point/vertex/prim/detail |
+| `analyze_normals` | 法线质量检测 — NaN、零向量、未归一化、翻转面 |
+| `get_bounding_info` | 边界盒信息：中心、尺寸、对角线、体积、表面积、长宽比 |
+| `analyze_connectivity` | 连通性分析（独立部分数量、每部分的点数/面数） |
+| `compare_attributes` | 两个节点的属性差异对比（新增/缺失/类型变化） |
+| `find_dead_nodes` | 查找孤立节点和未使用的链末端节点 |
+| `trace_node_dependencies` | 追溯上游依赖树或下游影响范围 |
+| `find_attribute_references` | 查找网络中所有引用指定属性的节点（VEX 代码、表达式、字符串参数） |
+| `analyze_cook_performance` | **新增** — 全网络 cook 时间排名、几何体膨胀点检测、错误/警告节点、瓶颈识别 |
+
+## 项目结构
+
+```
+Houdini-Agent/
+├── launcher.py                      # 启动器 — 检测 Houdini，路由到 QML 程序（Houdini 内嵌或独立）
+├── README.md / README_CN.md         # 中英文文档
+├── VERSION                          # 语义版本文件（如 2.0.0）
+├── HoudiniAgent.spec                # PyInstaller 构建配置（独立程序）
+├── build_installer.ps1              # Inno Setup 安装包构建
+├── lib/                             # 内置依赖库（requests、urllib3、certifi、tiktoken 等）
+├── assets/                          # 应用图标（houdini-agent.ico）与品牌资源
+├── config/                          # 运行时配置（自动创建，已 gitignore）
+│   ├── houdini_ai.ini              # API Key 及设置（含 MESHY_API_KEY、埋点开关、install id）
+│   ├── plugins.json                # 插件启用/禁用状态、工具禁用列表、插件设置
+│   └── user_rules.json             # 用户自定义上下文规则（UI 规则）
+├── cache/                           # 对话缓存、文档索引、HIP 预览
+│   ├── plans/                      # Plan 模式数据文件（plan_{session_id}.json）
+│   └── meshy/                      # 下载的 GLB/PBR 资产 + 埋点本地暂存
+├── rules/                           # 基于文件的用户规则（*.md、*.txt 自动加载）
+├── plugins/                         # 社区插件目录（含 PLUGIN_DEV_GUIDE.md）
+├── Doc/                             # 离线文档（各知识库 + nodes/vex/hom zip 索引）
+├── shared/                          # 共享工具（路径与配置）
+├── trainData/                       # 导出的训练数据（JSONL）
+├── deploy/                          # 部署与后端
+│   ├── remote_deploy.py            # 主页/站点部署（paramiko）
+│   ├── upload_installer.py         # 上传构建好的安装包到下载主机
+│   └── telemetry_server/           # 用量埋点后端（纯标准库 http.server + sqlite3）
+│       ├── server.py               #   POST /api/telemetry、GET /api/telemetry/stats
+│       ├── ha-telemetry.service    #   systemd 服务单元
+│       └── deploy_telemetry.py     #   部署脚本
+├── website/                         # 营销主页（houdini-agent.com）
+└── houdini_agent/                   # 主模块
+    ├── ui_qml/                     # QML/Qt Quick 前端（Mono Editorial）— 主界面
+    │   ├── controller.py          # Controller（QObject）— QML⇄后端桥，驱动 Agent 循环，
+    │   │                          #   流式推送信号、Meshy 画廊、后台任务、云资产库
+    │   ├── agent_session.py       # Houdini 内会话后端（封装 AIClient + HoudiniMCP）
+    │   ├── bridge_session.py      # 独立模式会话后端（经 BridgeClient 与 Houdini 通信）
+    │   ├── app.py                 # Houdini 内启动器（Houdini 父窗 QML、热重载）
+    │   ├── external_app.py        # 独立双击启动器（含应用/窗口图标）
+    │   ├── host.py                # QQuickWidget 工厂；注册内置编辑设计字体
+    │   ├── preview.py             # 开发预览（mock 数据，不需 Houdini）
+    │   ├── qml/
+    │   │   ├── Main.qml           # 根窗口 — 资产库抽屉 + 对话栏
+    │   │   └── HAgent/            # 组件库
+    │   │       ├── Theme.qml      #   Mono Editorial 调色板 / 字体 / 缩放
+    │   │       ├── ChatView.qml, MessageUser.qml, MessageAI.qml, Composer.qml, Header.qml,
+    │   │       │   SessionTabs.qml, ContextBar.qml, StatusBar.qml
+    │   │       ├── ProseBlock.qml, CodeBlock.qml, CodePreviewBlock.qml, ThinkingBlock.qml,
+    │   │       │   TodoBlock.qml, ShellBlock.qml, ExecBlock.qml, NodeOpRow.qml, ImageBlock.qml
+    │   │       ├── MeshyCard.qml, ConceptGalleryCard.qml      # Meshy 进度 + 交互画廊
+    │   │       ├── LibraryContent.qml, ManagementPanel.qml    # 云资产库 + 插件/规则/记忆面板
+    │   │       └── PlanCard.qml, PlanDag.qml, PlanStreamBlock.qml, AskQuestionCard.qml, ConfirmCard.qml …
+    │   └── fonts/                 # Fraunces / Newsreader / Space Mono
+    ├── meshy/                      # Meshy 3D 生成集成（自包含、自注册）
+    │   ├── client.py              # MeshyClient — REST（创建/轮询/下载/余额/list_tasks）
+    │   ├── config.py              # MESHY_API_KEY 解析 + 缓存目录
+    │   ├── schemas.py             # 工具 schema + 工具名集合（NETWORK/INTERACTIVE/HOUDINI/CONFIRM）
+    │   ├── network_ops.py         # 后台线程编排（生成/重打材质/重拓扑/资产库）
+    │   ├── houdini_io.py          # 主线程导入 + Principled Shader + GLB 导出
+    │   └── telemetry.py           # 匿名用量埋点（本地暂存 + 后台上传，可关）
+    ├── bridge/                     # 独立程序⇄Houdini 进程间通信
+    │   ├── client.py              # BridgeClient — localhost 套接字客户端
+    │   └── server.py              # bridge 服务端（跑在 Houdini 内，主线程分发工具）
+    ├── ui/                         # 旧版 PySide widgets 界面（回退，HAGENT_UI=legacy）
+    ├── core/                       # 旧版界面核心（main_window / agent_runner / session_manager 等 Mixin）
+    ├── main.py                     # 旧版模块入口（回退）
+    ├── shelf_tool.py               # Houdini 工具架集成
+    ├── qt_compat.py                # PySide2/PySide6 兼容层
+    ├── launcher/                   # Houdini 探测与启动（houdini_discovery.py）
+    ├── houdini_package/            # 安装进 Houdini packages/ 的 bridge package 载荷
+    ├── skills/                     # 预构建分析脚本（自动注册为 skill:xxx 工具）
+    └── utils/
+        ├── ai_client.py           # AI API 客户端（流式、Function Calling、联网搜索）
+        ├── ai_client_*.py         # 提供商 / 上下文 / 流式 / Agent 循环 Mixin
+        ├── doc_rag.py             # 本地文档索引（节点/VEX/HOM O(1) 查找）
+        ├── token_optimizer.py     # Token 预算与压缩（tiktoken 精准计数）
+        ├── ultra_optimizer.py     # 系统提示词与工具定义优化器
+        ├── updater.py             # 自动更新器（GitHub Releases、ETag 缓存、通知）
+        ├── plan_manager.py        # Plan 模式数据模型与持久化
+        ├── hooks.py               # 插件 Hook 系统（HookManager、PluginContext、PluginLoader）
+        ├── tool_registry.py       # 统一工具注册中心 — 核心/技能/插件/用户工具
+        ├── rules_manager.py       # 用户规则管理器（UI + 文件规则，Prompt 注入）
+        ├── memory_store.py        # 三层记忆存储（事件/抽象/策略）SQLite
+        ├── embedding.py / reward_engine.py / reflection.py / growth_tracker.py  # 长期记忆系统
+        └── mcp/                   # Houdini MCP 层
+            ├── client.py          # 工具执行器（节点操作、Shell、Skill 分发、ToolRegistry 降级分发）
+            ├── tools/             # 工具 handler（node_ops / param_ops / exec_ops / doc_ops / inspect）
+            ├── node_inputs.json   # 预缓存的输入端口信息（210+ 节点）
+            └── server.py / settings.py / logger.py
+```
+
+## 快速开始
+
+### 环境要求
+
+- **Houdini 20.5+**（或 21+）
+- **Windows / macOS / Linux**
+- **自带运行环境** — 独立程序内置 Python 与 PySide6，无需安装 Python，也无需 pip
+
+### 安装与启动
+
+Houdini Agent 现在是**独立桌面程序**，通过 **Bridge** 连接正在运行的 Houdini（不再在 Houdini 进程内运行）。
+
+1. 从 [GitHub Releases](https://github.com/Kazama-Suichiku/Houdini-Agent/releases/latest) 下载预构建的「Houdini Agent」，解压后双击运行。
+2. 程序自动探测本机 Houdini（20.5+）并将**桥接 package** 安装到 Houdini 的 `packages/` 目录，然后提示「打开 Houdini」。
+3. Houdini 启动时会自动拉起 **bridge server**；外置程序通过 **bridge client** 自动连接。
+4. 在程序内点「**API Key…**」保存到本机，或设置环境变量（见下）。
+
+所有 `hou.*` 调用都经 Bridge 在 Houdini 主线程执行，保证线程安全。
+
+> **进阶 / 开发者** — 也可在 Houdini 内直接运行（自动跑内嵌界面）：
+> ```python
+> import sys
+> sys.path.insert(0, r"C:\path\to\Houdini-Agent")
+> import launcher
+> launcher.show_tool()
+> ```
+> 或用 `build_houdini_agent_exe.ps1` 自行构建独立程序（PyInstaller）。
+
+### 配置 API Key
+
+**方式一：环境变量（推荐）**
+
+```powershell
+# DeepSeek
+[Environment]::SetEnvironmentVariable('DEEPSEEK_API_KEY', 'sk-xxx', 'User')
+
+# 智谱 GLM
+[Environment]::SetEnvironmentVariable('GLM_API_KEY', 'xxx.xxx', 'User')
+
+# OpenAI
+[Environment]::SetEnvironmentVariable('OPENAI_API_KEY', 'sk-xxx', 'User')
+
+# 拼好饭（中转）
+[Environment]::SetEnvironmentVariable('DUOJIE_API_KEY', 'xxx', 'User')
+
+# OpenRouter
+[Environment]::SetEnvironmentVariable('OPENROUTER_API_KEY', 'sk-or-xxx', 'User')
+```
+
+**方式二：工具内设置**
+
+点击「设置 API Key…」按钮，勾选「保存到本机配置」。
+
+## 架构
+
+### Agent 循环流程
+
+```
+┌───────────────────────────────────────────────────────┐
+│  用户发送消息                                           │
+│  ↓                                                     │
+│  系统提示词 + 对话历史 + RAG 文档                        │
+│  ↓                                                     │
+│  AI 模型（流式）→ 思考过程 + tool_calls                  │
+│  ↓                                                     │
+│  工具执行器分发每个工具调用：                              │
+│    - Houdini 工具 → 主线程（Qt BlockingQueued）          │
+│    - Shell / 联网 / 文档 → 后台线程（非阻塞）             │
+│  ↓                                                     │
+│  工具结果 → 以 tool 消息反馈给 AI                        │
+│  ↓                                                     │
+│  AI 继续（可能调用更多工具或生成最终回复）                  │
+│  ↓                                                     │
+│  循环直到 AI 完成或达到最大迭代次数                        │
+└───────────────────────────────────────────────────────┘
+```
+
+### QML 前端架构
+
+界面是 **QML/Qt Quick**，由一层很薄的 Python 驱动。Agent 循环跑在后台线程；Houdini 调用统一编组回 Qt 主线程执行。
+
+| 组件 | 模块 | 职责 |
+|------|------|------|
+| `Controller` | `ui_qml/controller.py` | 暴露给 QML 的核心 `QObject` — 持有 UI 状态、驱动 Agent 循环、把回调以 Qt 信号流式推送（`_sigThink`、`_sigContent`、`_sigToolCall`、`_sigToolResult`、`_sigNodeOp`、`_sigPlan`、`_sigMeshyProgress`、`_sigConcept`、`_sigLibrary`、`_sigShowBgGallery` 等），并编排 Meshy 画廊、后台任务和云资产库 |
+| `ChatModel` | `ui_qml/controller.py` | `QAbstractListModel`，承载对话行（user / ai / plan），供 `ChatView.qml` 消费 |
+| `AgentSession` | `ui_qml/agent_session.py` | UI 无关的后端，封装 `AIClient` + `HoudiniMCP`；一个 `run()` 用调用方回调驱动 `agent_loop_auto()`（Houdini 内嵌模式） |
+| `BridgeAgentSession` | `ui_qml/bridge_session.py` | 独立模式后端 — 接口相同，但把 `hou.*` 工具调用经 `BridgeClient` 路由到正在运行的 Houdini |
+| `host.py` / `app.py` / `external_app.py` | `ui_qml/` | 分别是 QQuickWidget 宿主（注册字体）、Houdini 内启动器、独立启动器 |
+
+QML 组件位于 `ui_qml/qml/HAgent/`；`Theme.qml` 集中管理 Mono Editorial 调色板、字体和缩放。
+
+### Bridge（独立程序 ⇄ Houdini）
+
+从 v2.0 起程序运行在 Houdini **进程之外**，通过一个小型 localhost 套接字桥与之通信：
+
+- **`bridge/server.py`** — 跑在 Houdini 内（由安装的 bridge package 自动拉起）。接收 JSON-lines 请求，把 `execute_tool` 调用分发到 Houdini **主线程**，并自动注册 Meshy 的 Houdini handler（`import_3d_asset`、`export_node_to_glb`）。
+- **`bridge/client.py`** — 独立程序使用的 `BridgeClient`：`execute_tool(name, args)`、场景上下文、撤销，全部走 bridge 端口。
+
+这样既保证所有 `hou.*` 访问都在主线程安全执行，又让 UI 跑在自己的进程里（程序可以自行启动、探测、甚至帮你拉起 Houdini）。
+
+### 用量埋点（匿名、可关闭）
+
+为统计有多少 Meshy 用量是通过 Houdini Agent 产生的，每个**成功**的计费类 Meshy 任务会记录一条匿名事件（`meshy/telemetry.py`）：
+
+- **记什么** — 随机安装 id（存在 `houdini_ai.ini` 的 UUID）、时间戳、程序版本、任务类型、任务 id、AI 模型、模式、**消耗的 credits**、以及提示词。不含账号或个人身份。
+- **怎么传** — 事件先写到 `cache/meshy/` 下的本地 JSONL 暂存，再由后台线程分批 POST（指数退避重试）到 `https://houdini-agent.com/api/telemetry`。离线事件跨重启保留、稍后补传；按事件 id 去重。
+- **关闭** — 设置 `HAGENT_TELEMETRY_OFF=1`，或在 `houdini_ai.ini` 里置 `telemetry_optout`。后端（`deploy/telemetry_server/`）是纯标准库 `http.server` + `sqlite3`，挂在 nginx 后，提供 `POST /api/telemetry` 和 `GET /api/telemetry/stats`。
+
+### Plan 模式
+
+Plan 模式使 AI 能够通过结构化的三阶段工作流处理复杂任务：
+
+1. **深度调研** — 使用只读查询工具调查当前场景
+2. **需求澄清** — 发现歧义时通过 `ask_question` 与用户交互确认
+3. **结构化规划** — 生成工程级执行计划，包含阶段划分、步骤、依赖关系、风险评估和预估操作量
+
+计划以交互式 `PlanViewer` 卡片显示，附带 DAG 流程图。用户可以查看每个步骤的详情、批准/拒绝计划，并监控执行进度。计划数据持久化到 `cache/plans/plan_{session_id}.json`。
+
+### 大脑启发式长期记忆系统
+
+五个模块组成的系统，使 Agent 能够持续学习和改进：
+
+| 模块 | 说明 |
+|------|------|
+| `memory_store.py` | 三层 SQLite 存储 — **事件记忆**（具体任务经历）、**抽象知识**（反思生成的经验规则）、**策略记忆**（解决问题的套路，带优先级） |
+| `embedding.py` | 本地文本向量化，使用 `sentence-transformers/all-MiniLM-L6-v2`（384维），回退方案为字符 n-gram 伪向量 |
+| `reward_engine.py` | 类多巴胺奖励评分 — 成功度、效率、新颖度、错误惩罚；驱动记忆重要度的强化/衰减，附带时间衰减 |
+| `reflection.py` | 混合反思 — 每次任务后规则提取 + 定期 LLM 深度反思生成抽象规则和策略更新 |
+| `growth_tracker.py` | 滚动窗口指标（错误率、成功率、工具调用效率趋势）+ 个性特征形成（效率偏好、风险容忍度、回复详细度、主动性） |
+
+查询时自动激活记忆：通过余弦相似度检索相关的事件记忆、抽象规则和策略记忆，注入到系统提示词中。
+
+### 插件系统
+
+Agent 通过插件架构支持外部社区扩展：
+
+- **HookManager**（单例）— 管理所有 Hook 注册和事件分发，支持优先级排序
+- **PluginLoader** — 扫描 `plugins/` 目录下的 `.py` 文件，自动加载已启用的插件
+- **PluginContext** — 传给每个插件 `register(ctx)` 函数的 API 对象，提供：
+  - `ctx.on(event, callback)` — 注册事件钩子
+  - `ctx.register_tool(name, description, schema, handler)` — 注册自定义 AI 可调用工具
+  - `ctx.register_button(icon, tooltip, callback)` — 添加工具栏按钮
+  - `ctx.insert_chat_card(widget)` — 在聊天区域插入自定义 UI
+  - `ctx.get_setting(key)` / `ctx.set_setting(key, value)` — 持久化插件设置
+- **装饰器 API** — `@hook`、`@tool`、`@ui_button` 装饰器，支持声明式插件开发
+- **7 个 Hook 事件**：`on_before_request`、`on_after_response`、`on_before_tool`、`on_after_tool`、`on_content_chunk`、`on_session_start`、`on_session_end`
+- **插件管理器 UI** — 三标签页对话框（插件/工具/技能），支持启用/禁用插件、管理工具可见性、配置用户技能目录、编辑插件设置
+
+插件配置存储在 `config/plugins.json`。详细开发文档见 `plugins/PLUGIN_DEV_GUIDE.md`。
+
+### ToolRegistry（统一工具注册中心）
+
+集中管理三套能力系统的统一工具管理器：
+
+| 来源 | 说明 |
+|------|------|
+| **Core（核心）** | 内置 Houdini 工具（40+），由 MCP Client 分发执行 |
+| **Skill（技能）** | 预构建分析脚本，自动注册为 `skill:xxx` |
+| **Plugin（插件）** | 社区插件工具，通过 `PluginContext.register_tool()` 注册 |
+
+核心功能：
+- **基于模式的访问控制** — 工具标记允许的模式（`agent`/`ask`/`plan_planning`/`plan_executing`），模式守卫自动过滤工具可用性
+- **标签分类** — 工具自动标记为 `readonly`/`geometry`/`network`/`system`/`docs`/`skill`/`task`/`plugin` 等，支持细粒度过滤
+- **启用/禁用** — 单个工具可通过插件管理器 UI 开关切换，状态持久化到 `config/plugins.json`
+- **用户技能目录** — 用户可指定自定义目录加载 Skill 脚本，自动注册到注册中心
+- **线程安全** — 所有注册/查询操作加锁保护
+
+### 用户规则（自定义上下文）
+
+类似 Cursor Rules 的功能，用户可以定义持久上下文，自动注入到每次 AI 请求中：
+
+- **UI 规则** — 通过规则编辑器对话框创建和管理，存储在 `config/user_rules.json`，可单独启用/禁用
+- **文件规则** — 将 `.md` 和 `.txt` 文件放在 `rules/` 目录下即自动加载（以 `_` 开头的文件视为草稿，不加载）
+- **Prompt 注入** — 所有启用的规则合并后用 `<user_rules>` 标签包裹注入系统提示词
+- 规则编辑器位于应用内管理面板（`ManagementPanel.qml`），带列表/编辑器分栏布局和空状态引导
+
+### 上下文管理
+
+- **原生工具消息链**：`assistant(tool_calls)` → `tool(result)` 消息直接传递给模型，保留结构化信息
+- **严格的 user/assistant 交替**：确保跨提供商的 API 兼容性
+- **按轮次裁剪**：对话按用户消息分割为轮次；超出 Token 预算时，先压缩旧轮次的工具结果，再整轮删除最早的轮次
+- **永不截断 user/assistant**：仅压缩或移除 `tool` 结果内容
+- **自动 RAG 注入**：根据用户查询自动检索相关的节点/VEX/HOM 文档
+- **重复调用去重**：同一轮 Agent 循环中，相同参数的查询类工具调用会自动去重，节省 Token
+
+### 线程安全
+
+- Houdini 节点操作 **必须** 在 Qt 主线程运行 — 通过 `BlockingQueuedConnection` 分发
+- 非 Houdini 工具（Shell、联网搜索、文档查询）在 **后台线程** 直接运行，保持 UI 响应
+- 所有 UI 更新通过 Qt 信号实现线程安全的跨线程通信
+- **macOS 崩溃防护** — 移除 `BlockingQueuedConnection` 槽函数中的 `QApplication.processEvents()` 调用，防止重入导致崩溃；新增主线程断言用于调试
+- 工具执行超时设置为 60 秒，以适应长时间运行的操作
+
+### Token 计数与费用估算
+
+- **tiktoken 集成** — 可用时使用 tiktoken 精准计数，否则使用改良估算
+- **多模态 Token 估算** — 图片按约 765 Token 估算（低分辨率模式），确保预算跟踪准确
+- **按模型计费** — 根据各提供商公布的定价（输入/输出/缓存费率）估算费用
+- **推理 Token 追踪** — 单独统计推理/思考 Token（DeepSeek-R1、GLM-4.7 等）
+- **多提供商缓存解析** — 统一处理 DeepSeek、OpenAI、Anthropic 和 Factory/拼好饭中转的 Cache 命中/未命中指标
+- **Token 分析面板** — 每次请求的详细分解：输入、输出、推理、缓存、延迟和费用
+
+### 智能错误恢复
+
+- **参数纠错提示**：`set_node_parameter` 失败时，错误信息会列出相似的参数名或全部可用参数，帮助 AI 自我纠正
+- **文档查阅建议**：节点创建或参数设置失败时，建议先查询文档（`search_node_types`、`get_houdini_node_doc`、`get_node_parameters`）再重试
+- **连接重试**：网络瞬态错误（分块解码失败、连接中断等）自动指数退避重试
+
+### 国际化（i18n）
+
+- **双语支持** — 完整的中英文界面，`tr()` 翻译函数
+- **动态切换** — 在设置菜单中切换语言；所有 UI 元素、工具提示和系统提示词即时更新
+- **持久化偏好** — 语言选择通过 `QSettings` 保存，启动时自动恢复
+- **系统提示词适配** — AI 回复语言通过系统提示词规则强制，随 UI 语言自动调整
+
+### 本地文档索引
+
+`doc_rag.py` 模块提供基于 ZIP 归档的 O(1) 查找：
+
+- **nodes.zip** — 全部 SOP/OBJ/DOP/VOP/COP 节点的文档（类型、描述、参数）
+- **vex.zip** — VEX 函数签名和说明
+- **hom.zip** — HOM（Houdini Object Model）类和方法文档
+- **Doc/*.txt** — Houdini 编程知识库文章
+
+相关文档会根据用户的查询自动注入到系统提示词中。
+
+## 使用示例
+
+**创建散点流程：**
+```
+用户：创建一个 box，在上面 scatter 500 个点，然后把小球复制到这些点上。
+Agent：[add_todo: 规划 4 个步骤]
+       [create_nodes_batch: box → scatter → sphere → copytopoints]
+       [set_node_parameter: scatter npts=500, sphere radius=0.05]
+       [connect_nodes: ...]
+       [verify_and_summarize]
+完成。创建了 box1 → scatter1 → copytopoints1，球体模板半径 0.05，500 个点。
+```
+
+**分析几何属性：**
+```
+用户：/obj/geo1/OUT 有哪些属性？
+Agent：[run_skill: analyze_geometry_attribs, node_path=/obj/geo1/OUT]
+该节点有 5 个 point 属性：P(vector3)、N(vector3)、Cd(vector3)、pscale(float)、id(int)。...
+```
+
+**搜索文档并应用：**
+```
+用户：heightfield noise 节点怎么用？
+Agent：[search_local_doc: heightfield noise]
+       [get_houdini_node_doc: heightfield_noise]
+       [web_search: "SideFX Houdini heightfield noise parameters"]
+根据文档，heightfield_noise 需要 HeightField 作为输入。...
+```
+
+**执行系统命令：**
+```
+用户：给 Houdini 的 Python 安装 numpy。
+Agent：[execute_shell: "C:/Program Files/Side Effects Software/Houdini 21.0/bin/hython.exe" -m pip install numpy]
+成功安装 numpy-1.26.4。
+```
+
+**编写 VEX 代码：**
+```
+用户：给所有点添加随机颜色。
+Agent：[create_wrangle_node: vex_code="@Cd = set(rand(@ptnum), rand(@ptnum*13.37), rand(@ptnum*7.13));"]
+已创建 attribwrangle1，为所有点设置了随机 Cd 属性。
+```
+
+## 常见问题
+
+### API 连接问题
+- 使用「测试连接」按钮进行诊断
+- 检查 API Key 是否正确
+- 确认网络可以访问 API 端点
+
+### Agent 不调用工具
+- 确认所选提供商支持 Function Calling
+- DeepSeek、GLM-4.7、OpenAI、拼好饭（Claude）、OpenRouter 均支持工具调用
+- 自定义端点需指向支持工具调用的模型
+
+### 节点操作失败
+- 确认在 Houdini 内运行（非独立 Python）
+- 检查节点路径是否为绝对路径（如 `/obj/geo1/box1`）
+- 查看工具执行结果中的具体错误信息
+
+### UI 卡顿
+- 非 Houdini 工具（Shell、联网）应在后台线程运行
+- 如果执行 Shell 命令时 UI 卡顿，请更新到最新版本
+
+### 更新
+- 点击工具栏中的 **Update** 按钮检查新版本
+- 插件启动时静默检查 GitHub，检测到新版本时在输入区上方显示 **更新通知横幅**
+- 横幅支持一键「立即更新」或关闭
+- 更新时保留 `config/`、`cache/`、`trainData/`、`plugins/`、`rules/` 目录
+- 更新后插件自动重启
+
+## 版本历史
+
+- **v2.0.1** — **就地更新后正确进入新 QML 界面**：修复"更新到 2.0 却还是以前的 UI"。旧版(1.5.x)的 Houdini 内嵌自动更新通过 `houdini_agent.main.show_tool()` 重启，而 2.0.0 里它是旧 PySide 入口——就地更新的用户因此停在旧界面。现在 `main.show_tool()` 默认转发到内嵌 QML 界面（`HAGENT_UI=legacy` 可回退）；官网下载的仍是独立安装包（启动方式不同）。另修复打包后更新器误报"当前版本 0.0.0"（健壮的 VERSION 查找），并新增离线 pytest 测试套件 + CI。
+- **v2.0.0** — **独立程序 + QML 重写 + Meshy 全家桶**：Houdini Agent 变为**独立桌面程序**，通过全新的**套接字 Bridge**（`bridge/client.py` + `bridge/server.py`）连接正在运行的 Houdini —— 不再嵌入 Houdini 进程，所有 `hou.*` 调用仍保持主线程安全。前端**完全用 QML/Qt Quick 重写**（`houdini_agent/ui_qml/`），Mono Editorial 设计风格，由精简的 `Controller`（QObject）驱动 Agent 循环并把状态流式推送给模块化 QML 组件库，外加 `ChatModel`（`QAbstractListModel`）。**Meshy 工具扩到 11 个** —— 新增 `meshy_text_to_image`（并行概念图画廊，单一/多方向）、`meshy_image_to_image`（2D 图生图 / 二次编辑，自动取附带的图）、`meshy_task_status`（查询后台任务）；所有交互类工具都弹出 `ConceptGalleryCard`（多选、改提示词、重新生成、升级成 3D）。**后台任务** —— 任何耗时生成都可转入后台，结果作为新消息自动送回，Agent 空闲时画廊自动弹出。**云资产库** —— 侧滑抽屉聚合你在 Meshy 的历史生成（带缩略图、一键导入），并显示账号/额度。**匿名用量埋点**（可关闭）把每个任务消耗的 credits 上报到纯标准库后端（`deploy/telemetry_server/`）。新增品牌化应用/安装包图标；PyInstaller + Inno Setup 打包。
+- **v1.6.0** — **Meshy 3D 生成集成**：新增自包含 `houdini_agent/meshy/` 包，接入 Meshy 的文生/图生 3D、重打材质、重拓扑，外加 `import_3d_asset`（GLB 导入 + 用 PBR 贴图自动搭 Principled Shader）与 `export_node_to_glb`。网络调用跑在 App 后台线程；Houdini I/O 跑在主线程（in-process 或经 bridge）。生成类工具消耗 credits，受执行前确认门控。工具通过 `ToolRegistry` 的 handler 自注册——核心文件（`agent_session`/`bridge_session`/`controller`/`bridge.server`）只留最小引用钩子。新增 `MeshyCard` QML 卡片实时显示生成进度；应用内填 key 走 ⋯ → Meshy API Key…（`MESHY_API_KEY`）。
+- **v1.5.5** — **DeepSeek V4 API 适配 + JSON Output**：新增 `deepseek-v4-flash` / `deepseek-v4-pro` 模型，支持显式 `thinking` 参数和 `reasoning_effort`。旧模型（`deepseek-chat` / `deepseek-reasoner`）保留兼容（2026/07/24 废弃）。默认模型迁移至 `deepseek-v4-flash`。`chat_stream()` / `chat()` 新增 `response_format` 参数；反思模块使用 `json_object` 模式确保可靠的 JSON 输出。V4 模型定价、上下文限制和功能配置已添加。
+- **v1.5.4** — **长期记忆系统全局开关**：新增记忆系统启用/禁用开关。多项修复。
+- **v1.5.3** — **记忆管理器对话框**：新增 `MemoryManagerDialog` UI，支持浏览、编辑、删除和导出语义记忆。支持 `/memories` 命令。
+- **v1.5.2** — **进度体验与横幅 Release Notes**：更新进度指示器和更新通知横幅内容。
+- **v1.5.1** — **Wrangle run_over 修复**：修复 wrangle `class`（run_over）参数映射，匹配 Houdini 参数菜单值。
+- **v1.5.0** — **自定义提供商 + capture_viewport**：新增 **Custom Model** 提供商 — 用户可配置 URL、API Key、模型名、上下文限制、Vision 和 Function Calling 支持；兼容任何 OpenAI 兼容端点（LM Studio、vLLM 等）。新增 `capture_viewport` 工具用于视觉验证 — 截取 3D 视口截图，返回 base64 JPEG 给视觉模型或保存到文件。`execute_python` 新增 stop-event 保护和 30s 超时。Agent 模式移除基于意图的工具过滤。
+- **v1.4.3** — **Cook 死锁防护**：修复 Agent 工具执行期间 cook 操作导致的死锁，通过延迟 Houdini 场景评估解决。
+- **v1.4.2** — **MCP Client 类型修复**：MCP Client 模块类型注解小修。
+- **v1.4.0** — **OpenRouter 提供商**：新增 OpenRouter 集成，16 个模型覆盖 Claude、GPT、Gemini、DeepSeek、Grok、Llama、Qwen、Mistral，单一 API Key。Skill 参数类型 `float` 映射为 JSON Schema `number`。多项稳定性修复。
+- **v1.3.4** — **ToolRegistry 与插件系统全面升级**：新增统一 `ToolRegistry` 单例，集中管理核心工具、技能和插件工具，支持基于模式的访问控制（`agent`/`ask`/`plan_planning`/`plan_executing`）和标签分类（`readonly`/`geometry`/`network`/`system`/`docs`/`skill`/`task`/`plugin`）。技能自动注册为 `skill:xxx` 工具。用户技能目录支持（可配置）。插件管理器重构为 3 标签页 UI（插件/工具/技能），支持单工具启用/禁用开关。装饰器 API（`@hook`/`@tool`/`@ui_button`）通过 `_apply_decorators` 正式生效。MCP Client 新增 ToolRegistry 降级分发。模式安全守卫迁移至 `ToolRegistry.is_tool_allowed_in_mode()`。macOS 线程安全修复：移除 `BlockingQueuedConnection` 槽中的 `processEvents()` 防止重入崩溃；新增主线程断言；工具超时增加到 60s。规则编辑器 UI 重新设计，使用 `QStackedWidget` 分离空状态/编辑器视图，暖卡其色主题。
+- **v1.3.3** — **插件与输入法修复**：修复插件管理器「打开插件文件夹」按钮失效（缺少 `import os`）。macOS PySide2 中文输入法全面修复 — 重写 `inputMethodQuery` 提供光标矩形/周边文本/光标位置给 macOS NSTextInputClient；设置 `StrongFocus` 焦点策略和 `ImhNone` 提示；增强 `focusInEvent` 强制输入法重新激活；`inputMethodEvent` 新增 `commitString` 降级插入。插件管理器和规则编辑器对话框统一为暖卡其色主题（之前为冷色调蓝灰）。新增 `PLUGIN_DEV_GUIDE.md` 插件开发文档。
+- **v1.3.2** — **用户规则系统**：类似 Cursor Rules 的自定义上下文规则 — 通过规则编辑器对话框管理 UI 规则（创建/编辑/删除/启用禁用，存储在 `config/user_rules.json`）+ `rules/` 目录下的文件规则（`.md`/`.txt` 自动加载）。所有启用规则合并后以 `<user_rules>` 标签注入系统提示词。规则集成到系统提示词构建流水线。
+- **v1.3.1** — **插件 Hook 系统**：外部社区扩展架构 — `HookManager` 单例支持事件注册/分发（7 个事件：request/tool/content/session 的前后钩子），`PluginLoader` 扫描 `plugins/` 目录，`PluginContext` API（钩子、工具、按钮、设置、聊天卡片），外部工具注册（AI Function Calling），`PluginManagerDialog` 带启用/禁用/重载/设置 UI，`PluginSettingsPage` 从 Schema 自动生成表单，装饰器 API（`@hook`/`@tool`/`@ui_button`），示例插件模板，Glassmorphism 风格样式，i18n 支持。
+- **v1.3.0** — **Plan 模式自动续接**：修复 AI 过早终止 Plan 执行的问题。在 `agent_loop_stream` 中新增 `on_plan_incomplete` 回调 — 当 AI 返回纯文本但计划仍有待完成步骤时，注入包含最新计划进度的「续接」用户消息强制继续。增强 Plan 执行提示词，加入严格的「永不提前停止」纪律。`update_plan_step` 返回更丰富的进度摘要（如「已完成 3/10 步骤」）。每个会话最多 3 次续接尝试，防止无限循环。
+- **v1.2.9** — **更新通知与 Plan DAG 修复**：新增 `UpdateNotificationBanner` 组件 — 输入区上方轻量横幅（不在聊天流中），带「立即更新」和关闭按钮。Plan 模式 DAG 架构图现在完整显示，不再截断（移除 400px `setFixedHeight` 高度限制）。
+- **v1.2.8** — **撤销快照修复**：修复容器节点撤销 — 子节点现在完全恢复，通过 `createNode` 传入 `run_init_scripts=False` 和 `load_contents=False` 阻止默认子节点创建，然后从快照递归恢复子节点。修复「全部撤销」创建重复节点 — 移除 `_undo_all_ops` 中冗余的双重执行。
+- **v1.2.7** — **PySide2 输入法支持**：在 `ChatInput` 中启用中文输入法 — 显式设置 `WA_InputMethodEnabled`，通过 `_ime_composing` 标志追踪输入法组合状态，防止 `keyPressEvent` 拦截输入法候选词确认。
+- **v1.2.6** — **流式内容修复**：修复多轮 Agent 循环内容粘连 — 保留流式管道中的纯换行 chunk，跨迭代自动注入 `\n\n` 分隔符。
+- **v1.2.5** — **README 与 Release 更新**：全面更新 README — 记录 Plan 模式（3 个工具：`create_plan`、`update_plan_step`、`ask_question`；交互式 PlanViewer 带 DAG 流程图）、大脑启发式长期记忆系统（5 个模块：记忆存储、Embedding、奖励引擎、反思模块、成长追踪器）、双语 i18n 系统，工具总数更新至 38+，扩展拼好饭模型列表（13 个模型覆盖 Claude、Gemini、GLM、Kimi、MiniMax、Qwen），更新项目结构含所有新文件，新增 Plan 模式、记忆系统和国际化架构章节。
+- **v1.2.4** — **现代 UI：暖色调主题与紧凑布局**：视觉刷新 — CursorTheme 调色板转向暖卡其色调，药丸式开关样式。Header 和输入区域重新设计为紧凑单行布局。Provider/模型选择器、Web/Think 开关和溢出菜单合并为一行。隐藏按钮移入溢出菜单使界面更清爽。
+- **v1.2.3** — **双语 i18n 系统与温度调优**：完整国际化 — `i18n.py` 模块含 `tr()` 函数，800+ 条中英文翻译。溢出菜单中语言切换，即时重译 UI（Header、输入区域、会话标签、系统提示词）。语言偏好通过 QSettings 持久化。针对不同提供商和模型的 Temperature 参数调优。
+- **v1.2.2** — **Anthropic Messages 协议适配层与 Think 开关生效**：为 Duojie 的 GLM-4.7、GLM-5 模型新增完整 Anthropic Messages API 兼容层 — 消息格式转换（system 提取、多模态图片转换、tool_use/tool_result 块、严格角色交替）、工具定义转换（OpenAI function → Anthropic input_schema）、流式 SSE 解析器（支持 thinking/text/tool_use delta）、非流式回退。新增 `DUOJIE_ANTHROPIC_API_URL` 端点和 `_DUOJIE_ANTHROPIC_MODELS` 注册表实现自动协议路由。**Think 开关真正生效**：`_think_enabled` 标志控制 `<think>` 块内容和原生 `reasoning_content` 是否显示 — 关闭 Think 时静默丢弃思考内容，不再显示。适用于 XML `<think>` 标签解析和原生推理字段（`reasoning_content`、`thinking_content`、`reasoning`）。**思考字段统一**：OpenAI 协议分支现在检查 3 种可能的思考内容字段名，兼容不同提供商。**新增模型**：`glm-4.7`、`glm-5` 加入 Duojie 提供商，200K 上下文，支持提示缓存。
+- **v1.2.1** — **流式 VEX 代码预览**：新增类似 Cursor Apply 的实时代码书写预览 — AI 通过 `create_wrangle_node` 或 `set_node_parameter` 写入 VEX 代码时，`StreamingCodePreview` 组件逐字符显示代码书写过程。基于新增的 `tool_args_delta` SSE 事件，在流式输出期间广播 tool_call 参数增量。包含不完整 JSON 解析器从部分 JSON 中提取 VEX 代码字段。工具执行完成后预览自动消失，由 `ParamDiffWidget` 接替。**AIResponse 高度修复**：`_auto_resize_content` 改用 `block.layout().lineCount()` 统计真实视觉行数，修复流式追加时高度不准问题。**ParamDiffWidget 折叠重设计**：多行 diff 默认折叠但露出 120px 预览窗口（QScrollArea），而非完全隐藏。
+- **v1.2.0** — **Glassmorphism UI 全面升级**：完整视觉重设计 — `CursorTheme` 调色板从 VS Code 灰色系（`#1e1e1e`）升级为深邃蓝黑系（`#0f1019`），边框改用 `rgba()` 半透明，强调色更鲜艳。**AuroraBar 流光边框**：AI 回复期间左侧显示 3px 银白流动渐变光带，完成后凝固为极淡银灰。**输入框呼吸光晕**：AI 运行期间正弦波驱动输入框边框银灰⇌亮白呼吸效果。**玻璃面板投影**：Header 和 Input 面板添加 `QGraphicsDropShadowEffect` 柔和阴影增加层次感。**Agent/Ask 模式下拉框**：原双 CheckBox 互斥切换改为 `QComboBox`，放在输入框左侧，通过 QSS 属性选择器动态着色。**SimpleMarkdown 颜色适配**：标题、表格、链接、列表、引用块中所有内联 HTML 颜色更新为新蓝黑系。**QSS 模板大幅重写**：`style_template.qss` 599 行插入 / 500 行删除，全面适配新主题。
+- **v1.1.4** — **集中式 QSS 主题系统与字号缩放**：重大 UI 架构重构 — 7 个文件中的所有内联 `setStyleSheet()` 替换为 `setObjectName()` 选择器，统一由 `style_template.qss`（1497 行）控制。新增 `ThemeEngine` 管理 QSS 模板渲染与字号缩放令牌（`{FS_BODY}`、`{FS_SM}` 等）。**字号缩放**：`Ctrl+=`/`Ctrl+-` 放大缩小、`Ctrl+0` 重置，Header 新增 "Aa" 按钮弹出 `FontSettingsDialog` 滑块实时预览。缩放偏好通过 `QSettings` 持久化。**动态状态样式**：上下文标签、Key 状态、优化按钮改用 QSS 属性选择器（`[state="warning"]`、`[state="critical"]`）替代运行时 `setStyleSheet` 调用。**CursorTheme 清理**：从 `main_window.py`、`session_manager.py`、`chat_view.py` 移除直接 `CursorTheme` 导入 — 样式完全由 QSS 驱动。
+- **v1.1.3** — **更新器 ETag 缓存**：自动更新器现使用 HTTP ETag 条件请求 — 304 响应不计入 GitHub API 速率限制配额。新增 `cache/update_cache.json` 存储 ETag 和 release 数据。遇到 403 限流或网络异常时，自动降级使用缓存的 release 数据而非直接失败。改善版本号解析的错误处理。移除尚未集成的 `theme.py`。
+- **v1.1.2** — **节点布局工具**：新增 `layout_nodes` 工具，支持 3 种策略 — `auto`（智能，使用 NetworkEditor.layoutNodes 或 moveToGoodPosition）、`grid`（固定宽度网格排列）、`columns`（基于拓扑深度的分列布局，可调间距）。新增 `get_node_positions` 查询节点坐标。**布局工作流规则**：System Prompt 强制执行顺序：创建节点 → 连接 → verify_and_summarize → layout_nodes → create_network_box（布局必须在 NetworkBox 之前，因为 fitAroundContents 依赖节点位置）。**Widget 闪烁修复**：`CollapsibleSection` 和 `ParamDiffWidget` 将 `setVisible` 调用移到 `addWidget` 之后，防止无 parent 窗口闪烁。
+- **v1.1.1** — **英文 System Prompt 与裸节点名自动解析**：System Prompt 全面改写为英文以提升多模型兼容性（通过 `CRITICAL: You MUST reply in Simplified Chinese` 指令确保中文回复）。**裸节点名自动解析**：新增 `_resolve_bare_node_names()` 后处理器，自动将 AI 回复中的裸节点名（如 `box1`）替换为完整绝对路径（如 `/obj/geo1/box1`），数据来源为会话级节点路径映射（从工具结果中收集）。安全规则：仅替换以数字结尾的名称、仅在唯一路径映射时替换、跳过代码块、跳过已有路径成分。**Labs 目录英文标签**：`doc_rag.py` 中 Labs 分类名切换为英文。**NetworkBox 分组阈值**：调整为 6 个以上节点才创建 NetworkBox，避免小组过度封装。
+- **v1.1.0** — **性能分析与扩展知识库**：新增 `perf_start_profile` / `perf_stop_and_report` 工具，基于 hou.perfMon 进行精确的 cook 时间和内存分析。新增 `analyze_cook_performance` Skill，快速诊断全网络 cook 时间排名和瓶颈节点（无需 perfMon）。**扩展知识库**：新增 5 个专题知识库 — SideFX Labs（301KB，含自动注入的节点分类目录）、HeightField/地形（249KB）、Copernicus/COP（87KB）、MPM 求解器（91KB）、机器学习（53KB）；知识库触发关键词从纯 VEX 扩展至全领域。**Labs 目录注入**：系统提示词动态注入 Labs 节点分类目录，AI 可主动推荐 Labs 工具用于游戏开发、纹理烘焙、地形生成、程序化创建等场景。**通用节点变更检测**：`execute_python`、`run_skill`、`copy_node` 等修改类工具执行前后自动快照网络子节点，检测到变更时生成 checkpoint 标签和撤销入口（之前仅 `create_node` / `set_node_parameter` 有此功能）。**连接端口名称**：`get_network_structure` 及所有连接关系显示中新增 `input_label`（如 `First Input(0)`），便于理解数据流方向。**思考区块默认展开**：`ThinkingSection` 默认展开且结束后保持展开状态（用户偏好）。**障碍协作规则**：系统提示词明确禁止 AI 在遇到障碍时放弃方案，要求暂停并清晰描述障碍和所需用户操作。**性能优化策略**：系统提示词内置 6 种常见优化手段（Cache 节点、避免 time dependent 表达式、VEX 替代 Python SOP、减少散点数量、Packed Primitives、for-each 循环审查）。**待确认操作清理**：清空对话时正确重置批量操作栏和待确认列表。
+- **v1.0.5** — **PySide2/PySide6 兼容**：统一 `qt_compat.py` 兼容层自动检测 PySide 版本，所有模块从单一源导入。`invoke_on_main()` 辅助函数抽象 `QMetaObject.invokeMethod`+`Q_ARG`（PySide6）vs `QTimer.singleShot`（PySide2）差异。支持 Houdini 20.5（PySide2）到 Houdini 21+（PySide6）。**流式输出性能修复**：`AIResponse.content_label` 从 `QLabel.setText`（O(n) 全文重排）切换为 `QPlainTextEdit.insertPlainText`（O(1) 增量追加），彻底消除长回复流式输出卡顿。通过 `contentsChanged` 信号自动调整高度。缓冲刷新阈值提升至 200 字符 / 250ms。**图片内容剥离**：`AIClient` 新增 `_strip_image_content()` 方法，从旧消息中剥离 base64 `image_url`，防止 413 上下文溢出；集成到 `_progressive_trim`（按裁剪级别保留 2→1→0 张近期图片）和 `agent_loop_auto`/`agent_loop_json_mode`（非视觉模型预处理剥离）。**Cursor 风格图片生命周期**：仅当前轮次的用户消息为视觉模型保留图片，旧轮次自动转为纯文本。**@提及键盘导航**：上下箭头在补全列表中导航，Enter/Tab 选中，Escape 关闭，鼠标点击和失焦自动收起弹窗。**Token 分析面板**：记录改为倒序显示（最新优先）。**DeepSeek 上下文限制**：从 64K 更新为 128K（`deepseek-chat` 和 `deepseek-reasoner`）。**Wrangle class 参数映射**：系统提示词新增 run_over class 整数值对应关系（0=Detail, 1=Primitives, 2=Points, 3=Vertices, 4=Numbers），方便 `set_node_parameter` 设置。**渐进裁剪调优**：Level 2 保留 3 轮（原 5 轮），Level 3 保留 2 轮（原 3 轮）；`isinstance(c, str)` 类型守卫防止多模态 tool 内容导致崩溃。
+- **v1.0.4** — **Mixin 架构拆分**：`ai_tab.py` 拆分为 5 个聚焦的 Mixin 模块（`HeaderMixin`、`InputAreaMixin`、`ChatViewMixin`、`AgentRunnerMixin`、`SessionManagerMixin`），提升可维护性。**NetworkBox 工具**：新增 3 个工具 — `create_network_box`（语义颜色预设：input 蓝/processing 绿/deform 橙/output 红/simulation 紫/utility 灰，可直接包含节点）、`add_nodes_to_box`、`list_network_boxes`；`get_network_structure` 增强支持 `box_name` 钻入模式和概览模式（自动折叠 box 节省 Token）。**NetworkBox 分组规范**：系统提示词要求 AI 在每个逻辑阶段完成后将节点打包到 NetworkBox 中（每组至少 6 个节点），并提供层级导航准则。**确认模式**：`AgentRunnerMixin` 为破坏性工具（创建/删除/修改）添加执行前确认对话框。**思考区块重构**：`ThinkingSection` 从 `QLabel` 切换为 `QPlainTextEdit`，自带滚动条和动态高度计算（与 `ChatInput` 同方案），最大高度 400px。**脉冲指示器**：`PulseIndicator` 动画透明度脉冲圆点，表示"进行中"状态。**工具状态栏**：`ToolStatusBar` 在输入框下方实时显示工具执行状态。**节点补全弹窗**：`NodeCompleterPopup` 支持 `@` 提及自动补全节点路径。**更新器重构**：改用 GitHub Releases API（而非基于 branch 的 VERSION 文件检查），缓存 `zipball_url`。**训练数据导出**：支持多模态消息内容提取（剥离图片，保留 list 格式中的文本）。**模块重载**：所有 Mixin 模块加入重载列表；`MainWindow` 引用重载后刷新；旧窗口调用 `deleteLater()` 干净销毁。
+- **v1.0.3** — **Agent / Ask 模式**：输入区域下方 Radio 风格切换 — Agent 模式拥有全部工具权限；Ask 模式限制为只读/查询工具，带白名单守卫和系统提示词约束。**Undo All / Keep All**：批量操作栏追踪所有待确认的节点/参数变更，"Undo All" 按逆序撤销，"Keep All" 一键全部确认。**深度思考框架**：`<think>` 标签现在要求结构化 6 步流程（理解→现状→方案→决策→计划→风险），附带明确的思考原则。**自动更新器**：`VERSION` 文件用于语义版本追踪；启动时静默检查 GitHub；一键下载+覆盖+重启，带进度对话框；更新时保留 `config/`、`cache/`、`trainData/`。`tools_override` 参数支持模式级工具过滤。ParamDiff 默认展开。参数值未变时跳过 undo 快照。
+- **v1.0.2** — **参数 Diff UI**：`set_node_parameter` 显示内联红绿 diff（标量值）和可折叠统一 diff（多行 VEX 代码），支持一键撤销恢复旧值（标量/元组/表达式）。**用户消息折叠**：超过 2 行的消息自动折叠，点击展开/收起。**场景感知 RAG**：用选中节点类型增强检索查询，根据对话长度动态调整注入量（400/800/1200 字符）。**持久化 HTTP Session**：连接池复用，消除每轮 TLS 握手开销。**预编译正则**：XML 标签清洗模式类级编译一次。**消息清洗脏标志**：无新 tool 消息时跳过 O(n) 遍历。**去除工具间延迟**：Houdini 工具执行之间不再 sleep。
+- **v1.0.1** — **图片放大预览**：点击缩略图弹出全尺寸查看窗口。**`<think>` 标签强制规则升级**：系统提示词将缺失标签视为格式违规；工具执行后的后续回复同样要求标签。**健壮的 usage 解析**：统一处理 DeepSeek、OpenAI、Anthropic 和 Factory/拼好饭中转的缓存命中/未命中/写入指标（含首次诊断输出）。**精确节点路径提取**：`_extract_node_paths` 按工具类型使用专用正则，避免提取父网络等上下文路径。**多模态 Token 计算**：图片按 ~765 Token 估算，预算跟踪更准确。**Duojie 思考模式**：弃用 `reasoningEffort` 参数（实测无效），改为纯 `<think>` 标签提示。工具 Schema：数组参数值增加 `items` 类型提示。
+- **v1.0.0** — **图片/多模态输入**：支持粘贴/拖拽/文件选择器附加图片，发送前缩略图预览，模型视觉能力自动检测。**Wrangle run_over 指导**：系统提示词新增 VEX 执行上下文选择规则（防止错误的 run_over 模式）。**新增模型**：`gpt-5.3-codex`、`claude-opus-4-6-normal`、`claude-opus-4-6-kiro`。**代理 tool_call 修复**：健壮拆分中转服务拼接的 `{...}{...}` arguments。**旧模块清理**：启动时自动清理 `HOUDINI_HIP_MANAGER` 残留模块。
+- **v0.6.1** *(dev)* — 可点击节点路径、Token 费用追踪（tiktoken + 按模型计费）、Token 分析面板、参数智能纠错提示、`verify_and_summarize` 优化（内置网络检查）、重复调用去重、文档查阅建议、连接指数退避重试、模型默认值更新（GLM-4.7、GPT-5.2、Gemini-3-Pro）
+- **v0.6.0** *(dev)* — **Houdini Agent**：原生工具链、按轮次上下文裁剪、合并 `get_node_details` 到 `get_node_parameters`、Skill 系统（8 个分析脚本）、`execute_shell` 工具、本地文档 RAG、拼好饭/Ollama 提供商、多会话标签页、线程安全工具分发、连接重试逻辑
+- **v0.5.0** *(dev)* — 深色 UI 大更新：深色主题、可折叠区块、停止按钮、自动上下文压缩、代码高亮
+- **v0.4.0** *(dev)* — Agent 模式：多轮工具调用、GLM-4 支持
+- **v0.3.0** *(dev)* — 精简为纯 Houdini 工具
+- **v0.2.0** *(dev)* — 多 DCC 架构
+- **v0.1.0** *(dev)* — 初始原型
+
+## 作者
+
+KazamaSuichiku
+
+## 许可证
+
+MIT

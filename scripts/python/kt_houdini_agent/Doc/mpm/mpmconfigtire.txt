@@ -1,0 +1,49 @@
+= MPM Configure Spinning Tire =
+
+There are several MPM Configure examples available through the [tab menu|/basics/tabmenu]. These are similar to [shelf tools|/shelf/index] that put down networks of nodes for learning purposes. The __MPM Configure Spinning Tire__ example illustrates the use of the "viscous" __Mud__ material type. It puts down a simple network of nodes to simulate a tire spinning around in a mixture of water and mud. It is a good demonstration of two different source materials interacting together in a simulation. It also shows the stickiness you can get between materials and colliders, which can be tricky to achieve with other solvers in Houdini.
+
+:video:
+    #src: /videos/mpm/mpmmud.mp4
+
+== Important nodes ==
+
+`water` and `mud`:
+    These are the [MPM Sources|Node:sop/mpmsource] that uses the __Water__ and __Mud__ material preset that are interacting in the scene. They are colored blue (`color_water`) and brown (`color_mud`), respectively, to better visualize the difference between them in the viewport.
+
+`timescale_slowmo`:
+    The expression in the __Frame__ parameter slows down the animation to be the same rate as the [MPM Solver|Node:sop/mpmsolver]. It takes the floating point frame and multiplies it by the __Time Scale__ parameter on the [MPM Solver|Node:sop/mpmsolver], which is set at 1/10th of the speed (`0.1`). This gives the proper slow motion effect to the wheel.
+    
+`wheel`:
+    This is the [MPM Collider|Node:sop/mpmcollider], which uses the __Animated (Rigid)__ collider type. It allows for very precise interpolation of the collider by the solver, as it keeps only one VDB and interpolates between the transforms resulting in very accurate collisions and stickiness on the collider. The __Voxel Size__ is also decreased in order to override the simulation resolution defined by the __Particle Separation__ parameter on the [MPM Container|Node:sop/mpmcontainer]. This will allow you to have even more modeling details. If you zoom into the tire, you will be able to see the treads. Additionally, __Friction__ is turned up to `10` and __Sticky__ is turned up to `1`, resulting in the mud sticking to and being picked up by the tire.
+    
+`mpmcontainer`:
+    This setup uses a default [MPM Container|Node:sop/mpmcontainer], which defines the resolution of the simulation using the __Particle Separation__ parameter, and sets limits on whether particles should be deleted or bounce on contact with the boundary. The __Boundaries__ are set to __Closed__, and the __Friction__ and __Sticky__ are turned up to `10`. This makes sure the mud sticks to the walls as it's thrown against it.
+
+`noise_viscosity`:
+    An [Attribute Wrangle|Node:sop/attribwrangle] that adds some spatial variation to the viscosity of the mud.
+    
+`mpmsolver`:
+    This setup uses a default [MPM Solver|Node:sop/mpmsolver], which does the work of solving the scene. The __Material Condition__ is decreased slightly to fix some instability where the material requires more substeps than what is provided by default.
+
+`water_mesh`:
+    This [MPM Surface|Node:sop/mpmsurface] generates the polysoup representation of the water that is suitable for rendering. It is using the default __Method__ of __VDB from Particles__ along with some __Filtering__ to make the surface smooth. The `Cd` attribute is transferred to the mesh from the MPM particles.
+
+`mud_mesh`:
+    This [MPM Surface|Node:sop/mpmsurface] generates the polysoup representation of the mud that is suitable for rendering. It is using the default __Method__ of __VDB from Particles__ along with some __Filtering__ to make the surface smooth. The `Cd` attribute is transferred to the mesh from the MPM particles.
+ 
+== Learning from this example ==
+
+:task: Visualize the noise pattern on the varied viscosity of the mud:
+    # Select the `noise_viscosity` node.
+    # Remove the two backslashes in this line of code:
+        `//@Cd = noise;`
+        
+        This variation improves the look of the mud when thrown by the tire.
+        
+        [Image:/images/mpm/mpmmud_viscosity.jpg]
+        
+        TIP:
+            You can turn on the __Bypass__ flag on for this node to see how the varied viscosity of the mud affects the way the mud behaves.
+
+:task: Fix instability in the behavior of the material:
+    In some cases, there could be some instability in the simulation where the material requires more substeps than what you're providing, which could result in points that merge or collapse onto each other. The quickest way to solve this is to slightly decrease the __Material Condition__ on the [MPM Solver|Node:sop/mpmsolver]. This reduces the timestep of the solvers which keeps the material stable. In this example, the value was decreased from `0.9` to `0.7`.

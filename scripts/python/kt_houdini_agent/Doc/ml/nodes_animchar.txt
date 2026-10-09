@@ -1,0 +1,26 @@
+= ML-related nodes for animation and character =
+
+These ML-related nodes incorporate ML in their process or end product, either through training data or during inference. They are not intended as building blocks for ML pipelines.
+
+[ML Pose Serialize SOP|Node:sop/ml_poseserialize] |
+    #width: 25%
+
+    Extracts the transforms from a specified subset of joints and represents them collectively as a float point attribute. A joint group can be specified. Only joints from the joint group will have components of their transforms serialized.
+
+[ML Pose Deserialize SOP|Node:sop/ml_posedeserialize] |
+
+    Helps to convert a rig pose that was previously serialized using __ML Pose Serialize__ back into a rig pose. It reconverts the transforms from a specified subset of joints from a float point attribute. A joint group can be specified. Only joints from the joint group will have components of their transforms deserialized.
+
+
+[ML Deform SOP|Node:sop/ml_deform] |
+
+    Uses a trained ML model to deform the skin of a character. It uses the same inputs as [Bone Deform SOP|Node:sop/bonedeform] with a fourth input for residual blend shapes. Each residual blend shape defines a displacement point in the skin mesh. Internally, the ML model predicts weights to combine the residual blend shapes to apply a correction to the rest skin.
+
+
+[APEX Add ML Deformer SOP|Node:sop/apex--addmldeformer] |
+
+    Allows a model trained using the __ML Train Deformer__ recipe to be used in APEX rig.
+
+[Armature Deform SOP|Node:sop/armaturedeform] and [Armature Capture SOP|Node:sop/armaturecapture] |
+
+    Deform organic tissue repeatedly using skeleton poses. You can use these nodes to generate training data for an ML deformer and other applications outside of ML.

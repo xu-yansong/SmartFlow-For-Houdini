@@ -1,0 +1,219 @@
+= Troubleshooting =
+
+:task: Control the quality (level of detail) of the simulation:
+
+    Increase the __Particle Separation__ parameter on the [MPM Container|Node:sop/mpmcontainer]. This parameter drives the quality of the sources, colliders, and solver. A smaller particle separation will result in more details, the same way it does with FLIP.
+
+:task: Get precise and fast animated colliders:
+
+    Always use the __Animated (Rigid) __ __Collider Type__ when possible. This provides very precise interpolations between frames. 
+    
+    If you look at the [MPM Configure Spinning Tire|/mpm/mpmconfigtire] example, the material is being moved using just friction, without needing to add any custom velocity fields.
+    
+    :video:
+        #src: /videos/mpm/mpmmud.mp4
+    
+:task: Prevent MPM particles from going through thin colliders:
+
+    # Increase the __Voxel Size__ in the __Geometry__ section of the [MPM Collider|Node:sop/mpmcollider]. This will override the global resolution and allow you to create a finer mesh for your geometry.
+    
+        :col: 
+            [Image:/images/mpm/thin_before.jpg]
+            Original mesh
+        :col:
+            [Image:/images/mpm/thin_after.jpg]
+            Finer mesh after increasing the Voxel Size
+        
+    # In the __Advanced__ tab of the [MPM Solver|Node:sop/mpmsolver], turn on the __Enable Particle-Level Collisions__ checkbox. This will allow a second collision step to be performed directly on the material points. This adds some computation, but yields more accurate collisions.
+    
+    # Choose __Velocity-Based Move Outside Colliders__ from the dropdown. This option applies the collision response to the particles' velocity and adjusts the velocity so that the particles are moved outside of the colliders during the next integration step. This is the most accurate way to make sure particles do not sink inside the collider but can lead to instability.
+    
+        For an example of thin colliders, see the [MPM Configure Water Glass|/mpm/mpmconfigwater] example.
+    
+        :video:
+            #src: /videos/mpm/mpmwater.mp4
+
+:task: Get smooth continuous emission without stepping artifacts:
+
+    On the [MPM Solver|Node:sop/mpmsolver], increase the __Global Substeps__ parameter in the __Iterations__ section of the __Solver__ tab. This will create a smoother emission stream.
+    
+    :col: 
+        [Image:/images/mpm/continuous_before.jpg]
+        Before increasing the Global Substeps
+    :col:
+        [Image:/images/mpm/continuous_after.jpg]
+        After increasing the Global Substeps
+        
+:task: Get continuous emission to fill and overflow a container:
+
+    On the [MPM Source|Node:sop/mpmsource], turn on the __Overlapping Expansion__ checkbox. 
+    
+    By default, MPM doesn't allow overlapping particles. This creates unexpected behavior when trying to fill a container by continuous emission, as you won't be able to source points on top of the already existing points. Turning on __Overlapping Expansion__ will create internal pressure in the emitter and it will force the particle to move away from each other, which will create gaps and those gaps will be able to be filled by the emitter in the simulation. Note that this is not restricted to liquids.
+    
+    :col: 
+        [Image:/images/mpm/overflow1.jpg]
+        Water filling a glass
+    :col:
+        [Image:/images/mpm/overflow2.jpg]
+        Chunky material filling a glass     
+        
+:task: Apply forces to the simulation:
+
+    Although MPM is in SOPs, you can dive inside the [MPM Solver|Node:sop/mpmsolver] and set up custom forces using a [POP Wrangle DOP|Node:dop/popwrangle].
+    
+:task: Simulate thin objects like a sheet of metal or a hollow object:
+
+    In the __Points from Geometry__ section there is a __Type__ parameter that's set to __Volume__ by default, which fills the geometry with particles. Changing this to __Surface__ will instead cover the geometry surface with particles. However, the scatter may cause holes to appear in the geometry, which could make it difficult to render or retarget. Turn on __Relax Iterations__ to more evenly distribute the particles.
+
+    :col: 
+        [Image:/images/mpm/hollow_before.jpg]
+        Before turning on Relax Iterations
+    :col:
+        [Image:/images/mpm/hollow_after.jpg]
+        After turning on Relax Iterations
+    :col:
+        [Image:/images/mpm/hollow_after2.jpg]
+        Hollow Squab dropped on a box
+    
+    :video:
+        #src: /videos/mpm/mpmmetal.mp4
+        
+:task: Pin particles in space to prevent them from moving:
+    Use the parameters in the __Pin Constraints__ section of the [MPM Source|Node:sop/mpmsource] to achieve this effect.
+    
+    The [MPM Configure Softbody|/mpm/mpmconfigsoftbody] example is a great demonstration of how to pin a __Point Group__. The inner points are isolated, and an [Attribute Wrangle|Node:sop/attribwrangle] is used to pin the core points in space, allowing the ears and nose to move around freely.
+    
+    :video:
+        #src: /videos/mpm/mpmrubber.mp4
+
+:task: Prune out points shooting outside of the visible simulated domain:
+
+    # On the [MPM Container|Node:sop/mpmcontainer], change the __Geometry Type__ to __Convex Geometry__ and set the __Boundaries__ to __Delete__.
+    
+    # Wire in an [Object Merge SOP|Node:sop/object_merge] that references a camera frustum to use as the bounding box.
+    
+    This is useful if you have something exploding or has a lot of splash.
+    
+    :col: 
+        [Image:/images/mpm/frustrum_before.jpg]
+    :col:
+        [Image:/images/mpm/frustrum_after.jpg]
+
+:task: Reduce the effect of materials sticking to each other:
+
+    Reduce the __Grid Scale__ in the __Resolution__ section of the [MPM Container|Node:sop/mpmcontainer].
+
+    The background grid is shared when there are two materials simulated together. When you have two points very close to each other, the material will behave half like material A and half like material B within the voxel because they're sharing the material property. Reducing the __Grid Scale__ will reduce the bleeding between materials.
+    
+    In the following example, water is dropped onto a mound of soil, but it does not run off as expected. Changing the __Grid Scale__ to __1__ means the voxel will be roughly the same size as the particle. Once we do this, the water is able to run off and even carry some of the soil particles with it, creating a more realistic look.
+
+    :col: 
+        [Image:/images/mpm/runoff_before.jpg]
+        Before changing the Grid Scale
+    :col:
+        [Image:/images/mpm/runoff_after.jpg]
+        After changing the Grid Scale
+
+:task: Run a simulation in slow motion:
+
+    # Reduce the __Time Scale__ parameter on in the __Iterations__ section of the [MPM Solver|Node:sop/mpmsolver]. A value of `0.1` will make it 10 times slower.
+    
+    # Add a [Time Shift SOP|Node:sop/timeshift] between the [MPM Collider|Node:sop/mpmcollider] and [MPM Solver|Node:sop/mpmsolver].
+    
+    # Turn off the __Integer Frames__ checkbox.
+    
+    # Set the __Frame__ to multiply the floating point frames by the timescale.
+        `$FF*ch("../mpmsolver/timescale")`
+        
+    For an example of how to set this up, see the [MPM Configure Spinning Tire|/mpm/mpmconfigtire] example.
+
+:task: Make the simulation run faster:
+    Reduce the __Substeps Max__ parameter in the __Iterations__ section of the [MPM Solver|Node:sop/mpmsolver]. 
+    
+    You can do this if you feel like the system is too conservative and you could get similar results with lower substeps. However, lowering this value too much can cause the simulation to become unstable.
+    
+    You could also try increasing the __CFL Condition__ and __Material Condition__, which would relax the velocity and stiffness constraints and could speed up the simulation.
+
+:task: Fix wiggling in materials that should not wiggle (such as wet sand):
+    Increase the __Stiffness (E)__ in the __Material__ section of the [MPM Source|Node:sop/mpmsource] node and decrease the __Cohesion__ by the same factor. 
+    
+    For example, you can multiply each existing value by `0.01`. This should give you a result that is very close to the original, without the wiggling.
+
+:task: Fix bouncing in materials that should not bounce (such as snow):
+    Increase the __Critical Compression__, __Critical Stretch__, and __Stiffness (E)__ in the __Material__ section of the [MPM Source|Node:sop/mpmsource] node. 
+    
+    This will make the material compress a little more, but will get rid of the bouncing when it settles.
+    
+:task: Fix fast moving particles from collapsing mid-air or creating a staircase pattern around the edges:
+    Increase the __Max Voxel Dilation__ in the __Simulation__ section of the [MPM Solver|Node:sop/mpmsolver]. 
+    
+    Since the simulation is sparse, sometimes the background grid doesn't extend fast enough to keep up and cover the area where the particles are going, when they are moving very quickly. This can cause the shape of the material to collapse and show the pattern of the voxels. Increasing this value will expand the active region. The reason the max value is low by default is to account for cases where you have crazy explosions with particles that are flying out of the simulation. The active regions are clamped to avoid running out of GPU memory and the simulation crashing.
+
+    :col: 
+        [Image:/images/mpm/fastcollapsing_before.jpg]
+        Before increasing the Max Voxel Dialation
+    :col:
+        [Image:/images/mpm/fastcollapsing_after.jpg]  
+        After increasing the Max Voxel Dialation  
+
+:task: Fix a simulation where materials have changing properties and become unstable:
+
+    Turn off the __Assume Unchanging Material Properties__ checkbox on the __Advanced__ tab of the [MPM Solver|Node:sop/mpmsolver]. 
+    
+    By default the MPM Solver assumes that material properties are constant throughout the simulation. This is an optimization that prevents the solver from recomputing the __Material Condition__ on every frame. However, if you have material properties that change as the simulation runs, it could become unstable if the substeps aren't adjusted appropriately. Turning this off will slow down the simulation, but will ensure stability by keeping the __Material Condition__ consistent.
+    
+:task: Get some MPM particles to follow an animated target:
+
+    In the __Pin Constraints__ section of the [MPM Source|Node:sop/mpmsource] node, turn on the __Initialize as Pinned__, __Enable Animation__, and __Use Input Animation__ checkboxes.
+
+    :col: 
+        [Image:/images/mpm/pinned_before.jpg]
+        Before pinning points to animation
+        
+    :col:
+        [Image:/images/mpm/pinned_after.jpg]
+        After pinning points to animation
+
+:task: Create a collider with variable friction:
+
+    # Connect your collision object to an [MPM Collider|Node:sop/mpmcollider] and set the desired __Friction__.
+    
+    # Create a second branch from your original collision object and use an [Attribute Paint SOP|Node:sop/attribpaint] to paint areas where you want more friction.
+    
+    # Use a [Scatter SOP|Node:sop/scatter] to scatter points on the painted areas by turning on __Density Attribute__ and using the `mask` attribute.
+    
+    # Use a [VDB from Particles|Node:sop/vdbfromparticles] node to turn it into a VDB and wire it into a second [MPM Collider|Node:sop/mpmcollider]. 
+    
+    # Set the second __Friction__ on the second MPM Collider. In the following example, a __Friction__ value of `0` was used for the slope (first MPM Collider) and a value of `10` was used for the painted areas (second MPM Collider).
+    
+    # Merge the two MPM Colliders with a [Merge SOP|Node:sop/merge] and connect it to the second input of your [MPM Solver|Node:sop/mpmsolver].
+
+    :col: 
+        [Image:/images/mpm/variablefriction_before.jpg]
+        No friction
+        
+    :col:
+        [Image:/images/mpm/variablefriction_after.jpg]
+        Painted areas have friction
+        
+:task: Easily point deform non-fracturing objects (such as rubber or jello):
+
+    # Use a [Time Shift|Node:sop/timeshift] and [Point Deform|Node:sop/pointdeform] after the [MPM Solver|Node:sop/mpmsolver] to re-target your original geometry onto the simulated MPM points. 
+    
+    # Connect the [Time Shift|Node:sop/timeshift] node to the output of the [MPM Solver|Node:sop/mpmsolver], and second input of the [Point Deform|Node:sop/pointdeform].
+    
+    # Set the __Frame__ value to `1` to freeze on the rest frame. You can do this by right-clicking the parameter field and selecting __Delete Channels__. Then type `1` to reference the first frame.
+    
+    # Connect the first input of the [Point Deform|Node:sop/pointdeform] to the output of your original source geometry, and connect the third input to the output of the [MPM Solver|Node:sop/mpmsolver].
+
+:task: Add variation to the way the material behaves and fractures:
+    
+    You can do this using an [Attribute Wrangle SOP|Node:sop/attribwrangle].
+
+    {{{
+    #!exp
+    float noise = fit(abs(snoise(@P*5,5,0.5,1)), 0, 0.25, 0, 1);
+    @E *= fit01(noise, 1, 4);
+    }}}
+    
+    For example, this code generates a noise value, then scales it and stores it as `noise`. It scales the noise value again and multiplies it by the attribute `@E`, which is the __Stiffness (E)__ (Young's modulus). This results in the [MPM Source|Node:sop/mpmsource] fracturing in a less uniform way.

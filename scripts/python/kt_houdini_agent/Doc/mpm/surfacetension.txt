@@ -1,0 +1,49 @@
+= Surface tension =
+
+[Image:/images/mpm/paintball.jpg]
+
+There are two methods available to compute __Surface Tension__ on the [MPM Solver|Node:sop/mpmsolver#stmethod]: __Point Based__ or __Grid Based__. Each of these methods have advantages and disadvantages that you will have to consider when choosing one.
+
+[Image:/images/mpm/surfacetension.jpg]
+
+== Point based ==
+
+__Point Based__ surface tension is generally more accurate and stable, but slower than the __Grid Based__ method. This method is better for smaller macro effects like a droplet of water on a leaf. It works well with very strong surface tension values and has less artifacts than the grid based solution.
+
+In an example like this, increasing the [Detection Distance|Node:sop/mpmsolver#projdist] parameter on the __Collisions__ tab of the solver can make the droplets stick more strongly to the leaves, creating interesting effects like a droplet hanging off the edge.
+
+TIP:
+    When working with thin colliders, make sure __Enable Particle Level Collisions__ is turned on. This will allow a second collision step to be performed directly on the material points. This adds some computation, but yields more accurate collisions. Choosing  __Velocity-Based Move Outside Colliders__ applies the collision response to the particles' velocity and adjusts the velocity so that the particles are moved outside of the colliders during the next integration step. This is the most accurate way to make sure particles do not sink inside the collider.
+
+:col:
+    [Image:/images/mpm/surfacetension_leaf.jpg]
+    
+:col:
+    [Image:/images/mpm/surfacetension_leaf2.jpg]
+
+With the point based solution you can also vary the surface tension on a per point basis. In this example, each material has their own [phase|Node:sop/mpmsource#phase] so they won't be attracted to each other, even if they both had surface tension. The green material has a surface tension of 1, so it clumps together. The blue material has a surface tension of 0, so it spreads out quickly. Combining these with phases can create interesting patterns and complex behavior. This only works with the __Point Based__ surface tension, because it uses a per-point attribute to vary in different phases.
+
+:col:
+    [Image:/images/mpm/surfacetension_phase1.jpg]
+    
+:col:
+    [Image:/images/mpm/surfacetension_phase2.jpg]
+
+
+== Grid based ==
+
+__Grid Based__ surface tension is less accurate and stable, but faster than the __Point Based__ method. It is faster for scaling millions of particles, and should be used for larger simulations with a lot of points. Such as simple drip shots where the point count is high. Moderate surface tension values should yield correct results.
+
+:col:
+    [Image:/images/mpm/surfacetension_grid1.jpg]
+    
+:col:
+    [Image:/images/mpm/surfacetension_grid2.jpg]
+
+== Troubleshooting artifacts ==
+
+- Occasionally you could run into the issue where a big drop of water falls on the ground and starts slowly moving in one direction. This might occur when the surface tension that is being computed internally is not perfectly balanced, which gives it directionality. You can turn on the __External Force Only__ checkbox to ensure that the forces applied by the surface tension are only external to the drop of water. This should reduce the artifact of having blob of water going in one direction, when it should be static. 
+
+- Surface tension always tries to make the liquid round, and in doing so it pushes against other colliders and shrinks itself, causing it to levitate slightly above the ground plane. To fix this issue, you can set the friction and the stickiness very high on the [ground plane|Node:sop/mpmsolver#groundfriction]. 
+
+- 

@@ -1,0 +1,74 @@
+# PCG 植被包（BiomeTypes）详细参考
+# 植被包负责植被撒点生成，包括草、灌木、树木等
+
+## ==============================
+## 植被包概述
+## ==============================
+
+植被包（BiomeTypes）负责植被撒点的程序化生成，包括草、灌木、树木等。
+配置根目录：ArtData/BiomeTypes/
+
+植被包目录结构示例：
+BiomeTypes/
+├── Desert/
+│   ├── DesertGrass/    ← 沙漠荒草植被包
+│   └── DesertTree/     ← 沙漠树木植被包
+├── Forest/
+│   ├── ForestGrass/    ← 雨林草植被包
+│   └── ForestTree/     ← 雨林树植被包
+
+## ==============================
+## 植被包 biome_info.json 算法信息
+## ==============================
+
+植被包的算法信息文件为 biome_info.json：
+{
+    "hda_name": "/ArtHDAs/TX3/otls/kt_biome_desert_grass.hda",
+    "hda_parm": "/BiomeTypes/Desert/DesertGrass/kt_biome_desert_grass.json",
+    "PCGGraph": "/Game/PanguMap/PCGGraph/BiomeTypes/DesertTree/DesertTree.DesertTree"
+}
+
+字段说明：
+- hda_name: HDA 算法文件路径（相对于 ArtData）
+- hda_parm: HDA 参数 JSON 路径（相对于 ArtData）
+- PCGGraph: UE 中的 PCG Graph 资产路径（可选，表示也可用 UE PCG Graph 实现）
+
+## ==============================
+## 植被包 biome_options.json 资产分类
+## ==============================
+
+定义植被包内资产的分类名列表，是一个字符串数组。
+示例（DesertGrass 植被包）：
+["DesertGrass_TallGrass", "DesertGrass_Grass", "DesertGrass_GreenBush",
+ "DesertGrass_Tree", "DesertGrass_YellowGrass"]
+
+每个分类代表一种植被类型，如高草、矮草、绿灌木、树、黄草等。
+
+## ==============================
+## 植被包 biome_asset.json 资产入库
+## ==============================
+
+按 biome_options.json 中定义的分类，录入具体的植被模型资产。
+结构：{ "分类名": { "type": "分类名", "assetlist": { "Key": { 资产详情 } } } }
+
+每个资产条目包含：
+- asset: UE FoliageType 资产路径
+- staticMesh: 静态网格体路径
+- weight: 权重（影响随机选取概率）
+- uniformScale: 统一缩放
+- bounds: 包围盒
+- actorType: 通常为 "FoliageType_InstancedStaticMesh"
+
+## ==============================
+## 植被包配置文件清单
+## ==============================
+
+植被包目录下的完整文件列表：
+- biome_info.json —— 算法信息（HDA + 参数 + 可选 PCGGraph）
+- biome_options.json —— 资产分类列表
+- biome_asset.json —— 资产入库
+- kt_xxx_parm.json —— HDA 参数配置（名称由 biome_info.json 指定）
+- subsys_info.json —— 渲染层映射信息
+- subsys_layers.json —— 渲染层详细定义
+- package_baseinfo.json —— 包元信息
+- feature_info.json —— 特征描述（建议填写）

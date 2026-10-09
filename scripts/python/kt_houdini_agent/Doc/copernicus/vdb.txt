@@ -1,0 +1,60 @@
+= VDBs =
+
+== Importing SOP geometry ==
+
+There are two ways to get geometry into a COP network. You can either use a [SOP Import COP|Node:cop/sopimport] which points to an existing SOP to grab the geometry, or you can use a [SOP Geometry COP|Node:cop/sopimport] and dive inside to create the geometry directly inside. Although these are two separate options in the tab menu, they both put down the same node.
+
+For more information, see [Bringing SOPs into COPs|/copernicus/working_with_cops#sops_into_cops].
+
+== Creating VDBs from surface ==
+
+# Put down a [SOP Geometry COP|Node:cop/sopimport] and dive inside to create the geometry, for example a [Rubber Toy Test Geometry|Node:sop/testgeometry_rubbertoy].
+
+# Connect a [VDB from Polygons|Node:sop/vdbfrompolygons] node to convert it into a VDB volume.
+
+# Increase the __Voxel Size__ to `0.05` to give it a higher resolution.
+
+# Navigate back to the COP network, and you will see the VDB representation in the viewport. You will also have a `geometry` output on your SOP Geometry node, and you're able to click ((MMB)) on the node to see the info window.
+    
+# To use it in Copernicus you will need to convert it into a VDB Layer. You can do this by putting down a [Geometry to VDB|Node:cop/geotolayer-2.0] node, and connecting it to your SOP Geometry COP. This node extracts a specifically named volume or VDB from the geometry and creates the the single wire out of it. If you click ((MMB)) to see the info window on this node, you will get slightly less information, since it's just one VDB and not the whole geometry.
+
+:col:
+    [Image:/images/copernicus/vdb/rubbertoy.jpg]
+:col:
+    [Image:/images/copernicus/vdb/rubbertoy_vdb.jpg]
+
+== Creating VDBs from fog volume ==
+
+# Put down a [SOP Geometry COP|Node:cop/sopimport] and dive inside to create the geometry, for example a [Pig Head Test Geometry|Node:sop/testgeometry_pighead].
+
+# Connect a [VDB from Polygons|Node:sop/vdbfrompolygons] node to convert it into a VDB volume.
+
+# Turn off the __Distance VDB__ checkbox and turn on the __Fog VDB__ checkbox to create a fog volume.
+
+# Navigate back to the COP network, and you will see the VDB representation in the viewport. You will also have a `geometry` output on your SOP Geometry node, and you're able to click ((MMB)) on the node to see the info window.
+
+# To use it in Copernicus you will need to convert it into a VDB Layer. You can do this by putting down a [Geometry to VDB|Node:cop/geotolayer-2.0] node, and connecting it to your SOP Geometry COP. This node extracts a specifically named volume or VDB from the geometry and creates the the single wire out of it. If you click ((MMB)) to see the info window on this node, you will get slightly less information, since it's just one VDB and not the whole geometry.
+
+    :col:
+        [Image:/images/copernicus/vdb/pighead.jpg]
+    :col:
+        [Image:/images/copernicus/vdb/pighead_vdb.jpg]
+
+# Next you can put down a [Layer form VDB|Node:cop/layerfromvdb] node and connect the `output` of the Geometry to VDB node to the `vdb` input. This dips one of our 2D volumes into the VDB, so you can see what it looks like.
+
+# In order to get difference slices of the pig head, put down a [Layer|Node:cop/layer] node and a [Transform 3D|Node:cop/xform] node.
+
+# Connect them together and then wire the `output` of the Transform 3D node to the `size_ref` input of the Layer form VDB node.
+
+# With the Transform 3D node selected, you can press ((Enter)) in the viewport to activate the state, and use the handles to rotate and transform the slice.
+
+    :col:
+        [Image:/images/copernicus/vdb/pighead_slice.jpg]
+    :col:
+        [Image:/images/copernicus/vdb/pighead_xform.jpg]
+    
+TIP:
+    You can use the [Rasterize Volume COP|Node:cop/rasterizevolume] to simulate camera views by sending rays, like in Karma.
+    
+NOTE:
+    Most of the COP nodes for working with monochrome images or vector RGB images can also be used in VBDs.

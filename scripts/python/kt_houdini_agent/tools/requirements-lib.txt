@@ -1,0 +1,17 @@
+# lib/ 里应该有哪些包（维护者用；运行时不需要这个文件本身）。
+#   tools/fetch_lib.py  按它把包装进 lib/
+#   lib_deps.py         按它做运行时自检（这就是"哪些 import 是必需的"的唯一来源）
+#
+# 行格式：   [ver] <pip 需求>   # import: <导入名>[, optional]
+#   [ver]     没有 abi3、按 Python 小版本编译的包 -> 装到 lib/pyX.Y/；其余装到 lib/
+#   import:   运行时 import 的名字（分发名 != 导入名时必需，如 PySide6-Essentials）
+#   optional  缺了不致命，只影响增强功能：numpy 缺失时长期记忆/向量检索不可用，
+#             界面本身照常启动
+#
+# PySide6 只装 Essentials：界面用到的是 QtCore/QtGui/QtWidgets/QtQuickWidgets
+# 和 QtQuick(.Controls/.Layouts/.Dialogs)，Addons 那 ~400MB 用不上。
+# PySide6-Essentials 与 shiboken6 是 cp310-abi3 轮子，一份就管 Python 3.10~3.14。
+PySide6-Essentials==6.11.1   # import: PySide6
+shiboken6==6.11.1            # import: shiboken6
+requests==2.32.5             # import: requests
+[ver] numpy==2.5.1           # import: numpy, optional

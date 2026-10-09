@@ -1,0 +1,189 @@
+= Working with Copernicus nodes =
+
+"""Provides next steps and workflows for how to use Copernicus nodes."""
+
+== Viewing your output ==
+
+You can view your Copernicus output in the [Scene|/basics/view] Viewer as a volume and [Composite|/ref/views/imgview] Viewer as an image. The output is a pixel representation of a voxel grid. Since some data is hard to visualize in the viewer, what the viewport displays isn't always what's in the data. Copernicus uses a default visualizer to enhance the visibility of the output. Height is visualized as heightfields in the Scene Viewer, and as hillshades in the Composite Viewer and preview thumbnail.
+
+TIP:
+    :include /copernicus/tips#gpu_memory/:
+
+In the Scene Viewer, there are two different levels where you can view your COP network output:
+
+* When viewing a node inside a COP network, the Scene View displays the first output of the COP node that has the display flag on.
+
+    For nodes with multiple outputs, click the output name in the bottom right of the node to change which output appears in the viewer. This does not impact what outputs output in your SOP network.
+
+    TIP:
+        You can also ((RMB)) the node and choose the output name from the __Flags > Output for View__ drop-down menu.
+
+* When viewing a node inside the SOP network, the Scene View displays a SOP. When the [COP Network node|Node:/sop/copnet] display flag is on, you're looking at a SOP that contains a COP network.
+
+    For a COP node with the display flag on and multiple outputs in the COP network, you can use the COP Network node to control which output appears in the Scene View. In the COP Network node, turn on __Single Output__ and then use __Output__ to control which output appears in the Scene View. When __Single Output__ is off, all outputs appear in the Scene View.
+
+The Composite Viewer displays multiple views. For a COP node with the display flag on and multiple outputs in the COP network, you can use the [main toolbar|/ref/views/imgview#maintb] to choose from the output drop-down menu which output it displays.
+
+=== Default COP Network settings === (default)
+
+The [/ref/windows/copernicus] controls the global context options for Copernicus, which sets the default settings of the COP nodes. These control the default settings of COP nodes that don't have their own input or values for these settings.
+
+The [COP Network|Node:/manager/copnet] and [COP Network SOP|Node:/sop/copnet] can override some of the Copernicus Default Settings window's settings. They control the default settings of COP nodes that don't have their own input or settings. A node no longer uses these default settings if it has a node wired into it with values for these settings. If you unwire the nodes, the nodes return to their previous settings.
+
+When you dive into the COP Network node, you can use the toolbar above your Copernicus network to view or change some of the following settings of the COP Network node.
+* Resolution
+* Pixel Scale (drives the __Proxy 1:#__ parameter in the COP network toolbar)
+    NOTE:
+        You can use the __Proxy 1:#__ scale in the toolbar to cook the node resolution at a percentage of the scale. For example, turning on __Proxy 1:2__ cooks the nodes at half the resolution.
+* Border
+* Precision
+* Tile Visualization
+    NOTE:
+        Replicates your input a set number of times. For example, set this to `3` to replicate your input three times. Tile Visualization is useful when you want to test whether your input properly tiles.
+* UDIM
+
+=== Python states and handles === (states_handles)
+
+Copernicus Python states run in the Composite and Scene Views (see [/hom/state_cops] for more information). You can use the [Operator Type Properties window|/ref/windows/optype#handles] to bind 2D and 3D handles to COP nodes.
+
+The following are HOM classes and functions related to Copernicus nodes:
+* [Hom:hou.CompositorViewer]
+* [Hom:hou.copNodeTypeCategory]
+* [Hom:hou.Drawable2D]
+* [Hom:hou.Viewport2D]
+
+See the following pages for some next steps:
+* [/hom/python_states]
+* [/hom/python_handles]
+* [Registering a python viewer handle|/hom/hou/ViewerHandleTemplate]
+* [/hom/handle_events]
+
+== Adding files from disk in COPs ==
+The following steps outline how you add files from disk directly in your COP network.
+
+# Create a [File COP|Node:/cop/file] in your COP network.
+# Set __File Name__ to the image, MP4, or EXR file you want in your scene.
+# For files with multiple AOVs, click __Add AOVs from File__ to specify which AOVs to bring in.
+# Configure the File COP further for the following:
+    * For MP4 files, set the __Video Start Frame__ to the frame number from where you want the video to start playing.
+    * For EXR files, update `$F#` (`$F4` for example) in the __File Name__ to `<F#>` (`<F4>`). This lets you set the __Video Start Frame__ to the frame number from where you want the sequence to start playing. `$F#` doesn't use the __Video Start Frame__.
+
+== Saving COPs ==
+The following procedures outline how to save COP nodes in your COP network. Most COP networks require the [Multiple saves|#multiple_save] approach.
+
+=== Multiple saves === (multiple_save)
+Follow these steps if you plan to save a COP file in your network multiple times.
+
+# Create an image output node in one of the following networks:
+    * In a COP network, add a [ROP Image Output COP|Node:/cop/rop_image].
+    * In a ROP network (`/out`), add an [Image ROP|Node:/out/image].
+# Set __COP Path__ to the node you want to save. In a COP network, a wire attaches the node to the ROP Image Output COP.
+    TIP:
+        In a COP network, you can also drag the node you want to save into the __COP Path__ parameter. The parameter adds the pathname.
+# For nodes with multiple AOVs, click __Add AOVs from COP__ to bring in all AOVs.
+# Under File Layout, make sure that each __Port__ is set to the node's AOV port you want to save out.
+
+=== Single save ===
+Follow these steps if you plan to save a COP file in your network once. This saves the COP node from the current cook.
+
+# ((RMB)) the node you want to save in your COP network.
+# Choose __Image__ from the __Save__ drop-down menu. The Save As window opens.
+# Configure your saving details and click __Save__.
+
+NOTE:
+    In the Composite Viewer, you can also ((RMB)) and choose __Save Frame__ to open the Save As window.
+
+== Referencing COP networks ==
+Copernicus lets you bring your COP network into other networks. You can reference other COP and SOP networks while working in a COP network. You can also reference your COP network while working in a SOP network. 
+
+TIP:
+    If you want to reference a node that's inside your COP network but don't want to use it as an output, wire that node into a [Null COP|Node:/cop/null]. You can then reference that Null COP's path outside of the COP network. You must prefix the Null COP's path with `op:` (for more information, see [/io/op_syntax]).
+
+=== Bringing COPs into COPs === (cops_into_cops)
+Follow these steps to bring another COP's results into your COP network.
+
+# Create a [Fetch COP|Node:/cop/fetch] in your COP network.
+# Set __COP Path__ to the path of a COP node in another network.
+# Click __Set Outputs from Selected COP__. This pulls in the outputs from the target node, which become the outputs of the Fetch COP node.
+
+=== Bringing SOPs into COPs === (sops_into_cops)
+Follow these steps to bring a SOP network into your COP network.
+
+# Create a [SOP Import COP|Node:/cop/sopimport] in your COP network.
+# Configure the SOP Import COP to do one of the following:
+    * Bring in an internal SOP.
+        # Dive into the SOP Import COP.
+        # Add and configure SOP nodes.
+        # Set the display flag on the SOP node you want to import.
+    * Bring in an external SOP.
+        # Turn on __Use External SOP__.
+        # Set __SOP Path__ to the path of a SOP node that's outside of the COP network.
+# If your SOP is a two-dimensional volume, do the following to turn it into a layer:
+    # Add a [Geometry to Layer COP|Node:/cop/geotolayer]. Wire the SOP Import into this node.
+    # In the Geometry to Layer COP, set __Signature__ to correspond to the volume's type.
+
+    TIP:
+        You can also use the [Rasterize Geometry COP|Node:/cop/rasterizegeo] to take the piece of geometry and [rasterize|Wp:Rasterisation] it into a layer. The node rasterizes the geometry based on the canonical camera unless you wire in a `camera_ref` input. To move the SOP back into view of the canonical camera, see [Move SOP into image space|/copernicus/tips#move_image_space].
+
+=== Bringing COPs into SOPs === (cops_sops)
+Follow these steps to bring a COP network into your SOP network.
+
+# Create a [COP Network SOP|Node:/sop/copnet] in your SOP network.
+# Configure the COP Network SOP to do one of the following:
+    * Bring in an internal COP.
+        # Dive into the COP Network SOP.
+        # Add and configure COP nodes.
+        # Set the display flag on the COP node you want to appear in the SOP network.
+            TIP:
+                ((Ctrl + LMB)) a node's display flag to turn on the [3D output flag|Node:/cop/index#flags], which overrides the display flag.
+    * Bring in an external COP.
+        # Turn on __Use External COP__.
+        # Set __COP Path__ to the path of a COP node that's outside of the SOP network.
+
+    You can now wire the COP Network SOP into other SOP nodes in the network.
+
+NOTE:
+    Some SOP nodes let you point to a COP network. SOPs that supported this for `COP Network - Old` now support this for the new `COP Network`. 
+
+=== Bringing COPs into LOPs for materials ===
+You can create a Quick Surface Material LOP in your Solaris network to bring a COP network into your LOP network for use in MaterialX. See [Quick Materials|/solaris/quick_materials] for how to use this LOP.
+
+You can also use a [Scene Import LOP|Node:/lop/sceneimport] to bring a SOP with a [COP Preview Material|Node:/sop/coppreviewmaterial] into your LOP network.
+
+As an alternative, you can follow these steps to bring COPs into LOPs using a Karma Material Builder subnetwork.
+# Create a [Material Library LOP|Node:/lop/materiallibrary] in your Solaris network.
+# Dive into the Material Library LOP.
+# Add and dive into the Karma Material Builder subnetwork node.
+# Add a [MtlX Tiled Image VOP|Node:/vop/mtlxtiledimage].
+# Set __File__ to the path of a node in a COP network. You must prefix the node's path with `op:`. For more more information about the `op:` prefix, see [/io/op_syntax].
+    You can now use the COP node's pattern and data in your MaterialX workflow.
+
+== Using COPs as materials ==
+Follow these steps to apply COP outputs as materials on SOP (geometry) nodes.
+
+# Create a [COP Preview Material SOP|Node:/sop/coppreviewmaterial] in your SOP network.
+    TIP:
+        In the Copernicus network, you can instead use the [Preview Material COP|Node:/cop/previewmaterial] and wire your nodes into the different inputs to test how the materials display.
+# Wire the SOP on which you want to add materials into the COP Preview Material SOP.
+# Go to __Material > Base__ in the COP Preview Material SOP.
+# Under Base Color, set __Source__ to `COP`.
+# Set __Base Color COP__ to the path of a node in a COP network.
+# (Optional) To render your geometry with the materials applied, go to `/stage` and add a [Scene Import (All) LOP|Node:/lop/sceneimport]. This brings in your geometry so you can render it using [Karma|/solaris/karma].
+
+== Using SOPs from COPs == (sops_from_cops)
+Follow these steps to alter geometry wires with SOPs. The SOP Invoke COP streamlines the processing of geometry in a COP network.
+
+# Create geometry in your COP network. For example, add a [SOP Geometry COP|Node:/cop/sopimport] and dive into the node to create geometry.
+# Add a [SOP Invoke COP|Node:/cop/sopinvoke].
+# Wire the geometry into the SOP Invoke COP's `input#`.
+# Dive into the SOP Invoke COP.
+# Add and configure SOP nodes between the Block Begin Compile and Block End Compile SOPs. These nodes run on the input geometry. The node parameters in the invoked block are evaluated in their original locations.
+    NOTE:
+        Only compileable SOPs can be used in this block.
+# Go back up to the COP network. The SOP Invoke COP `output#` contains the altered geometry, which you can wire directly into a COP node.
+
+NOTE:
+    The SOP Invoke COP takes geometry wires to run SOPs onto, while the SOP Import and SOP Geometry COPs read a SOP network from which they create a geometry wire.
+
+== Starting a live render ==
+See [Live rendering in Solaris|/solaris/support/liverender#copernicus] for information about how to start and stop a live render session.

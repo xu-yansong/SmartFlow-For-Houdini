@@ -1,0 +1,87 @@
+= Shallow Water Solver: Optimization =
+
+"""Configure and optimize shallow water simulations."""
+
+The [Shallow Water Solver|Node:sop/shallowwatersolver] provides various parameters and options to control the simulation, fix errors, and customize a simulation.
+
+:task: Improve the simulation's overall quality
+
+    * Shallow Water Solver simulations are based on substeps. If you see instabilities, open the __Simulation__ tab, and increase __Substeps__. Higher values slow down the simulation, but create more accurate results. You can increase the parameter in steps of `10`.
+
+:task: Avoid reflecting waves
+
+    * By default, waves are reflected at the heightfield's boundaries. The fastest way to avoid reflections is to open the __Setup__ tab, and change __Boundaries__ to __Periodic__. Waves will then pass through the heightfield's boundaries, but reappear on the opposite side.
+    * You can also dampen waves near the boundaries with parameters in the __Damping Layer__ folder. This works for all types of __Boundaries__.
+        # Turn on __Enable Damping Layer__.
+        # The axis checkboxes let you choose in which directions the waves should be damped.
+        # Large __Layer Size__ and __Damping Strength__ values help to damp the waves before they reach the boundaries.
+
+:task: Avoid repeating and reentering waves
+
+    * Open the solver's __Setup__ tab and change __Boundaries__ to __Reflective__. Waves will now be reflected at the heighfield's boundaries.
+
+:task: Make the water faster
+
+    NOTE:
+        Note that fast moving water may causes instabilities. To fix this, go to the __Simulation__ tab and increase __Substeps__ in increments of `10`.
+
+    * If you are utilizing sourcing, you can go to the __Setup__ tab and increase __Source Scale__. This change sources more water and makes it flow faster.
+    * Another way is to increase the __Setup__ tab's __Gravity__ parameter. You can, for example, enter an expression like `9.8*2` to double the value.
+    * With values greater than `1`, __Time Scale__ speeds up the entire simulation, resulting in more flow per frame.
+
+:task: Make the water slower
+
+    * If sourcing, go to the __Setup__ tab and decrease __Source Scale__ to get a smaller water volume.
+    * Also under __Setup__, decrease __Gravity__, for example with an expression like `9.8*0.25`.
+    * With values, smaller than `1`, __Time Scale__ slows down the entire simulation, resulting in lower flow speed.
+    * In the __Setup__ tab, turn on __Max Wave Speed__ to set a speed limit for the waves.
+
+:task: Source more water
+
+    * You can draw a bigger `source` mask. Instructions on how to draw such a mask can be found on the [Shallow Water Solver|Link:shallowintro] page.
+    * In the solver's __Setup__ tab, set a higher value for __Source Scale__.
+
+:task: Use __Velocity Diffusion__
+
+    * This parameter blurs the velocity field and with higher settings, the water becomes more viscous.
+    * Small values of __Velocity Diffusion__ can also help to stabilize the simulation.
+
+:task: Use a force mask
+
+    All mask layers are located in the solver's __Bindings__ tab. __Force Mask Layer__ is not preconfigured, but the workflow is the same as with the other layers. Below, there's a quick guide. For a more complete workflow, visit the [Shallow Water Solver fields|Link:shallowfields#radforce] page.
+
+    # Create a heightfield mask node, e.g. using [HeightField Paint|Node:sop/heightfield_paint] somewhere in your network between the [Heightfield|Node:sop/heightfield] and the Shallow Water Solver node.
+    # Create the mask.
+    # Add a [HeightField Copy Layer|Node:sop/heightfield_copylayer] node.
+    # Under __Destination__ add a unique name, e.g. `force`. _Don't_ use any of the names, listed in the solver's __Bindings__ tab.
+    # Add a [HeightField Mask Clear|Node:sop/heightfield_layerclear] node to delete the current `mask` and keep the network healthy.
+    # Go to the solver's __Bindings__ tab. Under __Force Mask Layer__, enter `force`.
+    # On the solver's __Setup__ tab, set __Forces Frequency__ to __Every Frame__ or __Every Substep__.
+
+:task: Use animated masks
+
+    Masks don't have to be static. You can, for example, use an animated [HeightField Noise|Node:sop/heightfield_noise] or a deforming object to create a source mask.
+
+    * In the solver's __Setup__, go to the __Constraint Updates__ subpane.
+    * Set __Source Frequency__ to __Once per Frame__ to signal the solver that the mask is animated. For an animated sink mask, use __Sink Frequency__.
+    * If the mask's animation or deformation is very fast, choose __Every Substep__ to increase precision. Note that this option can drastically slow down the simulation.
+    * You can also use a static mask, but animate __Source Scale__ instead.
+    # Move the timeline slider to the frame, when sourcing should start.
+    # ((Alt + LMB)) click the __Source Scale__ parameter to create an animation key.
+    # Go to the frame when sourcing should be at maximum.
+    # Create another key.
+
+:task: Change mask and layer names
+
+    You can change the layer names under the solver's __Bindings__ tab. 
+
+    # Enter a new name for the layer you want to change. Make sure that every name is unique and not used anywhere else in the network.
+    # Update all nodes where the original name occured and apply the new layer name.
+
+:task: Avoid spikes and disappearing voxels
+
+    Sometimes you might see spikes or disappearing voxels. This often happens with fast moving water, or in areas where water with different flow directions collides. Below you can find ways to reduce the spikiness.
+
+    * Go to the solver's __Simulation__ tab and increase __Substeps__. A good start is to double the default value to `20`. You can also try higher values of `50` or even `100`.
+    * Under the __Setup__ tab you can find __Velocity Diffusion__. Very small values (< `0.001`) help to stabilize the simulation. Very high settings make the water more viscous.
+    * In the __Setup__ tab there's the __Max Wave Speed__ checkbox. Turn it on and enter a hard speed limit. This can also help to reduce the occurrence of spikes.

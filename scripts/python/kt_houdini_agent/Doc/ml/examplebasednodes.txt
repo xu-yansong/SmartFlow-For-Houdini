@@ -1,0 +1,59 @@
+= Example-based ML nodes =
+
+The example-based ML nodes help to create an ML setup where a model is trained based on labeled examples.
+
+Each labeled example is an input labeled with a desired output (target). 
+
+There are two categories of example-based ML nodes: general-purpose ML nodes and domain-specific ML nodes.
+
+The general-purpose ML nodes has a wide variety of cases and are not specific to one application domain. There are domain-specific ML nodes such as the [mldeformer] that apply specifically to animation use cases.
+
+== General-purpose ML nodes ==
+
+:col:
+    Data set Processing:
+
+    [ML Attribute Generate|Node:sop/ml_attribgenerate]
+    
+    [ML Example|Node:sop/ml_example]
+    
+    [ML Example Decompose|Node:sop/ml_exampledecompose]
+
+    [ML Example Partition|Node:sop/ml_examplepartition]
+
+    [ML Extract Example|Node:sop/ml_extractexample]
+
+:col:
+    Training:
+
+    [ROP ML Example Raw Output|Node:sop/rop_ml_exampleraw]
+
+    [ML Train Regression|Node:top/ml_trainregression]
+
+:col:
+    Inference:
+
+    [ML Example Import|Node:sop/ml_exampleimport]
+    
+    [ML Regression Inference|Node:sop/ml_regressioninference]
+
+    [ML Regression Proximity|Node:sop/ml_regressionproximity]
+
+
+== Domain-specific ML nodes for animation ==
+
+:col:
+    Data set Processing:
+
+    [ML Pose Generate|Node:sop/ml_posegenerate]
+
+    [ML Pose Serialize|Node:sop/ml_poseserialize]
+    
+:col:
+    Training:
+    
+:col:
+    Inference:
+
+    [ML Pose Serialize|Node:sop/ml_poseserialize]
+

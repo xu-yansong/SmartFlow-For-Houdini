@@ -1,0 +1,42 @@
+# PCG 岩石包（CliffTypes）详细参考
+# 岩石包负责岩石/崖壁的程序化生成
+
+## ==============================
+## 岩石包概述
+## ==============================
+
+岩石包（CliffTypes）负责岩石和崖壁的程序化生成。
+配置根目录：ArtData/CliffTypes/
+
+岩石包目录结构示例：
+CliffTypes/
+├── SharePrj/
+│   ├── DesertCliffEscarp/  ← 沙漠崖壁岩石包
+│   └── RiverValley/        ← 河谷岩石包
+
+## ==============================
+## 岩石包 cliff_info.json 算法信息
+## ==============================
+
+岩石包的算法信息文件为 cliff_info.json，结构简单：
+{
+    "hda_name": "/ArtHDAs/TX3/otls/kt_cliff_desert.hda",
+    "hda_parm": "/CliffTypes/SharePrj/DesertCliffEscarp/kt_cliif_rivervalley.json"
+}
+
+字段说明：
+- hda_name: 岩石生成 HDA 路径（相对于 ArtData）
+- hda_parm: HDA 参数 JSON 路径（相对于 ArtData）
+
+## ==============================
+## 岩石包配置文件清单
+## ==============================
+
+岩石包目录下的完整文件列表：
+- cliff_info.json —— 算法信息（HDA + 参数）
+- cliff_options.json —— 资产分类列表
+- cliff_asset.json —— 资产入库
+- kt_xxx_parm.json —— HDA 参数配置
+- subsys_info.json —— 渲染层映射信息
+- subsys_layers.json —— 渲染层详细定义
+- package_baseinfo.json —— 包元信息

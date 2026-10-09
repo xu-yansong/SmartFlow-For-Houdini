@@ -1,0 +1,91 @@
+= Slump =
+
+"""When mountains crumble to rocks."""
+
+When loose stones and rocks become unstable, they slide down for a rather short distance and form out deposits in lower areas. The [HeightField Slump SOP|Node:sop/heightfield_slump] lets you simulate and fine-tune this process through a wide range of parameters and masks.
+
+The node also provides two different modes for creating slump: __Smooth__ and __Granular__. Both modes have different parameter sets, while __Granular__ also supports a simplified, yet powerful erosion model without simulation. Slump in conjunction with granular erosion creates very realistic results with valleys that are filled with debris.
+
+[Image:/images/heightfields/slump_banner.jpg]
+
+Angles play an important role with slump and erosion in general. The node's __Repose Angle__, for example, determines the angle at which the loose material remains stable. With `70`, loose material will remain stuck only in very steep areas. When you set __Repose Angle__ to `40`, for example, you will also get slump deposits in less step parts.
+
+== Example: Eroded hillsides == (example)
+
+This example network creates eroded hillsides with debris, depositing in the valleys. Start with the adjustment of the HeightField Noise SOP.
+
+NOTE:
+    The following example uses the base setup from the introduction, consisting of a [HeightField SOP|Node:sop/heightfield] and a [HeightField Noise SOP|Node:sop/heightfield_noise].
+
+# Set __Amplitude__ to `1000` to get very high mountains.
+# To compensate for the extreme height, increase __Element Size__ to `800`. The parameter scales the noise and removes high-frequency spikes.
+# Change __Offset.X__ to `390` and move the noise pattern along the positive X axis to see a different part of the noise pattern.
+# On the __Noise Settings__ section, set __Noise Type__ to __Worley Cellular F1__.
+
+A [HeightField Distort by Noise SOP|Node:sop/heightfield_distort] breaks the edges and ridges, and creates the typical look of rough and weathered rock. Set the node's __Amplitude__ to `15`.
+
+And here's what you get with the above settings and values.
+
+[Image:/images/heightfields/slump_baseterrain.jpg]
+
+=== Slope mask ===
+
+With heightfields, things often look better when you apply masks to restrict an effect to certain areas of the terrain. Slump is no exception.
+
+# Lay down a [HeightField Mask by Feature SOP|Node:sop/heightfield_maskbyfeature] and connect its input with the output of the upstream HeightField Distort SOP.
+    
+    By default, the __Slope__ method is turned on and you'll be going to use this feature.
+
+# Change __Min Slope Angle__ to `5` and __Max Slope Angle__ to `50`. The red areas indicate where the slump material will be added.
+# The mask appears a bit aliased and to blur it, increase __Smooth Radius__ to a value between `1.5` and `2`.  
+
+[Image:/images/heightfields/slump_slopemask.jpg]
+
+=== Slump ===
+
+We want the sediment to fill the valleys and the space between the erosion channels in steeper areas of the terrain.
+
+Add a HeightField Slump SOP and connect its input to the output of the mask node. When you connect the node and turn on its blue __Display/Render__ flag, you'll immediately see an effect. The masked areas are now smooth, because they contain all the fine sediment that came down from the mountainside.
+
+# On the __Slump__ tab, change __Slump Mode__ to __Granular__ and you'll get loose material filling parts of the terrain. The look, however, is pretty noisy and it seems as if rocks were sliding downhill.
+# To get rid of the noisy look, play with  the __Quantization__ parameter. The value basically defines the sediment's granularity. For example, with a value of `0.1`, the material becomes a smooth and amorphous mass without surface structures. Higher values like `1`, however, add more detail to the sediment. There's often a kind of "threshold" where the structures start to look unnatural. So, please be cautious with very high values.
+# You can also break the smooth area by setting a __Repose Angle__. This parameter describes the steepest angle at which a granular material can be piled on a horizontal surface without sliding. Try a value of `30`.
+
+[Image:/images/heightfields/slump_repose.jpg]
+
+==== Erosion ====
+
+To get the nice look with the erosion channels, turn on __Do Erosion__. Note that this mode is only available with the __Granular__ mode.
+
+When you turn on erosion, the heightfield disappears and the node shows an error, because it lacks two fundamental things from the __Layer Bindings__ tab: __Entrained Material__ (see [Entrainment|#entrainment] below) _and_ __Sediment__. Without these layers, erosion won't work. The layer for __Entrained Material__ defines areas with already loose material and those areas won't be considered during the slump-creation process.
+
+Here, you'll be using `mask` for both bindings. What you get now is a mountain range with lots of deep grooves that cover then entire terrain.
+
+# Go back to the __Slump__ tab and change __Global Erosion Rate__ to `0.6`. This value depends on __Spread Iteration__ and with every iteration, you'll remove material.
+# __Erodability__ defines the rock's softness. Higher values are good for the creation of rather soft types of rock like limestone or dolomite. If the rock consists of minerals like feldspar or quartz, e.g. in granite, it'll become harder. Here, we're going to assume a rock of medium hardness and decrease the parameter's value to `0.7`.
+
+You can leave the remaining parameters, esp. those from the __Advance Erosion__ tab, untouched. Many of them are only required for the creation of riverbeds. However, for the image below, __Removal Rate__ is `0.5`.
+
+Now, the slump/debris fills the erosion channels and you get the typical look of highly eroded mountains with lots of slump that accumulated in deeper areas.
+
+TIP:
+    If you network already contains an upstream [HeightField Erode SOP|Node:sop/heightfield_erode], you can use its `debris` and `sediment` layers as input layers for the slump node's __Entrained Material__ and __Sediment__.
+
+[Image:/images/heightfields/slump_erosion.jpg]
+
+==== Entrainment ==== (entrainment)
+
+Entrainment sounds abstract, but fortunately it's not difficult to understand.
+
+Imagine a glacier, flowing down a mountain. On its way, the ice drags rocks and stones from the underlying bedrock and carries them downstream. In geology, this transportation process is called entrainment. When you measure the amount of rock that's taken with the ice, you get the glacier's entrainment rate. The same applies to gravel in rivers or material that's washed out from steep slopes.
+
+With __Slump Mode__ set to __Smooth__, you can determine the __Entrainment Rate__. This controls the percentage of the entrained material that is dragged with the slumping material in each iteration. In other words: higher settings will make more material flow down with the slump material.
+
+== Flow Field tab ==
+
+On the HeightField Slump SOP you can find a __Flow Field__ tab that lets you choose whether you want to __Calculate Flow Fields__ or not.  When you leave the option turned on, the node creates two layers. You can find the `flow` and `flowdir` output layers on the __Layer Bindings__ tab.
+
+The slump node's flow fields are a basic form of the [HeightField Flow Field SOP|Node:sop/heightfield_flowfield]. On the flow field node's help card you can find the following information about the `flow` and `flowdir` output layers.
+
+* The `flow` layers represent the _cumulative_ material flow. This layer has two signed components (X and Y) representing the flow direction in voxel space. Because this is cumulative, if material flows left, then flows right, those two motions will cancel and the X component would be 0.
+* The `flowdir` layer contains vectors for the XYZ directions, showing the average direction of flow at each voxel. This is converted from voxel space into geometry space. Note it does not include any change in height.

@@ -1,0 +1,86 @@
+= Scattering: Solaris =
+
+"""Import your heightfields to Solaris and render them in Karma."""
+
+You've spent a lot of time to shape your terrain and now you want to render it. For this purpose you'll be importing terrain and scatter points into Solaris and render everything with Houdini's internal Karma render engine.
+
+This is the last page of the heightfields scattering guide:
+
+* [Scattering: SOP|scattersop] illustrates how to prepare your scene.
+* [Scattering: Removing points|scatterptremove] shows methods for controlling the number of scatter points.
+* [Scattering: Attributes|scatterattribs] creates attributes like `pscale` and `orient`.
+* Scattering: Solaris shows how to create instances.
+
+NOTE:
+    This part of the heightfield scatter guide only deals with certain aspects of Solaris that are required to bring your geometry into Solaris. If you want to know more about Solaris, USD and Karma in general, please read the appropriate parts of the [doucmentation|/solaris/].
+
+    Please also note that the provided workflow is just _one_ method to assemble a scene in Solaris and there are many other ways. If you're familiar with Solaris/USD, feel free to use your own technique. This also includes names and paths.
+
+TIP:
+    Before you start to create your render network, we recommend changing Houdini's desktop. From the main menu bar, open the first dropdown menu (set to __Build__ by default) and choose __Solaris__ or __Solaris LookDev__. It's important to have access to the [Scene Graph Tree|/ref/panes/scenegraphtree], where you can see the scene's primitives and their hierarchy.
+
+    [Image:/images/feathers/rendering_menubar.png]
+
+== Heightfield import ==
+
+You've prepared your SOP network and now you're ready to go. Let's start with the terrain, because it's the basis for everything.
+
+On Houdini's _stage_ level, create a [SOP Import LOP|Node:lop/sopimport]. The __SOP Path__ parameter's [Smallicon:BUTTONS/chooser_operator] opens a floating window with a tree representation of your scene. Navigate to the container with the heightfield and choose `TERRAIN`. Confirm you choice with __Accept__.
+
+The node imports the terrain as a volume. If you prefer geometry, open the import node's __Primitive Definition__ section and turn on __Import Height Fields as Mesh__. Alternatively, you can also use a [Convert HeightField SOP|Node:sop/convertheightfield] inside your SOP network.
+
+== Instance prototype ==
+
+The next steps creates the prototypes. A prototype is the base geometry that will be instanced. You can use any object, e.g. different rocks or plants. Here, you'll be using a simple [Cube LOP|Node:lop/cube]. This is just to make things easier to explain.
+
+On the _stage_, add the Cube LOP and increase its __Scale.Y__ value to `5` to stretch the object along the Y axis. To make the cubes sit on the terrain, enter the following expression to the __Translate.Y__ parameter: `ch("sy")`. When you change __Scale.Y__, you'll automatically update __Translate.Y__.
+
+== Instancing ==
+
+The introduction pointed out that it is not very economic to do the instancing process in SOPs. The reason is that you might end up with a huge amount of individual objects in Solaris, because the instances will be converted into meshes. If you want to keep your scene manageable, we strongly recommend the workflow presented below. With this technique, you only have one Scene Graph Tree entry for the entire instancing process and one for the terrain geometry. On the right image, however, you can see `35,042` children!
+
+:fig:[Image:/images/heightfields/scattering_sgtcomp.png]
+    #display: full
+    """Click the image to zoom."""
+
+Now you're about to add the centerpiece of the network where you connect scatter points and instance object.
+
+# From the tab menu, lay down an [Instancer LOP|Node:lop/instancer].
+# Connect the instancer's _first_ input (`Input Stage`) with the output of the SOP Import LOP. Then, wire the _second_ input (`Possible Prototype Source`) to the cube's output.
+# On the __Target Points__ section, open the __Location Source__ dropdown and choose __External SOP__. There are several methods available to create or load the scatter points, but here you can access them directly.
+# You can now see a __SOP Path__ parameter with a [Smallicon:BUTTONS/chooser_node] __Open floating operator chooser__ button. Click it and navigate to the `POINTS` null from the terrain's SOP network. Click it and confirm your selection with __Accept__.
+
+You can now see the result in the viewport. You might also notice that the `pscale` and `orient` attributes were obviously correctly transferred. To make sure that all attributes exist, go to the [Scene Graph Tree|/ref/panes/scenegraphtree] and click the `instancer1` entry. On the right side there's the [Scene Graph Details|/ref/panes/scenegraphdetails] pane. Browse the __Name__ and __Value__ columns for `hue` and `saturation`.
+
+[Image:/images/heightfields/scattering_instancebasic.jpg]
+
+== Material ==
+
+The material in this example is just an orange color, but its hue and saturation will be driven by the attributes you've written to the scatter points. Note that the material is really just a very basic setup to illustrate the concept. The main idea, however, also works with complex shaders.
+
+# Lay down a [Material Library LOP|Node:lop/materiallibrary] and connect its input with the instancer's output.
+# Double-click the library to dive inside and call the Karma Material Builder tool from the tab menu. Again, double-click the new `karmamaterial` node. Inside the material there's a preconfigured shader network.
+# Add a [MtlX Color Correct VOP|Node:vop/mtlxcolorcorrect] and connect its `out` output to the standard surface node's `base_color` input. When you select the color correct node, you can already see the __Hue__ and __Saturation__ parameters.
+# Change the __Input Color__ values to `1, 0.5, 0` to get a bright orange color. Below you see an already rendered preview.
+
+[Image:/images/heightfields/scattering_instanceorange.jpg]
+
+== Reading the attributes == (readattrib)
+
+We're still inside the `karmamaterial` node and now you'll connect the points' `hue` and `saturation` attributes with the parameters of the color correct node.
+
+# Lay down a [MtlX Geometry Property Value VOP|Node:vop/mtlxgeompropvalue] and connect its `out` output with the color correct node's `hue` input.
+# For the new node's __Geomprop__ parameters, enter `hue`. Make sure that __Signature__ is __Float__.
+# Add another property value node and connect it to the `saturation` input.
+# The entry for __Geomprop__ is `saturation`.
+# Also, set __Default__ to `1`. This parameter is a fallback that's used if the attribute from __Geomprop__ is not available. The value corresponds with the default of the color correct node's __Saturation__ parameter.
+
+== Preview rendering ==
+
+If you want to improve your scene, you can also add a light source, for example a [Dome Light LOP|Node:lop/domelight]. You can place it between the SOP Import LOP and the Instancer LOP.
+
+To see the result you have to render the scene and for this purpose, Karma offers an "Interactive Preview Rendering" (IPR) system. In the upper right corner of the viewport you can see a dropdown menu with a __Persp__ default entry. Open the menu and choose on the Karma engines.
+
+It'll take a moment for the shader to compile, but then you can see an image similar to what's shown here:
+
+[Image:/images/heightfields/scattering_instanceresult.jpg]

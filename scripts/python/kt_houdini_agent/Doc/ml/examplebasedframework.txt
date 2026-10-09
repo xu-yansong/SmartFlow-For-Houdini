@@ -1,0 +1,52 @@
+= Framework =
+
+The example-based ML nodes facilitate ML training on synthetic data sets that are generated within Houdini. You can also bring in external data sets which allows the example-based ML nodes to be used for data-set augmentation and preprocessing (before training).
+
+The example-based ML nodes allow the creation of a wide range of ML setups. Many ML setups can be created exclusively by putting down nodes and setting parameters, avoiding the need to write any code (such as a training script). The example-based ML nodes support generating random input examples, computing targets, preprocessing, training a neural network, and applying trained models (inferencing) to unseen inputs.
+
+:fig:[Image:/images/ml/diagram_mlstages.jpg]
+    """Machine Learning stages."""
+
+The [ML Train Regression|Node:top/ml_trainregression] node allows you to train a neural network that efficiently approximates a given function. This type of ML application falls under the category of supervised ML known as __regression__.
+
+Regression ML can speed up a process that's slow. For example, you may start with a procedural pipeline (e.g., character deformation, simulation) that is relatively slow and approximate it using an ML model (a neural network). The idea is that the ML model produces results similar to the procedural pipeline, but faster. The procedural pipeline would play the role of __supervisor__.
+
+You can bring a pre-existing external data set or synthesize a data set using a procedural network in Houdini. Each data point of the data set would be a __labeled example__, consisting of an `input component` and a `target component`. Each `input component` must be stored on geometry as a combination of several point attributes and volume primitives.
+At the same time, each target component is reduced to a combination of point attributes and volume primitives. These two components with their point-attribute and volume contributions are written as a raw data set file. You can then train a feed-forward neural network using [ML Train Regression|Node:top/ml_trainregression].
+
+The example-based ML nodes facilitate the following workflow for regression ML, given a procedural pipeline that is to be approximated:
+# Generate a set of inputs, often random, that play the role of unlabeled examples.
+# Send each input into the procedural pipeline to obtain a corresponding target.
+# Each input-target pair is bundled together in the form of a __labeled example__, resulting in a data set of labeled examples.
+# If applicable, apply preprocessing (e.g., PCA) to the labeled examples.
+# Write the pre-processed labeled examples out to disk as raw training data.
+# Train an ML model based on the raw training data 
+# Apply the trained ML model to unseen inputs (inferencing)
+
+The [ML Deformer H20.5 Content Library example|https://www.sidefx.com/contentlibrary/ml-deformer-h205/] follows this regression ML workflow. It applies tissue simulation to map each random input pose into a deformed skin (target). The goal is to train an ML model (neural network) that approximates this map. This ML model should effectively predict what the simulation would do for unseen input poses that were never included in the data set used for training. See [mldeformer] for more details about the ML Deformer H20.5 content library example.
+
+== Pre-processing ==
+
+The node [ROP ML Example Raw Output|Node:sop/rop_ml_exampleraw] is responsible for writing out training data to disk to be used for training. This node assumes all training data is represented in the form of point attributes and volumes (on each embedded geometry).
+
+In the pre-processing stages of the example-based workflow, converting each example to a list of point attributes and volumes can be either reversible or lossy.
+In the ML Deformer example, you use [ML Pose Serialize|Node:sop/ml_poseserialize] to turn the orientations of a rig pose into a point float attribute, which incurs no loss of information. An example of the lossy case occurs in the ML Deformer when you use [Principal Component Analysis|Node:sop/pca] to convert a skin deformation in rest space to a tuple of weights. These weights can be used with the PCA basis to approximately recover the original skin deformation, but it's not an exact recovery. The advantage of this lossy reduction is the target dimension is significantly lowered, reducing the size of the required neural network, and reducing the cost of training.
+
+== Training ==
+
+Once a preprocessed data set has been updated, it can be written to disk in raw form using [ROP ML Example Raw Output|Node:sop/rop_ml_exampleraw]. [ML Train Regression|Node:top/ml_trainregression] can then read the raw data set file and perform its training based on it. After this training is completed, the resulting ML model can be applied to new inputs using [ML Regression Inference|Node:sop/ml_regressioninference]. Each input sent into this model must be represented as a combination of point attributes and volumes. This combination must be the same as for the (possibly preprocessed) inputs that were used to create the data set. The output of the model is also given in the form of point attributes and volumes, which can be either used directly or as the basis of a reconstruction. In the ML Deformer case, the result of the model consists of a point float attribute consisting of PCA weights. These are combined with the PCA basis to construct a displacement that can be applied to the rest shape of a skin mesh before linear blend skinning.
+
+== Alternatives to Deep learning ==
+The ML nodes [ML Train Regression|Node:top/ml_trainregression] and [ML Regression Inference|Node:sop/ml_regressioninference] fall into the category of deep learning, where a neural network with hidden layers is trained and used for inferencing, respectively. 
+
+In addition to neural network training, the are alternative ML approaches that may be used to exploit a data set consisting of labeled examples. These non-neural network based methods include linear regression, kernel methods and nearest-neighbor search.
+
+Linear Regression consists of training a linear model to match the provided training data as closest as possible. This method is not suitable for as many different scenarious as neural network training, but when it is applicable, linear regression provides a much simpler, much more direct alternative. Linear regression can be performed entirely in SOPs using [ML Regression Linear|Node:sop/ml_regressionlinear].
+
+In contrast with linear regression, which distills a linear model from a collection of labeled examples, kernel methods retain the original data set. These methods are quick to train, but may be slow at inferencing if they are used with large data sets. Each prediction is obtained by forming a linear combination of targets. Kernel methods are supported in SOPs by [ML Regression Kernel|Node:sop/ml_regressionkernel].
+
+Nearest-neighbor search consists of finding the labeled example in the set of labeled examples whose input component is closest to a query input. Then report the corresponding target of that labeled example as the output using the [ML Regression Proximity|Node:sop/ml_regressionproximity]. This node expects the regression data set as its first input and the query input as second input. A regression data set previously written to disk can be read back in using [ML Example Import|Node:sop/ml_exampleimport] and then wired into the first input of [ML Regression Proximity|Node:sop/ml_regressionproximity]. ML Regression Proximity can be a useful alternative to deep learning where the input dimension is low. ML Regression Proximity may also be useful as a troubleshooting tool to verify the integrity of the data set.
+
+
+
+

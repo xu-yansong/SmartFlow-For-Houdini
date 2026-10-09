@@ -1,0 +1,104 @@
+= Heightfields from maps =
+
+"""Create detailed terrains from maps."""
+
+As a 3D artist you most probably know the concept of displacement maps, where color information is translated into height information. A typical application for displacement maps are ocean waves, digital elevation models or the creation of complex structures from a simple base geometry.
+
+[Image:/images/heightfields/maps_example.jpg]
+
+In contrast to bump maps, where the normal vector is altered to achieve the visual impression of irregularities, displacement maps create actual geometry. Heightfields, however, consist of volumetric data and the map's height information is stored in the base grid's points. When you use displacement maps, you have several ruling factors that determine the quality of your terrain. The most obvious parameters are grid resolution and map resolution. A 2K map for a small ground segment with sand and gravel is normally not suited for a huge terrain. And a terrain with grid points every 2 m will not show as many detail as a model with a point distance of 5 cm.
+
+Another aspect is the used file format. You typically differentiate between 8-bit formats, and EXR or TIFF files with 16 or 32 bit. The more information your file stores, the better the resulting terrain. With 8-bit files you might observe banding or other patterns, caused by insufficient color information. 32-bit images create smoother surfaces. Anyway, for distant areas or ground planes covered with debris or grass, 8-bit images are often enough.
+
+Finally, the surface's original scale also plays an important role. For example, a displacement map from a small section of a landscape doesn't look good, when you stretch it over an entire terrain. On the first look, the landscape below appears to be correct, because it has enough resolution. However, the original size of the displacement map is just 2 m by 2 m. When you consider that the map's features are magnified by a factor of 500, the image starts to look out of scale. The edge length of the red box in the middle is 10 m.
+
+[Image:/images/heightfields/maps_scale.jpg]
+
+NOTE:
+    You can use maps in two ways: as a height layer or a mask layer. The latter option is discussed separately on the [Masks from images|masking#image] page.
+
+== Basic setup == (basic)
+
+In order to use displacement maps you need a basic heightfield grid. The setup, described here, will be the basis for all following considerations.
+
+# On the _obj_ level, press ((Tab)) to open the tab menu. From there, create a [Geometry OBJ|Node:obj/geo] node. Double-click the new node to dive inside.
+# Now add a [HeightField SOP|Node:sop/heightfield]. The map will be projected onto this base grid.
+# Change __Size__ to `4, 4` to create a small area that will serve as a ground.
+# Decrease __Grid Spacing__ to `0.002`. This value determines the distance between two grid points and lets you see even finest structures. The resulting grid consists of 8,000,000 voxels.
+
+== Loading the map ==
+
+A displacement map adds detail to the flat grid. Houdini provides a separate node for loading maps. This node also lets you make several adjustments on the map and the height layer directly. The maps, used in this example, cover an area of 2 m by 2 m.
+
+# Lay down a [HeightField File SOP|Node:sop/heightfield_file] and place it between the already existing nodes from the [basic setup|index#basic] to connect it.
+# Next to __File__ click the [Smallicon:BUTTONS/chooser_file] __Open floating file chooser__ button and load a displacement map. As suggested above, you should use 32-bit EXRs for best results.
+
+    NOTE:
+        With very large maps, you might see an `Image resolution too large` error on the HeightField File SOP. In this case you can go to the main menu's __Edit__ entry and choose __Preferences > Old Compositor__. Then, open the __Cooking__ tab and increase the __Resolution Limit__ parameter.
+
+# What you will get is pale red surface without surface structures. The reason for this look is found in the __Layering__ section. There, you can see that __Layer Name__ is set to `mask` and the map is therefore treated as a mask. To create surface structures, change the entry to `height`.
+
+== Size and height ==
+
+The heightfield is now most probably shifted along the positive Y axis and maybe you can also recognize a few surface structures.
+
+# Go to the __Size__ section. There you can see that the __Size__ parameter's default value is `1000`. This corresponds with the heightfield's standard dimension of `1000`. Enter `4` to restore the map's original size. The terrain is now centered in the middle and embossed, while the area around the map is completely even.
+
+    It's possible to upscale high-res 8K or 16K displacement maps to a certain amount, but don't overdo things to avoid artifacts or blurred structures. A scaling factor of 1.5 to 2 works in many cases.
+
+# To flatten the terrain, go to __Height > Height Scale__. The default of `1` is also tied to Houdini's standard terrain and way too large in relation to the small area. Start with a value around `0.1` - the actual value depends on the map's original scale.
+
+The image shows a section of the pebbles map that was used here.
+
+[Image:/images/heightfields/maps_pebbles.jpg]
+
+== Layering: Border == (border)
+
+In this example, base grid and map both have a size of 4 m by 4 m. The HeightField File SOP's __Size__ parameter was also adjusted to `4` and now map and base grid are matching to get the correct scale. What if you load a 2 m x 2 m map and set __Size__ to `2`, but leave the grid's size untouched? This combination creates an embossed effect you can see in the image above.
+
+[Image:/images/heightfields/maps_edge.jpg]
+
+The __Layering__ section provides some useful tools, e.g. for tiling or how an empty space around a terrain is treated. By default, __Border Type__ is set to __Constant__. To compensate for the hard edge, you can adjust __Border Value__. To get a seamless transition from border to terrain, you can use an expression.
+
+# Right-click on __Height Scale__. From the menu, choose __Copy Parameter__.
+# Now, right-click on __Border Value__ and choose __Copy Relative References__.
+# The input field turns green and now contains an expression. To align border and terrain, change the expression to `ch("heightscale")/2`.
+# You might have noticed that the entire heightfield was slightly moved upwards. To set the grid back to the scene's base level, select the HeightField SOP. Right-click on __Initial Height__ and choose again __Copy Relative References__. This time, the expression is `-ch("../heightfield_file1/heightscale")/2`. Now, the grid is at Y=0 again.
+
+    The idea of relative references is that you have to change a value once only and all referenced parameters will be updated according to the associated formula.
+
+[Image:/images/heightfields/maps_border.jpg]
+
+== Layering: Tiling ==
+
+In fact, tiling also belongs to the "border" topic, but is discussed separately due to its importance. Many displacement maps, esp. those from commercial repositories, are seamless and tileable. So, instead of scaling the map, you can repeat it to cover the entire heightfield area.
+
+# The HeightField SOP's __Border Type__ dropdown provides a __Repeat__ option. Choose this entry for tiling the displacement map.
+# The __Position__ section's parameters let you change the map's __Center__ and __Rotate__ values.
+
+Here you can see the 2 m by 2 m map from the [Layering: border|#border] chapter above and how it's repeated to cover the 4 m by 4 m base grid.
+
+[Image:/images/heightfields/maps_tiled.jpg]
+
+== Stacking maps ==
+
+You're not limited to a single HeightField File SOP, and you can stack several nodes with different maps to create completely new terrains. Displacement maps also merge with other terrain-creating nodes like the [HeightField Noise SOP|Node:sop/heightfield_noise]. The biggest limitation is that, by default, there's no ready-to-use parameter for blending different maps. Each map contributes equally to the final result.
+
+If you just want to stack maps, you can chain several HeightField File SOPs and make individual adjustments on them. The only thing to consider is that the __Height Scale__ values of the various maps add up. In a scene with, lets say, three maps and __Height Scale__ values of `0.02`, `0.03` and `0.05`, the base grid's Y position will be `0.1`. In this example, the HeightField SOP's __Initial Height__ should be `-0.05` to reset the grid to the scene's origin.
+
+Here you can see the stacking of the two maps used in the previous chapters.
+
+[Image:/images/heightfields/maps_stacked.jpg]
+
+== Exporting maps and layers ==
+
+The usage of displacement maps isn't a one-way street, but you can also export your heightfields and bake them into files.
+
+# Add a [HeightField Output SOP|Node:sop/heightfield_output] and connect its input with the output of your network's last upstream node.
+# Go to __Filename__ and click the [Smallicon:BUTTONS/chooser_file] button to specify output name and directory. The file type is taken from the suffix you enter, e.g. `.jpg`.
+# Turn on __Resolution__ and enter the values for the number of pixels in X and Y direction. Choose values that can be divided by 8, e.g. `256`, `512`, `1024` or `4096`.
+# Go to the __Output Layers__ section. Next to the color channel parameters, you can see associated dropdown menus. For __Red__, __Green__ and __Red__, choose `height`. If you also have an alpha mask defined, set __Alpha__ to `mask`. Otherwise it's safe to turn off __Alpha__.
+
+    Here you're exporting the `height` layer, but you can choose any other available layer.
+
+# Click the __Save to Disk__ button to write the map to disk.

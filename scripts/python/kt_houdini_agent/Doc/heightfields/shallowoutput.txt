@@ -1,0 +1,35 @@
+= Shallow Water Solver: Outputs =
+
+"""Save and convert shallow water simulations."""
+
+On the previous pages, it was mentioned several times that the results of the solver are available as layers, for example `water`, `vel.*` or `force`. In many cases you will use the layers directly for texturing and rendering. In this context, the layers will again act as masks to spare out certain areas and reveal underlying structures. You can read more on the [Texture basics|texturebasics] and [Texture layers|texturelayers] pages of this guide.
+
+== Conversion == (conversion)
+
+If you [convert|workflows#conversion] your heightfields to polygons and points, all layer information will be automatically translated into appropriate _point_ attributes. The node for this process is the [Convert Heightfield SOP|Node:sop/convertheightfield] and you must add it _downstream_ of the [Shallow Water Solver SOP|Node:sop/shallowwatersolver].
+
+== Caching ==
+
+When you start a simulation, the result will be cached to the computer's RAM. With large high-resolution heightfields, the default cache of 5000 MB is normally not enough to cache more than 150-200 frames. On the solver's __Simulation__ tab you can adjust the allocated memory with __Cache Memory (MB)__.
+
+If you want to cache a simulation to disk, you can add a [File Cache SOP|Node:sop/filecache]. This node lets you assemble a file path and adjust a frame range. Versioning is also supported. Please read the File Cache SOP's help page for more information on the parameters.
+
+Once you've made your settings, you can press one of the __Save to ...__ buttons to write a sequence of files to the specified directory. Make sure that __Caching > Sequence > Simulation__ is turned on! When you turn on __Load from Disk__, you can replay the simulation in Houdini.
+
+== Geometry extraction ==
+
+If you only need the geometry of the water surface, you can do that with a single [Blast SOP|Node:sop/blast] from the [converted|#conversion] heightfield.
+
+* Add the Blast SOP and connect its input to the output of the convert node.
+* Set __Group Type__ to __Points__.
+* On the __Group__ parameter, enter `@water==0`.
+
+The node will now delete all points with a `water` value that is _not_ 0 and you'll get the water surface with UV coordinates. If you don't want to delete any points, but store the `water` points in a group, you can do that with the same expression.
+
+* Instead of a Blast SOP, lay down a [Group SOP|Node:sop/group] and connect it.
+* For __Group Name__ enter `water`.
+* On the __Base Group__ section, go to __Base Group__ and enter `@water>0`.
+
+Both methods also work with any other layer like `vel_x`, `accel_z` or `vorticity`. Note that you have to turn on the `acceleration` and `vorticity` layers on the solver before you can turn them into groups or delete them.
+
+[Image:/images/heightfields/shallow_outputextract.jpg]

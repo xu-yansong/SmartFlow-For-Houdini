@@ -1,0 +1,661 @@
+## Data set generation
+
+= Data set generation =
+
+For regression problems, you train ML on a collection of labeled examples. Here, the targets of the labeled examples depend on the inputs in a continuous fashion. This differs from classification problems, where the outputs are discrete rather than continuous.
+
+You may want to learn to approximate a procedural network in Houdini. In that case, an input would be the geometry that you send into the procedural network. The corresponding target would be what comes out at the end of the procedural network for that input. Each input-target component pair is bundled as a labeled example, using ML Example. Each labeled example is a packed primitive which contains two more packed primitives. By merging geometries that contain labeled examples, you can form a single geometry that represents the entire collection of labeled examples. With this data set geometry, you may inspect each labeled example using ML Example Extract.
+
+Example Decompose allows you to obtain the separate input component and target component of a labeled example.
+
+Before you can create a data set that can be passed onto the training script, you need to turn both the `input component` and `target component` of each labeled example into a geometry that has point attributes and volumes which encode the data. To do this, you can use a separate for-loop in SOPs or using TOPs. The `input component` and `target component` can be represented entirely using a geometry that has point attributes and volumes, preserving the exact data, or you can pre-process it to reduce its dimension. An example is to use the Principal Component Analysis.
+
+Once the inputs and targets are in the form of geometries that hold data in point attributes and/or volumes, you can write out the data set using ROP ML Example Raw Output, so you can use it with ML Train Regression.
+
+============================================================
+
+## Framework
+
+Machine Learning stages.
+
+= Framework =
+
+The example-based ML nodes facilitate ML training on synthetic data sets that are generated within Houdini. You can also bring in external data sets which allows the example-based ML nodes to be used for data-set augmentation and preprocessing (before training).
+
+The example-based ML nodes allow the creation of a wide range of ML setups. Many ML setups can be created exclusively by putting down nodes and setting parameters, avoiding the need to write any code (such as a training script). The example-based ML nodes support generating random input examples, computing targets, preprocessing, training a neural network, and applying trained models (inferencing) to unseen inputs.
+
+:fig:
+    The ML Train Regression node allows you to train a neural network that efficiently approximates a given function. This type of ML application falls under the category of supervised ML known as __regression__.
+
+Regression ML can speed up a process that's slow. For example, you may start with a procedural pipeline (e.g., character deformation, simulation) that is relatively slow and approximate it using an ML model (a neural network). The idea is that the ML model produces results similar to the procedural pipeline, but faster. The procedural pipeline would play the role of __supervisor__.
+
+You can bring a pre-existing external data set or synthesize a data set using a procedural network in Houdini. Each data point of the data set would be a __labeled example__, consisting of an `input component` and a `target component`. Each `input component` must be stored on geometry as a combination of several point attributes and volume primitives.
+At the same time, each target component is reduced to a combination of point attributes and volume primitives. These two components with their point-attribute and volume contributions are written as a raw data set file. You can then train a feed-forward neural network using ML Train Regression.
+
+The example-based ML nodes facilitate the following workflow for regression ML, given a procedural pipeline that is to be approximated:
+# Generate a set of inputs, often random, that play the role of unlabeled examples.
+# Send each input into the procedural pipeline to obtain a corresponding target.
+# Each input-target pair is bundled together in the form of a __labeled example__, resulting in a data set of labeled examples.
+# If applicable, apply preprocessing (e.g., PCA) to the labeled examples.
+# Write the pre-processed labeled examples out to disk as raw training data.
+# Train an ML model based on the raw training data 
+# Apply the trained ML model to unseen inputs (inferencing)
+
+The ML Deformer H20.5 Content Library example follows this regression ML workflow. It applies tissue simulation to map each random input pose into a deformed skin (target). The goal is to train an ML model (neural network) that approximates this map. This ML model should effectively predict what the simulation would do for unseen input poses that were never included in the data set used for training. See mldeformer for more details about the ML Deformer H20.5 content library example.
+
+### Pre-processing
+
+The node ROP ML Example Raw Output is responsible for writing out training data to disk to be used for training. This node assumes all training data is represented in the form of point attributes and volumes (on each embedded geometry).
+
+In the pre-processing stages of the example-based workflow, converting each example to a list of point attributes and volumes can be either reversible or lossy.
+In the ML Deformer example, you use ML Pose Serialize to turn the orientations of a rig pose into a point float attribute, which incurs no loss of information. An example of the lossy case occurs in the ML Deformer when you use Principal Component Analysis to convert a skin deformation in rest space to a tuple of weights. These weights can be used with the PCA basis to approximately recover the original skin deformation, but it's not an exact recovery. The advantage of this lossy reduction is the target dimension is significantly lowered, reducing the size of the required neural network, and reducing the cost of training.
+
+### Training
+
+Once a preprocessed data set has been updated, it can be written to disk in raw form using ROP ML Example Raw Output. ML Train Regression can then read the raw data set file and perform its training based on it. After this training is completed, the resulting ML model can be applied to new inputs using ML Regression Inference. Each input sent into this model must be represented as a combination of point attributes and volumes. This combination must be the same as for the (possibly preprocessed) inputs that were used to create the data set. The output of the model is also given in the form of point attributes and volumes, which can be either used directly or as the basis of a reconstruction. In the ML Deformer case, the result of the model consists of a point float attribute consisting of PCA weights. These are combined with the PCA basis to construct a displacement that can be applied to the rest shape of a skin mesh before linear blend skinning.
+
+### Alternatives to Deep learning
+The ML nodes ML Train Regression and ML Regression Inference fall into the category of deep learning, where a neural network with hidden layers is trained and used for inferencing, respectively. 
+
+In addition to neural network training, the are alternative ML approaches that may be used to exploit a data set consisting of labeled examples. These non-neural network based methods include linear regression, kernel methods and nearest-neighbor search.
+
+Linear Regression consists of training a linear model to match the provided training data as closest as possible. This method is not suitable for as many different scenarious as neural network training, but when it is applicable, linear regression provides a much simpler, much more direct alternative. Linear regression can be performed entirely in SOPs using ML Regression Linear.
+
+In contrast with linear regression, which distills a linear model from a collection of labeled examples, kernel methods retain the original data set. These methods are quick to train, but may be slow at inferencing if they are used with large data sets. Each prediction is obtained by forming a linear combination of targets. Kernel methods are supported in SOPs by ML Regression Kernel.
+
+Nearest-neighbor search consists of finding the labeled example in the set of labeled examples whose input component is closest to a query input. Then report the corresponding target of that labeled example as the output using the ML Regression Proximity. This node expects the regression data set as its first input and the query input as second input. A regression data set previously written to disk can be read back in using ML Example Import and then wired into the first input of ML Regression Proximity. ML Regression Proximity can be a useful alternative to deep learning where the input dimension is low. ML Regression Proximity may also be useful as a troubleshooting tool to verify the integrity of the data set.
+
+============================================================
+
+## Example-based ML glossary
+
+= Example-based ML glossary =
+
+ ML Attribute Generate |
+    #width: 25%
+
+    Generates a collection of unlabeled examples, each a packed primitive that stores a geometry. Each embedded geometry has specific attributes set to random values drawn from a probability distribution.
+
+    These unlabeled examples can the basis for generating a synthetic data set for training. For example, each unlabeled example can be provided as an input to a procedural network, yielding a target, using which a labeled example may be formed.
+
+ ML Example |
+
+    Creates an example as packed primitive. An unlabeled example is created when the Target input is not used. In this case, the input geometry is stored directly inside the packed primitive. If the Target input is connected, then a labeled example is created. A labeled example consists of both an `input component` and a `target component`. Each of these are stored as a packed primitive inside the labeled-example packed primitive. For each labeled example, the target can be interpreted as the ground-truth output for the input. Multiple labeled examples can be combined and pre-processed form a data set.
+
+ ML Example Decompose |
+
+    Decomposes a labeled example into its input component and its target component. This is useful for pre-processing the data set, visualizing, and troubleshooting.
+
+ ML Example Import: |
+    
+    Reads a raw data set from disk, resulting in a collection of examples (stored in packed primitives).
+
+ ROP ML Example Raw Output |
+
+    Writes a data set, a collection of (possibly pre-processed) examples out to a raw file that is suitable for training with ML Train Regression TOP.
+
+ ML Example Partition |
+
+    Partitions a collection of examples (labeled or unlabeled). For example, the output of ML Attribute Generate may be partitioned into batches. By picking an appropriate batch size, a good balance between speed and memory efficiency may be found for the data generation and pre-processing stages.
+
+ ML Extract Example | 
+    
+    Helps to extract a single example from a geometry that represents a collection of examples. The collection of examples would consist of packed primitives. The examples may either be unlabeled examples that were generated by ML Attribute Generate or ML Pose Generate or they may be labeled examples created by ML Example.
+
+ ML Pose Generate: |
+
+    An __ML adapter__ node that allows the example-based ML toolset to be applied within a specialized domain (animation). It generates a set of random poses, each of which is an unlabeled example.
+
+ ML Pose Serialize: |
+
+    An __ML adapter__ node that allows the example-based ML toolset to be applied within a specialized domain (animation). It represents a single rig pose (or part of it) as a point float attribute. This node can should be used both during data generation and inferencing, so poses are serialized in the same manner in both these stages.
+
+ ML Pose Deserialize: |
+
+    An __ML adapter__ node that allows the example-based ML toolset to be applied within a specialized domain (animation). It reconstructs a single rig pose (or part of it) from a point float attribute. This node can be used during inferencing, so that poses can be reconstructed consistent with the way they are represented by ML Pose Serialize during the generation of a data set.
+
+ ML Regression Inference: |
+
+    Allows an ML model trained using ML Train Regression TOP to be applied in a geometry network with any desired inputs.
+
+ML Regression Linear: |
+
+    Trains a linear model to fit the provided labeled examples as closely as possible. Applies this linear model to a query input to compute a model prediction.
+    
+ML Regression Kernel: |
+
+    Applies a kernel method to compute a prediction from a given input. This prediction is a combination of target components from the labeled examples.
+
+ ML Regression Proximity: |
+
+    Returns the target component in a collection of labeled examples that corresponds to the input component closest in the data set for a query input. This is a type of ML that is not deep learning.
+
+ ML Train Regression TOP: |
+
+    Creates and trains a model (feed-forward neural network) given a data set prepared by ROP ML Example Raw Output. The resulting model can be used by ML Regression Inference:. This is an example of deep learning.
+
+NOTE:
+    There are also some hidden core C++ nodes, but these are all used to implement the above assets.
+
+============================================================
+
+## Example-based ML nodes
+
+= Example-based ML nodes =
+
+The example-based ML nodes help to create an ML setup where a model is trained based on labeled examples.
+
+Each labeled example is an input labeled with a desired output (target). 
+
+There are two categories of example-based ML nodes: general-purpose ML nodes and domain-specific ML nodes.
+
+The general-purpose ML nodes has a wide variety of cases and are not specific to one application domain. There are domain-specific ML nodes such as the mldeformer that apply specifically to animation use cases.
+
+### General-purpose ML nodes
+
+:col:
+    Data set Processing:
+
+    ML Attribute Generate
+    
+    ML Example
+    
+    ML Example Decompose
+
+    ML Example Partition
+
+    ML Extract Example
+
+:col:
+    Training:
+
+    ROP ML Example Raw Output
+
+    ML Train Regression
+
+:col:
+    Inference:
+
+    ML Example Import
+    
+    ML Regression Inference
+
+    ML Regression Proximity
+
+### Domain-specific ML nodes for animation
+
+:col:
+    Data set Processing:
+
+    ML Pose Generate
+
+    ML Pose Serialize
+    
+:col:
+    Training:
+    
+:col:
+    Inference:
+
+    ML Pose Serialize
+
+============================================================
+
+## Example Representation
+
+= Example Representation =
+
+The example-based ML nodes use packed primitives to represent examples. A geometry consisting entirely of packed primitives represents a collection of examples. This is convenient for processing collections of examples and multiple collections of examples can be joined together by merging their geometries. Individual examples can be extracted from a collection of examples by primitive index. The packed primitive representation helps avoid unnecessary copying of geometry.
+
+### Types of Examples
+There are two types of examples: unlabeled examples and labeled examples. An unlabeled example contains a single geometry. A labeled example contains two geometries: an input component and a target component.
+
+An unlabeled example is formed by using packing a geometry using Pack or ML Example with only the first input connected to a geometry.
+
+A labeled example is formed by using ML Example, where both inputs are connected. A geometry containing labeled examples must have a primitive group called `labeledexamples` and all labeled-example primitives must be members of that group. Any packed primitive that is not part of a geometry or a member of the `labeledexamples` primitive group is treated as an unlabeled example, even if it contains two packed primitives.
+
+============================================================
+
+## Guidelines for experimentation
+
+= Guidelines for experimentation =
+
+The goal of the example-based ML tools is to learn a function from a fixed number of variables to another fixed number of variables. The ML Train Regression node aims at approximating continuous functions, where the value of the output variables vary smoothly from the input variable's changes.
+
+There are at least two use cases in Houdini:
+# A procedural network (e.g., a simulation) can be approximated using ML resulting in a trained model. When this is inferenced, it's much faster than the original procedural network. This can give you a faster replacement of the original network at the cost of approximation error.
+# The ML can be trained to find the inverse of a mapping. For example, it is common to have a network in Houdini that gives a different result based on a set of settings. You may construct examples whose inputs are the output of this network and whose targets are the inputs to this network. This way, you may sometimes be able to train a model that can approximate the settings that lead to a certain unseen _output_.
+
+Regression can be applied in Houdini when you have a procedural network that can be encoded as a mapping from a fixed-dimensional space to another fixed-dimensional space. You need to choose a way to represent or approximate each input and each output. In the case of the ML Deformer H20.5 Content Library example, the input variables are the components of all the joint rotations and the output variables are PCA weights that represent a skin deformation.
+
+To see how your training is going, look at the log files generated by ML Train Regression. This log file has a column of the training loss (on the left). If early stopping is enabled, there is a separate column for the validation loss (on the right).
+
+### Ensuring sufficient capacity
+The training goal is to obtain a model that generalizes well. You train it on a specific subset of the data set and then you expect the trained model to give accurate results on inputs that were never seen during training. Before generalization, ensure the model has enough capacity to accurately approximate the training data:
+* To verify this, you can use ML Train Regression with the regularization options `disabled`. The weight decay would be set to `zero` and turn off `early stopping`. 
+    * With these settings, if the model isn't able to find a close approximation of the training data, then the model may not have a sufficient representational capacity (underfitting). You can look at the training loss column of the training log generated by ML Train Regression for this.
+* To increase the representational capacity, you can increase the number of hidden layers, increase the number of units per hidden layer, or a combination of both.
+    * If that doesn't work, then the problem may be due to the way the inputs and outputs are represented (poor choice of hypothesis space).
+    * It may also be the data set is poor quality. There may be intrinsic noise on the targets not related to the inputs. In that case, it is generally not possible to get an accurate match for the training data.
+* For some problems, it may be the learning rate parameter on the ML Train Regression top is set too high by default.
+    * Lowering it will generally extend the amount of training time, but may result in a trained model with a lower loss (more accurate).
+
+### Generalization to unseen inputs
+After ensuring the model has enough representational capacity for training, you can focus on how well the model generalizes to unseen examples.
+* Enable `early stopping` on the ML Train Regression and then see how this affects generalization. Consult the validation loss column of the training log generated by ML Train Regression for this.
+    * If the validation loss is significantly higher than the training loss (overfitting), you may want to increase the amount of data points in the data set until the generalization improves enough.
+    * If increasing the data set size is not possible or desired, you may alternatively increase the `weight decay` parameter on ML Train Regression. Increasing `weight decay` tends to increase the training loss while decreasing the validation loss.
+* It is recommended to use the Wedge TOP to try training with various settings for `weight decay` to find the one that works best. Weight decay is the simplest possible type of regularization.
+
+ML Train Regression is intended to be a simple node that can serve as an example. It doesn't incorporate every possible regularization approach. If you need to incorporate more refined type of regularization into your training, you can use the existing PyTorch script that's used by ML Train Regression as a starting point and modify it. This script is located at $HHP/hutil/ml/regression.
+
+### Machine Learning without Deep Learning
+
+ML Train Regression allows you to train a neural network with hidden layers. If the dimension of the input is low, you can use alternative ML techniques to approximate a function. An example is nearest-neighbor search. A labeled example is found when an input is closest to the query input and the target component corresponding to this labeled example is returned as the output.
+
+ML Regression Linear fits a linear model to the training data. This does not involve any neural network training. This is one of the easiest way to get into creating your own ML setups in Houdini. However, be aware that the applicability of linear models is quite limited; they only produce accurate results if a linear model can be a good fit for your data.
+
+ML Regression Kernel constructs a model that combines targets using a weighted sum of kernel functions, where each kernel function is centred at a input component of the labeled examples. This is another easy option for creating a model in Houdini. This method may produce useful results in many cases where a linear model doesn't. However, a drawback is that for large numbers of examples, the inference may be slow.
+
+allows you to perform this type of kernel-based function approximation. No training is required for this. This node is also useful for troubleshooting your ML setup. If your data set preparation network is correctly set up, you can retrieve matching a target component if you give an input component in your set of labeled examples.
+
+ML Regression Proximity allows you to perform this type of proximity-based function approximation. No training is required for this. This node is also useful for troubleshooting your ML setup. If your data set preparation network is correctly set up, you can retrieve matching a target component if you give an input component in your set of labeled examples.
+
+============================================================
+
+## Low-level ML nodes
+
+= Low-level ML nodes =
+
+Houdini has a family of low-level nodes that support the creation of a wide variety of ML setups.
+These can be used to create entire new ML setups from scratch and also incorporate existing models, training scripts, and data sets into Houdini.
+
+The most important of these low-level nodes are listed below:
+
+:col:
+    Data Set Preprocessing:
+
+    Principal Component Analysis
+
+    Linear Solver
+ 
+:col:
+    Raw Data Set Input/Output:
+
+    ROP Geometry Raw Output
+
+    Raw Import
+
+:col:
+    Model Training:
+
+    Python Virtual Environment
+
+    Python Script
+
+:col:
+    Inference:
+
+    ONNX Inference (SOP)
+
+    ONNX Inference (COP)
+
+============================================================
+
+## Case study: ML Deformer H20.5
+
+Generating random input poses from joint limits.
+
+= Case study: ML Deformer H20.5 =
+
+The ML Deformer 20.5 content library example was built entirely using the example-based ML nodes released with Houdini 20.5. The scene files and ML cache can be downloaded from the Content Library. 
+
+This setup applies ML to animation. It demonstrates how ML can learn from quasistatic simulation to improve over linear blend skinning. This type of simulation is usually more expensive than linear blend skinning. However, providing a sufficiently large data set of simulated examples allows the ML model to train and approximate the simulation results efficiently and accurately. This works even for unseen poses that are not part of the data set.
+
+This application of ML falls into the category of __regression__; ML is used to approximates a function. In this case, the function maps each given rig pose to a simulated deformation of the skin.
+
+### Stages
+
+The ML Deformer 20.5 setup consists of three main stages:
+* data set generation
+* ML training
+* inference (applying the trained model).
+
+Each of these stages is comprised of smaller steps, which can be found in several different subnetworks. The data set generation stage uses mostly ML nodes whose names start with __ML Example__. The ML training and inference stages relies mostly on ML nodes whose names start with __ML Regression__.
+
+### Data set generation
+
+The data set generation stage consists of the following steps:
+* input generation
+* computing targets
+* pre-processing.
+
+Each of these steps are in SOPs but controlled from a TOP network. 
+
+#### Input generation
+
+Each input is a random pose. It is assumed that each joint of a pose stores only a rotation (the translation part is not used and assumed to be zero). A collection of input poses is generated using random sampling from ML Pose Generate. Generating the random angles from the full 360 degree range is an ineffective strategy. Instead, each joint is assigned a random angle chosen from an appropriate range, determined from a set of representative animations. These angle ranges are provided as joint limits on the input of ML Pose Generate.
+
+:fig:
+    === Computing targets ===
+
+For each randomly generated input pose, a corresponding target skin deformation must be generated. This process consists of two separate, smaller steps:
+* perform a quasistatic simulation to obtain a deformed tet cage
+* use the deformed tet cage to deform the skin.
+
+For each given input pose, a deformed tet cage (tetrahedral mesh) is obtained using a quasistatic simulation. This happens in the __pose cages__ subnetwork of the ML Deformer. Before this simulation starts, the tet cage is rotated and translated so it's globally aligned with the input pose. After that, several simulation time steps are performed during which the aligned rest pose is gradually linearly blended toward the input pose. At each time step, the interpolated pose is used to deform the anatomical bones that act as constraints for the simulation.
+
+:fig:
+    For further processing, each input pose is combined with its corresponding deformed tet case (target). A collection of labeled examples is formed using ML Example, each having the input pose as the input component and the resulting tet cage as the target component. The simulation step is frame-dependent so each labeled example is fetched individually from the TOP level using a ROP Fetch. From these separate labeled example files, a single file containing the collection of all labeled examples is formed using File Merge in combination with another ROP Fetch.
+
+The ML approach learns from the vertices of deformed skins rather than tet cages. This means each deformed tet cage needs to be converted to a deformed skin. The next step transforms the collection of labeled examples to a new collection where each target component is a deformed skin instead of a tet cage. This happens in the __pose_skins__ network of the ML Deformer. A SOP for loop transforms each of the labeled examples from the previous step. Within the __For Loop SOP__, ML Example Decompose breaks up each labeled example into its constituent input and target components. The packed primitive representing the input component is kept as is without copying its embedded geometry. The tet cage target deforms the skin which results in a new type of target called deformed skin. The existing input and the new target type are then bundled again using ML Example. 
+
+:fig:
+    Besides transforming the labeled examples, this step also discards outliers using the validation mechanism provided by the example-based ML nodes. A validation step is performed each time the skin is deformed. If the skin contains NANs (bad numbers), then the skin is marked invalid using a detail attribute recognized by the ML Example. This results in an empty output and discards the example. Each input and each corresponding target are always bundled together in a single labeled example. This means no indexing problems result from this validation step.
+
+#### Pre-processing
+
+Before the start of pre-processing, each labeled example has a pose as its input component and a deformed skin as its target component. If a deformed skin has 50,000 points, then you would need 150,000 floating-point numbers to store the full skin deformation. Training a neural network that has an output layer of 150,000 units can be quite expensive. Such a model may be costly to inference as well. To fix this, the pre-processing steps aim to reduce the size of the targets used for training.
+
+The preprocessing stage consists of two smaller steps:
+* computing skin displacements relative to the rest position
+* approximating these skin displacements using principal component analysis (PCA).
+
+The first pre-processing step is similar to the conversion of a deformed tet cage to a deformed skin in the previous stage. It applies a transformation to the target while leaving the input unchanged. The first pre-processing step converts each deformed skin to a displacement that is relative to the LBS-animated (linear blend skinning) skin in rest space. This happens in the sub-network __pose_displacements__. For each combination of a pose and a deformed skin from the previous stage, the pose comuputes the difference between the deformed skin and a skin deformed using LBS. This results in a skin displacement relative to the deformed skin. The inverse of LBS is applied to each displacement vector, resulting in a skin displacement relative to the rest skin. This new representation of the skin deformation as a displacement relative to the rest position has the advantage of being independent of the global position and orientation of the input pose.
+
+:fig:
+    The second pre-processing step uses a principal component analysis to approximate the rest displacements using a much smaller representation. This happens in the __data_set__ network. From all the skin displacements in the collection of labeled examples, a new and much smaller set of skin displacements is formed using Principal Component Analysis. In Analyze mode, each original skin displacement can be accurately approximated using a linear combination of the new ones. ML Deformer 20.5 uses only 128 of these coefficients, which allows you to have a neural network with only 128 outputs instead of the original 150,000. This number 128 can be changed.
+
+:fig:
+    The final data set for training is assembled using another __For Loop SOP__, where an incoming labeled example has a pose as its input component and a skin displacement as its target component. Each pose is converted into a point float attribute using ML Pose Serialize. Each skin deformation is converted into its 128 PCA components using Principal Component Analysis, in Project mode. The resulting examples are written out as a data set for regression training using ROP ML Example Raw Output.
+
+:fig:
+    == Training ==
+
+The TOP network __COOK_RECIPE__ creates the entire data set and performs the training. This network ensures all the steps outlined above, plus the training stage, are executed in the right order.
+
+The data set for regression training is read at the TOP level by the training node ML Train Regression. The TOP setup performs multiple training sessions, each with different hyperparameter settings. There is only one specific hyperparameter you train here: the number of hidden layers of the neural network. Each invocation of ML Train Regression writes out its result to a separate model file.
+
+:fig:
+    == Inference ==
+
+The inference stage is the stage where the trained neural network can be used to predict skin deformations for unseen poses. The ML Deformer H20.5 content library example performs inference in two distinct places:
+* an analysis network that allows the performance of the model to be evaluated.
+* an APEX setup that allows the trained model to be tried on various user-controlled poses
+
+The analysis network can decide which trained model performs the best. The separate _posing_ scene file with APEX nodes illustrates how a trained model can be incorporated into an animation workflow.
+
+:fig:
+    :fig:
+    === Analysis Network ===
+
+The network __analyze_trained_model__ uses ML Regression Inference. ML Regression Inference may refer to any of the models generated by ML Train Regression.
+
+ML Regression Inference applies the trained model to inputs. These inputs can be _seen inputs_ which were included as input components of the data set. They can also be _unseen inputs_ that are not part of any example of the data set. ML Regression Inference takes its inputs and computes its outputs in the same format included as inputs and targets in the data set. This means if you want to apply ML Regression Inference to an input pose, ML Pose Serialize must be applied to that input pose first. The output of ML Regression Inference consists of PCA components. These PCA components are converted back to a skin deformation using the inverse of the steps that are applied to each skin deformation in the pre-processing stages:
+* compute a skin displacement from the PCA components
+* apply the skin displacement to the deformed skin.
+
+The analysis subnetwork also allows the results of both linear blend skinning and the machine learning model to be compared to the ground truth. This allows you to see how accurate the model is on trained poses. It also allows you to see how accurate the model is on poses outside the training data set using ground truths generated separately for those unseen poses.
+
+#### APEX Setup
+
+There is a separate scene file `pose_using_ml.hip` that allows you to pose a trained model. It uses two assets that help automate the translation from the PCA components generated by the ML model to deformed skins. You can manually modify the input pose and see what the skin deformation predicted by a trained ML model looks like.
+
+============================================================
+
+## ML-related nodes for animation and character
+
+= ML-related nodes for animation and character =
+
+These ML-related nodes incorporate ML in their process or end product, either through training data or during inference. They are not intended as building blocks for ML pipelines.
+
+ML Pose Serialize SOP |
+    #width: 25%
+
+    Extracts the transforms from a specified subset of joints and represents them collectively as a float point attribute. A joint group can be specified. Only joints from the joint group will have components of their transforms serialized.
+
+ML Pose Deserialize SOP |
+
+    Helps to convert a rig pose that was previously serialized using __ML Pose Serialize__ back into a rig pose. It reconverts the transforms from a specified subset of joints from a float point attribute. A joint group can be specified. Only joints from the joint group will have components of their transforms deserialized.
+
+ML Deform SOP |
+
+    Uses a trained ML model to deform the skin of a character. It uses the same inputs as Bone Deform SOP with a fourth input for residual blend shapes. Each residual blend shape defines a displacement point in the skin mesh. Internally, the ML model predicts weights to combine the residual blend shapes to apply a correction to the rest skin.
+
+APEX Add ML Deformer SOP |
+
+    Allows a model trained using the __ML Train Deformer__ recipe to be used in APEX rig.
+
+Armature Deform SOP and Armature Capture SOP |
+
+    Deform organic tissue repeatedly using skeleton poses. You can use these nodes to generate training data for an ML deformer and other applications outside of ML.
+
+============================================================
+
+## ML-related nodes for images
+
+= ML-related nodes for images =
+
+These ML-related nodes incorporate ML in their process or end product, either through training data or during inference. They are not intended as building blocks for ML pipelines.
+
+ML Train Style Transfer TOP |
+    #width: 25%
+
+    Trains a machine learning model for doing style transfer between two classes of images. The resulting model can be used with ONNX Interface SOP  or ONNX Inference COP .
+
+ML Train OIDN TOP |
+
+    A wrapper around the OIDN training script used to train an OIDN denoising filter model on preprocessed training and validation datasets. Generally, you should use this node with Preprocess OIDN.
+
+ML Preprocess OIDN TOP |
+
+    A wrapper around the OIDN preprocessing script used to preprocess training and validation datasets compliant with the OIDN dataset naming scheme.
+
+PDG ML Training Monitor Panel |
+
+    Can inspect the training progress and plots of the ML Train Style Transfer TOP  and ML Train Regression TOP .
+
+============================================================
+
+## ML-related nodes for volumes
+
+= ML-related nodes for volumes =
+
+These ML-related nodes incorporate ML in their process or end product, either through training data or during inference. They are not intended as building blocks for ML pipelines.
+
+__ML Train Volume Upres__ recipe |
+    #width: 25%
+
+    Train your own pyro upres model. A trained model can be used to make a lowres pyro sim look more like a highres pyro sim, without actually running a highres pyro sim.
+
+ML Volume Tile Component |
+
+    Crop tiles from a given volume at one or multiple provided point positions. This is useful for creating training data from 3D volumes. This node is part of the __ML Train Volume Upres__ recipe.
+
+ML Volume Tile Inference |
+
+    Run an ONNX model on a volume without creating any seams by splitting it up into tiles.
+
+ML Volume Res |
+
+    Run an ONNX model that was trained using the new __ML Train Volume Upres__ recipe.
+
+Sparse Billowy Smoke shelf tool |
+
+    Updated to use ML Volume Upres node to upscale and sharpen the smoke simulation using a pretrained ONNX machine learning model. It creates thick cloud-like smoke rising from a spherical base and is useful as a starting point for simulating scenarios such as chimney smoke or cooling tower steam.
+
+Neural Point Surface SOP |
+
+    Takes a point cloud as input and reconstructs a VDB surface from it. It contains multiple specialized pretrained models to yield specific looks depending on the material being surfaced. In general, this node should allow users to reconstruct smooth surfaces while preserving the sharp, high frequency, details described by the point cloud.
+
+    :col:
+        :video:
+            #src: /videos/sopflip/NPS_beach.mp4
+    
+    :col:
+        :video:
+            #src: /videos/sopflip/NPS_snow.mp4
+
+MPM Surface SOP |
+
+    Has options to use Neural Model.
+
+============================================================
+
+## Overview
+
+= Overview =
+
+Houdini offers a variety of nodes that support the various stages of machine learning (ML).
+These stages include synthetic data generation, data preprocessing, neural network training, exporting models, and applying neural networks (inference).
+
+Houdini provides two types of nodes for ML: 
+
+* low-level ML nodes
+* more specialized example-based ML nodes.
+
+The low-level ML nodes allow you to output raw files, import raw files, perform inference using ONNX, and train using external PyTorch scripts. These nodes are powerful and exist at a relatively low level of abstraction. See Low-level ML nodes for more information.
+
+The example-based ML nodes support supervised ML applications, including regression. They make it easy to create and pre-process a data set consisting of labeled examples. A specialized regression training node allows you to train a model on the data set without having to write a PyTorch script. A specialized inference node makes it easy to apply the resulting ML model in SOPs. See Example-based ML nodes for more information.
+
+============================================================
+
+## Data Processing Strategies
+
+= Data Processing Strategies =
+
+You can use various approaches for generating and preprocessing synthetic data sets in Houdini. Each of these approaches relies on a different feature of SOP or TOP. The following features enable methods for processing data sets:
+* TOP work items
+* frames on the playbar
+* SOP invoke
+* SOP for-loop
+
+There is not a single best method to process data points for all applications of ML. Each approach has its own advantages and disadvantages when it comes to processing speed, memory use, intrusiveness, and setup simplicity.
+
+### TOP work items
+Each data point in the data set corresponds to a work item. A network in SOPs may be re-cooked in a separate process for each work item. This setup typically requires minimal changes to an existing procedural network. It may be enough to insert a single TOPs node that controls which input from a sample set is being cooked. 
+
+If a single data point is expensive, for example tens of seconds to generate, then the best apporach may be processing a single data point per work item. This approach can incorporate into an existing setup with minimal changes.
+
+If a single data point is fast to compute, then the overhead of starting a new process of each work item dominates the time it takes to prepare the data set. In that case, alternative approaches such as __SOP for-loops__ or __SOP for-loops on batches__ may work better.
+
+### Frames on the playbar
+Each frame corresponds to a frame and is the data point's index of the data set. It's also efficient for light-weight data point generation.
+
+This setup may not always apply. For example, it may not work when each data point involves a time-dependent simulatio which needs to work with frames. If there are a lot of data points, then working with frames becomes more cumbersome.
+
+### SOP Invoke
+A great way to set up data set generation and preprocessing. The processing of a single data point is put in a compiled block. This is limited only to SOP nodes that can be compiled.
+
+### SOP for loop
+Using __for begin/end constructs__ in SOPs is one of the fastest ways to process data points.
+However, there may be a disadvantage for memory use. When processing uncompressed (unpreprocessed) data, the entire uncompressed data set is held in memory at once, which may not be possible.
+
+### SOP for loop on batches
+This can amortize the overhead cost of cooking work items from TOPs by cooking multiple data points per work item; each work item activates a for begin/end construct in SOPs. This hybrid approach allows the amount of SOP data held in memory to be limited by not making the number of data points cooked in the for begin/end construct too large.
+
+============================================================
+
+## Regression training
+
+= Regression training =
+
+The basic training node ML Train Regression supports regression problems where you model functions from a fixed number of continuous variables to another tuple of continuous variables. It serves as an example to create your own more specific training nodes. 
+
+This node trains the parameters (weights and biases) of a feed-forward neural network that consists of fully connected layers. The depth of the network is controlled by choosing the number of hidden layers. You can control the width of each hidden layer as well.
+
+### Activation Functions
+
+ML Train Regression uses the mean squared error as its cost function for training. This makes the identity function the choice of activation function for the output layer. There are no nonlinearities directly before the output units.
+
+For each hidden layer, the nonlinear activation function is the hyperbolic tangent function (`tanh`). This means choosing zero hidden layers turns the neural network into a linear transformation.
+
+### Weight Initialization
+
+The parameters of the neural network are initialized using pseudo-random numbers, based on the specified random seed. Choosing a different random seed gives you a different initialization of the weights.
+
+Training doesn't always lead to a global minimum of the cost function; the training may terminate at a local minimum. Even in cases where each local minimum is a global minimum, there are usually many equivalent minima due to weight-space symmetries. Different initial parameters may lead to a different trained network with a different cost. It may be useful to train multiple networks, each using a different random seed, to see which one gives the best result. You can set this up in TOPs using a Wedge.
+
+### Regularization
+
+If the data set's size is small, there are some basic regularization techniques available that prevent overfitting. These techniques can limit the effective complexity of a trained model, improving its generalization to unseen inputs.
+
+ML Train Regression supports two regularization techniques: weight decay and early stopping.
+
+Weight decay includes a term in the cost function aimed at keeping the weights (but not the biases) small. 
+
+Early stopping divides the data set up into two separate portions: a training portion and a validation portion. The training portion optimizes the parameters of the neural network. The validation portion determines when training should stop; it should stop as soon as the network's performance stops improving on the unseen examples of the validation portion.
+
+### Limitations of ML Train Regression
+The basic ML Train Regression cannot possibly cover all existing deep-learning approaches for regression problems. It provides enough flexibility to allow a variety of experiments with regression ML in Houdini without having to write a PyTorch script. It is also used by the 20.5 version of the ML Deformer.
+
+However, as you experiment more with ML approaches in Houdini, you may find that you need functionality not supported by this basic training node. For example, you may want to incorporate a sparser network architecture, skip-layer connections, other activation functions, an alternative cost function, a more complex regularization approach, latent inputs for an auto-decoder approach, or weight normalization.
+
+If this is the case, the training script PyTorch training script that underlies ML Train Regression may still be a useful starting point. The training script is found in the folder $HHP/hutil/ml/regression. If you are familiar with Python and PyTorch, you can modify and extend this script and then use it in combination with the Python Virtual Environment and Python Script. 
+
+You look inside of the ML Train Regression asset to see how your training script can be invoked. If you modify the script or create a script of your own, you will need to refer to its module on the Python Virtual Environment, otherwise the script will not be found by Python Script.
+
+============================================================
+
+## Data Set I/O
+
+= Data Set I/O =
+
+ML Train Regression creates a neural network that consists of an input layer, several hidden layers, and an output layer. This neural network's input is an array of numbers, one number for each node in the input layer. Similarly, the output is an array of numbers, one number for each node in the output layer.
+
+Each labeled example must be converted into an array of input values matching the input layer and an array of target values matching the output layer. ROP ML Example Raw Output helps you do this. See mldeformer for a better explanation of the ML Deformer H20.5 content-library example.
+
+This setup uses ML to learn how a tissue simulation driven by a constraining pose deforms the skin. Each labeled example consists of a rig pose (input component) and a deformed skin (target component). Each rig pose and each skin deformation needs to be converted into arrays of numbers before it can be training data. The data sent into ROP ML Example Raw Output should be all using point attributes or volumes and writes out the corresponding arrays of numbers to a raw file.
+
+To make your setup work with the example-based ML framework, you may need to convert your training examples into a representation that consists of multiple point attributes and/or volumes. You can use Point Wrangle or Volume Wrangle. For applying ML to animation, you can use the ML adapter node ML Pose Serialize. The conversion to point attributes and/or volumes typically happens in two distinct places where they must happen in the exact same way:
+# During the creation of the set of labeled examples that constitute the data set
+# When applying the model that was trained using this data set (inferencing).
+
+The output of inferencing is a geometry with point attributes and volumes that hold the output data. This output may need to be converted to a more desirable form afterwards.
+
+The conversion of examples for training or inferencing isn't always reversible and can be lossy. For example, the model trained by the ML Deformer example outputs PCA weights created by Principal Component Analysis instead of the coordinate of each skin point. This reduces the output dimension of the learning problem making the neural network much smaller and easier to train.
+
+============================================================
+
+## Top nodes for ML
+
+= Top nodes for ML =
+
+The TOP context, also referred to as PDG, allows you to create a process that includes all stages of machine learning, resulting in a fully automated ML pipeline. These stages include:
+* data set generation
+* preprocessing
+* writing data sets to disk
+* training using a data set written to disk
+* repated training using varying hyperparameters
+* applying a trained model for a set of unseen inputs.
+
+A TOP network allows you to lay out all these stages in a step-by-step process. By cooking the last TOP node, all the desired steps are taken automatically without having to manually go to various nodes and save their output to disk.
+
+### Useful TOP nodes
+
+A few TOP nodes stand out as being particularly useful for machine learning.
+
+Geometry Import can perform a type of computation repeatedly, based on the number of primitives that exists in a specified geometry. Each primitive could correspond to a single data point of a data set to be generated or preprocessed. This provides a clean way to control the size of the data set near the source of the data in SOPs, without having to create custom expressions in TOPs. Geometry Import generates a set of work items, one for each primitive. If the geometry referenced by Geometry Import is created in an earlier stage of in TOP network, then make sure to set the parameter __Generate When__ to __All Upstream Items are Cooked__.
+
+Use Attribute Create to assign each work item a data-point index, which can be referenced from a SOP network to cook each data point. 
+
+A ROP Fetch can be used to ensure that each invidual data point is generated and written out to disk. Afterwards, a separate ROP Fetch can be used to ensure that the entire merged data set, consisting of all the data points, is written to a single file that can be read in by a training script.
+
+As an alternative to generating each data point of a data set as a single work item in PDG, the entire data set may be generated using a for-loop in SOP. With this approach, a ROP Fetch can write the entire data set to a file.
+
+Alternatively, you can also use a batch approach where each work-item in TOPs corresponds to a batch of data points. Each batch can be cooked using a for-loop in SOPs.
+
+#### TOP nodes for training
+
+After the data has been written out, training may proceed using a combination of Python Virtual Environment and Python Script. This helps run your own python training script that uses pytorch, exporting your model to ONNX. 
+
+For doing regression ML, it is recommend to use the more specialized node ML Train Regression, instead of writing your own script. Even if your ML application falls outside the scope of regression ML, the underlying scripts referenced by ML Train Regression, which are located in $HHP/hutil/ml/regression, may provide a useful starting point for writing an ML training script of your own that works with Houdini.
+
+You can use ROP Geometry Raw Output to write your data set to a file that you can reference from your training script. The example-based ML toolset has its own, more specialized output node ROP ML Example Raw Output.
+
+The ML training can be re-run for various hyperparameters such as the number of hidden layers and a weight decay parameter. There may be others depending on the script you write. To automatically repeat the training stage of the TOP process for various combinations of these hyperparameters, you can use one or more Wedge nodes in TOP.
+
+### ML on a farm using HQueue
+
+You can do your entire data generation and training on a farm using the HQueue Scheduler. It's recommended that you change the following settings before you do this:
+* In Scheduler/HFS, set the Python parameter to __From HFS__. This ensures the python version that ships with Houdini runs the training script.

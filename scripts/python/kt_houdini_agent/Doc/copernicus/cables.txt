@@ -1,0 +1,176 @@
+= Cables =
+
+"""Describes what cables are and how to use them in your network."""
+
+== Overview ==
+
+A cable is a wire that's made up of multiple, individual wires (inputs). Cables let you connect multiple wires to an input port using only one wire. This is useful when you want to apply the same node to multiple outputs, since you don't have to wire each output into an input. Cables also allow for variadic inputs and outputs on HDAs.
+
+The wires in a cable are identified by their names (with the collation index used to disambiguate if there are multiple wires sharing the same name). By default, cables maintain their original wire order as they travel through the network. You can use the [Cable Sort COP|Node:/cop/cablesort] to instead sort the wires alphabetically based on their names.
+
+Cables allow for and simplify several workflows:
+
+* With a cable output, HDAs can export a variable number of results through their fixed ports (see [Export all AOVs of a file through an HDA|#export_aovs]).
+* With a cable port, HDAs can accept a variable number of inputs (see [Accept a variable number of layers on an HDA|#accept_layers]).
+* A cable wired into an ordinary port of a node forces the node to loop over its wires (see [Effect of cable inputs|#cable_inputs]).
+* Wires of a cable can be distributed among the inputs of a node, which lets you potentially connect a cable instead of many wires. This works through [input overrides|#cable_of_all] or for special [variadic inputs|#cable_inputs].
+* Cables can store structured data. For example, the [Preview Material COP|Node:/cop/previewmaterial] outputs a cable that contains all its constituent maps. This makes it easier to carry the material around and combine it with other materials (see [Author a material cable|#author_material] and [Blend two materials|#blend_materials]).
+
+=== Input Override and All Outputs cables === (cable_of_all)
+
+Some Copernicus nodes have green blocks on their upper-left or upper-right sides. These are known as the following:
+
+* Upper-left block: __Input Override Port__
+* Upper-left block's wire: __Input Override Cable__
+* Upper-right block: __All Outputs Port__
+* Upper-right block's wire: __All Outputs Cable__
+
+The __Input Override Port__ takes the __Input Override Cable__ and overrides the node's usual inputs. Add this port to any COP node by choosing __Add Input Override Port__ from the parameter editor's [Icon:BUTTONS/gear] Gear menu. Overrides are applied by matching wire names in the __Input Override Cable__ against the node's input labels.
+
+NOTE:
+    Network wires take precedence over the __Input Override Cable__. For example, if the __Input Override Cable__ has a wire named `bright` and the `bright` input port on the node has a wire connected to it, then that concrete wire is used instead of what comes in through the __Input Override Cable__.
+
+The __All Outputs Port__ generates the __All Outputs Cable__, which packs the node's outputs into a cable. Wires of the __All Outputs Cable__ are named based on output labels of the originating node. This port is especially useful for procedurally grabbing variadic outputs (for example, from the [File COP|Node:/cop/file]). The __All Outputs Port__ is present on any COP that has the possibility of generating more than one output.
+
+== How to use cable nodes == (how_to)
+
+:task: Create a cable:
+    # Create a [Cable Pack COP|Node:/cop/cablepack] in your Copernicus network.
+    # Wire node outputs into their own `input#` on the Cable Pack COP. Wire in as many node outputs that you want in the cable.
+    For example, wire in three [SDF Shape COPs|Node:/cop/sdfshape] to pack a circle, star, and diamond together.
+    # Click __Set Fields from Inputs__ to automatically populate the Cable Pack COP with the names of all the connected inputs (wires).
+
+        TIP:
+            You can edit the __Name__ fields.
+    
+        You can now wire the `cable` output into any COP node. These downstream nodes apply to each of the original inputs.
+
+:task: Turn a cable back into multiple wires:
+    # Create a [Cable Unpack COP|Node:/cop/cableunpack] in your Copernicus network.
+    # Wire a cable into the `cable` input.
+    # Click __Set Fields from Input__ to automatically populate the Cable Unpack COP with the information of all the original inputs (wires) that make up the cable.
+    
+        You can now individually wire the outputs into any COP node.
+
+:task: Combine two cables:
+    # Create a [Cable Merge COP|Node:/cop/cablemerge] in your Copernicus network.
+    # Wire a cable into the `input_cable` input and another cable into the `reference` input.
+    # Set __Operation__ to determine how the node merges the cables. For example, set it to `Difference` so that the `merge` output includes every wire in the first cable that's not in the second cable.
+    
+        You can now wire the `merge` output into any COP node.
+
+:task: Switch between two cables:
+    # Create a [Cable Switch COP|Node:/cop/cableswitch] in your Copernicus network.
+    # Wire a cable into the `first` input and another cable into the `second` input.
+    # Set __Select Input__ to determine which cable the node outputs. `0` outputs the `first` input cable and `1` outputs the `second` input cable.
+    
+        You can now switch between which cable is output.
+
+:task: Separate a cable based on filters:
+    # Create a [Cable Split COP|Node:/cop/cablesplit] in your Copernicus network.
+    # Wire a cable into the `cable` input.
+    # Configure the parameters to output two cables: one with the wires that match the filters and one with the wires that don't match the filters.
+    
+        You now have two separate cables that you can wire into any COP node.
+
+:task: Edit a cable:
+    You can use other nodes to edit a cable in the following ways:
+
+    * Wire a cable into the [Cable Filter COP|Node:/cop/cablefilter] to remove empty wires.
+
+        _or_
+
+    * Wire a cable into the [Cable Rename COP|Node:/cop/cablerename] to rename that cable's wires.
+
+        _or_
+
+    * Wire a cable into the [Cable Sort COP|Node:/cop/cablesort] to sort that cable's wires alphabetically by name.
+
+=== Effect of cable inputs === (cable_inputs)
+
+Connect cables to ordinary ports to force the node to process each wire of the cable. This is similar to unpacking the cable, connecting each individual wire to a new copy of the target node, and then packing all of those results back into a cable. Likewise, cables of the same size can connect to different inputs of the node. In this case, each cook of the node uses a different set of wires from these cables. If a simple wire is connected to one of the other ports in this scenario, its data is used for cooking every output wire.
+
+For example, you have a `Cable1` that consists of `C` (RGBA), `depth` (Mono), and `diffuse` (RGB) wires and a `Cable2` that consists of `color` (RGBA), `depth` (Mono), and `Cd` (RGB) wires. If you connect `Cable1` and `Cable2` to the [Blend COP's|Node:/cop/blend] `bg` and `fg` inputs, respectively, the `blend` output is a cable with the same structure as `Cable1`. If you also connect a Mono layer to the node's `mask` input, that mask affects the result of blending for all three output wires.
+
+NOTE:
+    Since you can't currently nest cables, the above example doesn't work for operators with prescribed cable outputs.
+
+Many nodes with variadic inputs (for example, [Contact Sheet COP|Node:/cop/contactsheet] and [Stamp Points COP|Node:/cop/stamppoint]) also accept a cable in the variadic port. When a cable is connected to such an input, its wires distribute to subsequent subports. For example, if a cable with four Mono wires connects to a Contact Sheet COP, it acts as if the four wires were individually connected to the node.
+
+[Image:/images/copernicus/cables_variadic_contactsheet.jpg]
+
+== How to utilize cables == (advanced_howto)
+
+:task: Export all AOVs of a file through an HDA:
+    #id: export_aovs
+    # Create a [Subnetwork COP|Node:/cop/subnet] in the COP context and dive into the node.
+    # Add a [File COP|Node:/cop/file] and connect its __All Outputs Cable__ (from the __All Outputs Port__ upper-right block) to the [Output COP|Node:/cop/output] that pre-exists in this network.
+
+        NOTE:
+            The following steps refer to the File COP's default name, which is `file1`.
+
+    # Go back up to the Copernicus network.
+    # ((RMB)) the Subnetwork COP and choose __Create Digital Asset__ to [turn it into an HDA|/assets/create]. The [Edit Operator Type Properties window|/ref/windows/optype] opens after you create the HDA.
+    # In the __Edit Operator Type Properties__ window, click the __Input/Output__ tab and do the following:
+        # Delete the `input1` entry in the Inputs spreadsheet.
+        # In the Outputs spreadsheet, click the `default` signature's cell in the `output1` row and change the type to `Cable`.
+    # Click the __Parameters__ tab and do the following to promote parameters from the contained node:
+        # Click the __From Nodes__ tab in the __Create Parameters__ section.
+        # Find and expand `file1` in the tree view.
+        # Drag its `File Name (filename)` and `Add AOVs from File (addaovs)` parameters to the __Existing Parameters__ section.
+    # Click the __Node__ tab and enter `file1` in the __Editable Nodes__ parameter. This lets that node's parameters be changed by the callback when the __Add AOVs from File__ button is clicked on the HDA.
+    # Click __Accept__ in the __Edit Operator Type Properties__ window.
+    
+    You can now put down an instance of this HDA, select a file, and click __Add AOVs from File__. Its output cable contains every AOV in the selected file.
+
+:task: Accept a variable number of layers on an HDA:
+    #id: accept_layers
+    # Create a [Subnetwork COP|Node:/cop/subnet] in the COP context and dive into the node.
+    # Add a [Contact Sheet COP|Node:/cop/contactsheet] and connect its __All Outputs Cable__ (from the __All Outputs Port__ upper-right block) to the [Output COP|Node:/cop/output] that pre-exists in this network.
+    # Connect the __All Outputs Cable__ of the [Input COP|Node:/cop/input] that pre-exists in this network to the Contact Sheet COP.
+    # Go back up to the Copernicus network.
+    # ((RMB)) the Subnetwork COP and choose __Create Digital Asset__ to [turn it into an HDA|/assets/create]. The [Edit Operator Type Properties window|/ref/windows/optype] opens after you create the HDA.
+    # In the __Edit Operator Type Properties__ window, click the __Input/Output__ tab.
+    # In the Inputs spreadsheet, click the `default` signature's cell in the `input1` row and change the type to `Cable`.
+    # In the Outputs spreadsheet, click the `default` signature's cell in the `output1` row and change the type to `RGBA`.
+    # Click __Accept__ in the __Edit Operator Type Properties__ window.
+    
+    You can now put down an instance of this HDA and connect a cable with several layers to it. The wires of this incoming cable are assembled into a mosaic for the output.
+
+:task: Author a material cable:
+    #id: author_material
+    # Create a [Preview Material COP|Node:/cop/previewmaterial] in your Copernicus network.
+    # Adjust its parameters and inputs to create a custom material. The node's `material` cable output contains all the texture maps that go into reconstructing the material. 
+    # Wire the `material` cable into the __Input Override Port__ of another Preview Material COP to apply the material to another geometry.
+
+        NOTE:
+            In the Preview Material's parameter editor, choose __Add Input Override Port__ from the [Icon:BUTTONS/gear] Gear menu to add an override port.
+
+        TIP:
+            Wire this cable into other [Cable COPs|#how_to] (such as Cable Split) to separate out, modify, and re-pack specific layers of the material.
+
+:task: Blend two materials:
+    #id: blend_materials
+    # Follow the [Author a material cable|#author_material] steps to create two different materials using two [Preview Material COPs|Node:/cop/previewmaterial].
+    # Add a [Blend COP|Node:/cop/blend].
+    # Connect the `material` cables of the two Preview Material COPs to the `bg` and `fg` inputs of the Blend COP.
+    # Add another Preview Material COP.
+    # Connect the `blend` cable output of the Blend COP to the __Input Override Port__ of the newest Preview Material COP. This node shows the effect of applying the blended material.
+    
+        NOTE:
+            In the Preview Material's parameter editor, choose __Add Input Override Port__ from the [Icon:BUTTONS/gear] Gear menu to add an override port.
+
+    # (Optional) Adjust the Blend COP's __Mask__ parameter to control the blending ratio between the two materials. Wire a layer into the Blend COP's `mask` input to spatially vary the blending amount.
+
+    :fig:[Image:/images/copernicus/cables_materials.jpg]
+        """Two bark materials (left and middle) and their blended version (right). Image courtesy of Andriy Bilichenko."""
+
+@related
+- [Node:cop/cablepack]
+- [Node:cop/cableunpack]
+- [Node:cop/cablefilter]
+- [Node:cop/cablemerge]
+- [Node:cop/cablerename]
+- [Node:cop/cablesort]
+- [Node:cop/cablesplit]
+- [Node:cop/cableswitch]

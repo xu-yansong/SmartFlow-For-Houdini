@@ -1,0 +1,17 @@
+= Data Set I/O =
+
+[ML Train Regression|Node:top/ml_trainregression] creates a neural network that consists of an input layer, several hidden layers, and an output layer. This neural network's input is an array of numbers, one number for each node in the input layer. Similarly, the output is an array of numbers, one number for each node in the output layer.
+
+Each labeled example must be converted into an array of input values matching the input layer and an array of target values matching the output layer. [ROP ML Example Raw Output|Node:sop/rop_ml_exampleraw] helps you do this. See [mldeformer] for a better explanation of the ML Deformer H20.5 content-library example.
+
+This setup uses ML to learn how a tissue simulation driven by a constraining pose deforms the skin. Each labeled example consists of a rig pose (input component) and a deformed skin (target component). Each rig pose and each skin deformation needs to be converted into arrays of numbers before it can be training data. The data sent into [ROP ML Example Raw Output|Node:sop/rop_ml_exampleraw] should be all using point attributes or volumes and writes out the corresponding arrays of numbers to a raw file.
+
+To make your setup work with the example-based ML framework, you may need to convert your training examples into a representation that consists of multiple point attributes and/or volumes. You can use [Point Wrangle|Node:sop/pointwrangle] or [Volume Wrangle|Node:sop/volumewrangle]. For applying ML to animation, you can use the ML adapter node [ML Pose Serialize|Node:sop/ml_poseserialize]. The conversion to point attributes and/or volumes typically happens in two distinct places where they must happen in the exact same way:
+# During the creation of the set of labeled examples that constitute the data set
+# When applying the model that was trained using this data set (inferencing).
+
+The output of inferencing is a geometry with point attributes and volumes that hold the output data. This output may need to be converted to a more desirable form afterwards.
+
+The conversion of examples for training or inferencing isn't always reversible and can be lossy. For example, the model trained by the ML Deformer example outputs PCA weights created by [Principal Component Analysis|Node:sop/pca] instead of the coordinate of each skin point. This reduces the output dimension of the learning problem making the neural network much smaller and easier to train.
+
+

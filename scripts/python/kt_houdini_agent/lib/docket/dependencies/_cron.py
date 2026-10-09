@@ -1,0 +1,117 @@
+"""Cron-style scheduling dependency."""
+
+from __future__ import annotations
+
+from datetime import datetime, timezone, tzinfo
+from typing import TYPE_CHECKING
+
+from cronsim import CronSim
+
+from ._base import current_execution
+from ._perpetual import Perpetual
+
+if TYPE_CHECKING:  # pragma: no cover
+    from ._base import TaskOutcome
+    from ..execution import Execution
+
+VIXIE_KEYWORDS: dict[str, str] = {
+    "@yearly": "0 0 1 1 *",
+    "@annually": "0 0 1 1 *",
+    "@monthly": "0 0 1 * *",
+    "@weekly": "0 0 * * 0",
+    "@daily": "0 0 * * *",
+    "@midnight": "0 0 * * *",
+    "@hourly": "0 * * * *",
+}
+
+
+class Cron(Perpetual):
+    """Declare a task that should run on a cron schedule. Cron tasks are automatically
+    rescheduled for the next matching time after they finish (whether they succeed or
+    fail). By default, a cron task is scheduled at worker startup with `automatic=True`.
+
+    Unlike `Perpetual` which schedules based on intervals from the current time, `Cron`
+    schedules based on wall-clock time, ensuring tasks run at consistent times regardless
+    of execution duration or delays.
+
+    Supports standard cron expressions and Vixie cron-style keywords (@daily, @hourly, etc.).
+
+    Example:
+
+    ```python
+    from zoneinfo import ZoneInfo
+
+    @task
+    async def weekly_report(cron: Cron = Cron("0 9 * * 1")) -> None:
+        # Runs every Monday at 9:00 AM UTC
+        ...
+
+    @task
+    async def daily_cleanup(cron: Cron = Cron("@daily")) -> None:
+        # Runs every day at midnight UTC
+        ...
+
+    @task
+    async def morning_standup(
+        cron: Cron = Cron("0 9 * * 1-5", tz=ZoneInfo("America/Los_Angeles"))
+    ) -> None:
+        # Runs weekdays at 9:00 AM Pacific (handles DST automatically)
+        ...
+    ```
+    """
+
+    expression: str
+    tz: tzinfo
+
+    _iterator: CronSim
+
+    def __init__(
+        self,
+        expression: str,
+        automatic: bool = True,
+        tz: tzinfo = timezone.utc,
+    ) -> None:
+        """
+        Args:
+            expression: A cron expression string. Supports:
+                - Standard 5-field syntax: "minute hour day month weekday"
+                  (e.g., "0 9 * * 1" for Mondays at 9 AM)
+                - Vixie cron keywords: @yearly, @annually, @monthly, @weekly,
+                  @daily, @midnight, @hourly
+            automatic: If set, this task will be automatically scheduled during worker
+                startup and continually through the worker's lifespan. This ensures
+                that the task will always be scheduled despite crashes and other
+                adverse conditions. Automatic tasks must not require any arguments.
+            tz: Timezone for interpreting the cron expression. Defaults to UTC.
+                Use `ZoneInfo("America/Los_Angeles")` for Pacific time, etc.
+                This correctly handles daylight saving time transitions.
+        """
+        super().__init__(automatic=automatic)
+        self.expression = VIXIE_KEYWORDS.get(expression, expression)
+        self.tz = tz
+        self._iterator = CronSim(self.expression, datetime.now(self.tz))
+
+    async def __aenter__(self) -> Cron:
+        execution = current_execution.get()
+        cron = Cron(expression=self.expression, automatic=self.automatic, tz=self.tz)
+        cron.args = execution.args
+        cron.kwargs = execution.kwargs
+        return cron
+
+    def next_time(self) -> datetime:
+        """Return the next matching cron time from the underlying iterator."""
+        return next(self._iterator)
+
+    @property
+    def initial_when(self) -> datetime:
+        """Return the next cron time for initial scheduling."""
+        return self.next_time()
+
+    async def on_complete(self, execution: Execution, outcome: TaskOutcome) -> bool:
+        """Handle completion by scheduling the next execution at the exact cron time.
+
+        This overrides Perpetual's on_complete to ensure we hit the exact wall-clock
+        time rather than adjusting for task duration.
+        """
+        self.at(self.next_time())
+        return await super().on_complete(execution, outcome)

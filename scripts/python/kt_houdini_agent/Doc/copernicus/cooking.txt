@@ -1,0 +1,49 @@
+= Cooking =
+
+"""Details the cooking methods that Copernicus uses."""
+
+== Overview ==
+
+Cooking is when you run a network to produce its results. You can cook Copernicus networks using the [traditional|#traditional] or [compiled|#compiled] method. Copernicus doesn't cache data based on time, so it recooks everytime you change frames in the timeline.
+
+Copernicus automatically uses traditional cooking when you view a node in the COP network. The [COP Network SOP|Node:/sop/copnet], [ROP Image Output COP|Node:/cop/rop_image], and [Image ROP|Node:/out/image] have a __Compiled Cook__ parameter that you can turn on to change from traditional (the default) to compiled cooking. For the COP Network SOP, this parameter only applies when cooking the result of the SOP as a whole because cooking individual COPs in the network still uses traditional cooking.
+
+TIP:
+    When you turn on __Compiled Cook__ in the COP Network SOP, the __Output APEX Graph__ parameter appears. Turn on __Output APEX Graph__ to output the [APEX graph|/character/kinefx/apexgraphs].
+
+=== Traditional cooking === (traditional)
+Traditional cooking is the default method that Copernicus uses and is similar to how SOPs cook in the network. Each non-HDA COP grabs all of its inputs and then cooks all of its outputs. Traditional cooking caches intermeditate results on the node, which allows for fast displays of previously-cooked results when you change display flags.
+
+The following are scenarios when traditional cooking is beneficial:
+* Interactive workflows
+* Your network has a large chain of nodes that may benefit from caching
+* You want to save out a huge network where most of the network isn't time dependent
+
+=== Compiled cooking === (compiled)
+Compiled cooking is similar to how [Compiled Blocks|/model/compile] cook in SOPs. You choose a section of the network to cook, and then Copernicus analyzes the network and builds a program to get the requested results. This means compiled cooking has to build and run a new program to cache the results. Each non-HDA COP grabs only the inputs necessary to compute the required outputs, which means it only cooks the required data. Since storage is reused, Copernicus deletes unnecessary intermediate data and layers to minimize memory usage.
+
+The following are scenarios when compiled cooking is beneficial:
+* Rendering out results
+* You want to cook a section of the network
+
+NOTE:
+    :include /copernicus/_common_notes#comp_sim/:
+
+== Combining traditional and compiled cooking ==
+You can combine traditional and compiled cooking to cook part of a network.
+
+# In your Copernicus network, wire a [Block Begin COP|Node:/cop/block_begin] into the first node you want to cook.
+# Wire the last node you want to cook into a [Block End COP|Node:/cop/block_end].
+    TIP:
+        Instead of manually adding a Block Begin and Block End COP, you can add a Block COP in your scene to automatically add the blocks.
+# Do one of the following:
+    * Turn on __Enable Compiling__ in the Block End COP to produce the outputs of the block using compiled cooking.
+    * Add an [Invoke Block COP|Node:/cop/invokeblock] and set __Block End Node__ to the Block End COP. This runs the block as a program with dynamically bound inputs.
+
+== Memory ==
+Copernicus uses OpenCL, which means it uses GPU memory and can require a lot of video RAM (vRAM). Houdini tracks how much vRAM the COP layers use. If the vRAM fills up, Houdini automatically moves the data into the main memory when the GPU memory is low or the current process uses more than the set amount of OpenCL memory. This can slow down Houdini's processing.
+
+You can use the [HOUDINI_OCL_COP_MEMORY variable|/ref/env] to control the amount of OpenCL device memory that COPs can use. You can also open the [Cache Manager window|/ref/windows/caches] (choose __Windows > Cache Manager__) to view or clear the current __COP OpenCL Buffer Cache__ memory.
+
+TIP:
+    :include /copernicus/tips#gpu_memory/:

@@ -1,0 +1,107 @@
+= Terracing =
+
+"""Step by step closer to the top."""
+
+In nature, rocks from lower layers are compressed through overlaying layers and therefore harder. The softer upper layers are eroded faster and create terraces. Terraces also indicate geological formations and the layers are often differently colored. The layers can also consist of different types of rock. A typical combination contains layers of sandstone, interrupted by clay. The type of material depends on the environmental conditions at the time of creation. Sandstone is often created under dry and arid conditions, while clay indicates humid periods with more precipitation. Limestone and slate, on the other hand, are marine sediments.
+
+[Image:/images/heightfields/terracing_sediments.jpg]
+
+You can find terraces at cliffs, slopes, mountains, riverbanks, quarries, canyons or landslides. However, these structures don't have to be huge and terraces also occur in relatively small areas like the banks of a creek. To sum up, one can say that terraces are a good method to enhance your terrain's overall appearance and mimic geological structures.
+
+Out of the box, Houdini's terraces often look artificial, because they have hard edges. That's why terraces are typically combined with other nodes and masks to give them a natural look. Even for man-made structures like the famous rice terraces in South Asia, it makes sense to add a slight amount of blurring or some mild erosion.
+
+Houdini's terraces are always horizontally aligned and there's no default method for changing their orientation. The terraces' height is also fixed and you need custom solutions to art-direct this feature. However, there are already many built-on functions to work on terraces.
+
+== Adding terraces ==
+
+The node for creating terraces is the [HeightField Terraces SOP|Node:sop/heightfield_terrace]. You can add this node anywhere inside your network, but you need at least a terrain, e.g. a [HeightField Noise SOP|Node:sop/heightfield_noise]. It's also possible to use multiple terrace nodes with different [masks|masking] and parameters.
+
+[Image:/images/heightfields/terracing_example.jpg]
+
+By default, the node creates terraces between a height of 10 and 100 meters. This is the masked area and displayed as a red band on your terrain. To modify this band, change the HeightField Terrace SOP's __Min Height__ and __Max Height__ parameters. If you're not sure about working values, click __Compute Range__.
+
+With __Fade__ you can blend terrain and terraces. A value of `0` means that you can see the pure terraces, while `1` will only show the original terrain. When you expand the __Terracing__ section, you will also a see __Fade Ramp__. This ramp lets you control where you want to see more or less terraces. You should also consider using __Smooth Edges__ for a softer look.
+
+With __Max Step Size__ you control the maximum height of the terraces in meters. As with __Fade__, you can apply a custom curves to get terraces of different height. However, there's no parameter that lets you directly create terraces with random height values. This would only be possible through a custom solution.
+
+== Mesa and cliffs ==
+
+The HeightField Terrace SOP writes out two layers called `mesa` and `cliffs`. You can find both layers in the __Output Layers__ section. The first layer (`mesa`) contains the horizontally clipped areas of the terraces. The second layer (`cliffs`) represents the vertical parts. Both layers are also masks and you can reuse them, e.g. if you want to [scatter|scattersop] rocks and plants only in specific areas.
+
+There are also three _slope_-based parameters that let you refine `mesa` and `cliffs`. However, the impact of the parameters is not always visible. For a better view, you can isolate the layers and adjust the parameters.
+
+# Add an [HeightField Isolate Layer SOP|Node:sop/heightfield_isolatelayer] and connect its input with the output of the HeightField Terrace SOP.
+# Turn on the isolate node's blue __Display/Render__ flag.
+# Go to __Layer to Isolate__ and replace the default entry with `cliffs` or, depending on which layer you want to display, `mesa`. You will now see the 2D projection of the chosen layer.
+# Select the upstream terrace node and change the _slope_ parameters. Note that __Mesa Max Slope__ only works on the `mesa` layer, while __Cliff Min Slope__ is exclusive to `cliffs`.
+
+[Image:/images/heightfields/terracing_layers.jpg]
+
+You can also change the terrace node's other parameters like __Min Height__ or __Fade__, and observe how your changes affect the layer masks. This often gives you a better impression of what the parameters do.
+
+== Example: Inclined terraces == (inclined)
+
+In nature, terraces are often horizontally aligned and the layers are stacked like the pages of a book. However, sometimes you can see inclined or folded layers, esp. in so-called folded mountains like the Alps. There, the African continental plate pushes against the European plate. Tectonic forces push the plates together and fold them. As a result, the rock is squeezed and deformed like layers of caramel.
+
+[Image:/images/heightfields/terracing_folded.jpg]
+
+Just on a side note: Another consequence of this continental motion is that the Mediterranean Sea will disappear some day.
+
+The HeightField Terrace node doesn't provide any methods to create folded terraces and you need a trick. Basically, the idea is to deform only the terraces through a pattern and reapply them to the terrain.
+
+=== Distortion pattern ===
+
+NOTE:
+    As in the heightfield guide's other examples, this setup also starts with the basic network consisting of a [HeightField SOP|Node:sop/heightfield] and a downstream [HeightField Noise SOP|Node:sop/heightfield_noise].
+
+You need a pattern to deform the terraces. The base of this pattern is a customizable ramp or curve to create bulges, folds, or a certain degree of inclination. You can also mix multiple patterns to create complex shapes.
+
+[Image:/images/heightfields/terracing_pattern.jpg]
+
+# Add a [HeightField Pattern SOP|Node:sop/heightfield_pattern]. Connect the HeightField Noise SOP's output with the _first_ input of the pattern node. Now the base heightfield has to connections: noise and pattern.
+# Turn on the pattern node's blue __Display/Render__ flag to see the result of your actions.
+# The default pattern is __Stars__. To change this, go to the __Pattern__ section's __Pattern__ dropdown menu and choose __Ramp__. You'll now see a saw tooth deformation.
+# The __Ramp Remapping__ graph lets you define a custom curve or choose one from the [Smallicon:BUTTONS/gear] __Presets__ menu. Choose __Hill__ to get wave pattern.
+# On the __Position__ tab, increase __Size__ to `600`. This is the size of the base terrain and creates several peaks that stretch over the heightfield.
+# If you want to control where the hills and valleys appear, change __Phase__. With `0.5`, for example, you shift the wave by 50% of the heightfield's length. That's 500 meter, also known as the terrain's midpoint.
+
+If you want, you can modify the curve, e.g. by adding extra control points, or maybe you want to try out one of the other presets.
+
+=== Subtract heightfields ===
+
+You have two separate heightfields now: noise and pattern. To combine them, lay down a [HeightField Layer SOP|Node:sop/heightfield_layer]. Connect the _first_ input with the output of the noise node. Link the _second_ input to the output of the pattern node (__Terrain to Layer__). Since both heightfield share the same layers (`height` and `mask`), the terrains are seamlessly merged.
+
+You will also notice that the entire heightfield is bulged now, because the layer node's __Layer Mode__ is set to __Add__. The idea here is to subtract the layers, apply the terraces, and then *add* the curve again. As a result, only the terraces will be distorted and bulged.
+
+* Set __Layer Mode__ to __Subtract__.
+
+[Image:/images/heightfields/terracing_subtract.jpg]
+
+=== Terracing ===
+
+Time to add the terraces. The only changes here concern the __Min Height__ and __Max Height__ parameters to shift the terraces away from the mountain tops towards the ground, and __Max Step Size__.
+
+# Lay down a HeightField Terrace SOP and connect its _first_ input with the output of the layer node.
+# Change __Min Height__ to `-80` and __Max Height__ to `-40`. The range, where terraces occur is 40 meters.
+# To get more, but thinner layers of rock, decrease __Max Step Size__ to `8`.
+
+[Image:/images/heightfields/terracing_terracing.jpg]
+
+The terraces appears as a red band and you can also apply a [mask|masking] to restrict the terraces to certain areas.
+
+=== Add heightfields ===
+
+In this step you'll merge the current terrain with the terraces and the pattern by adding both. This way you restore the terrain's original shape from the HeightField Noise and only the terraces will follow the wave pattern.
+
+# Add another HeightField Layer SOP.
+# Connect its _first_ input with the output of the terrace node. Then link the _second_ input_ to the output of the pattern node.
+
+Since the default __Layer__ node is already __Add__, you will immediately see the result of the merge. If you want a weaker distortion, go to the pattern node's __Height__ parameter and decrease it, e.g. to `75`.
+
+Of course, you can also experiment with different patterns, masks, and everything else Houdini's toolbox has to offer. To get a linear inclination, for example, choose __Linear__ or __Smooth__ from the pattern node's curve presets. With __Height__ you can control the amount of inclination.
+
+To get rid of the mask, you can add a [HeightField Mask Clear SOP|Node:sop/heightfield_layerclear] and terminate the network.
+
+Here's an example of what you can get with this method.
+
+[Image:/images/heightfields/terracing_result.jpg]

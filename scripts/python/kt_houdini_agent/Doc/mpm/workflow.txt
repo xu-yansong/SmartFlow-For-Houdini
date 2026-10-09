@@ -1,0 +1,74 @@
+= MPM Workflow =
+
+MPM networks are made up of 4 components: [MPM Source|Node:sop/mpmsource], [MPM Collider|Node:sop/mpmcollider], [MPM Container|Node:sop/mpmcontainer], and [MPM Solver|Node:sop/mpmsolver]. The set up is pretty straightforward, as the first three nodes are wired into the solver, respectively.
+
+[Image:/images/mpm/nodesetup.jpg]
+
+== MPM Source ==
+
+The [MPM Source|Node:sop/mpmsource] creates MPM particles from a geometry mesh or volume and defines the material type to be used for the simulation. The __Material Preset__ parameter is the most important one to be aware of when first putting down this node. It provides you with a selection of preset materials to quickly get a starting point when setting up a new simulation. These include the following material types: snow, soil, mud, concrete, metal, jello, rubber, water, honey, and sand. Different materials types will be slower or faster to simulate. For example, concrete is much stiffer than snow or water, so it requires more substeps and takes longer to simulate. If you have multiple source materials in the same simulation, the number of substeps will be driven by the stiffest material.
+
+The next thing you will want to set is whether or not the emission occurs __Once__, or is __Continuous__ using the __Emission Type__ dropdown menu.
+
+:col:
+    :fig: [Image:/images/mpm/onceemission.jpg]
+    
+:col:
+    :fig: [Image:/images/mpm/continuousemission.jpg]
+    
+    
+== MPM Collider ==
+
+The [MPM Collider|Node:sop/mpmcollider] has three collider types: static, transforming, or deforming. You can also choose whether the material is bounced or deleted once it hits the collider. It is important to note that only VDB colliders are supported. This node can create the VDB representation from a mesh or be provided with a VDB directly.
+
+:task: Set up a static collider:
+    Set the __Collider Type__ is set to __Static__.
+    
+    This is the default MPM Collider, as it is the most efficient. It is represented by a single VDB `surface` in memory throughout the simulation.
+    
+:task:  Set up a transforming collider:
+    # Use a [Transform SOP|Node:sop/xform] between your object and the MPM Collider and keyframe some transformations. For example, you can use the expression `$FF*10` in the Y value of the __Rotate__ parameter to cause your collider to rotate around the Y-axis.
+
+    # Set the __Collider Type__ to __Animated (Rigid)__.
+    
+    This is the most efficient of the animated colliders and it is extremely accurate as the transformation is interpolated between frames for each substep. It is represented by a single VDB along with a transformation matrix. Only the rigid transformation is updated per frame as the VDB `surface` never changes.
+    
+:task: Set up a deforming collider:
+    # Connect some deforming geometry to the MPM Collider.
+    
+    # Set the __Collider Type__ to __Animated (Deforming)__.
+    
+    This should only be used over the __Animated (Rigid)__ type when actual deformation is taking place, as it is the most expensive of the two. It is represented by a pair of `surface` and `vel` VDBs that must be updated on each frame. The fields are also interpolated between frames to yield better results, which requires two pairs of VDB to be uploaded on the OpenCL device per frame.
+    
+:task: Make the material stick to the collider:
+    In the __Material__ section, there are __Friction__ and __Sticky__ parameters. Increasing the value of the __Sticky__ parameter to `1` will cause things to stick to it as it moves.
+    
+    For an example of this, use the [tab menu|/basics/tabmenu] to put down the [MPM Configure Rolling Snowball|/mpm/mpmconfigure#snowball] example.
+ 
+== MPM Container ==
+
+The [MPM Container|Node:sop/mpmcontainer] defines the resolution and start frame of the MPM simulation, which means it must be connected to all MPM nodes involved in the solve. The [MPM Source|Node:sop/mpmsource], [MPM Collider|Node:sop/mpmcollider], and [MPM Solver|Node:sop/mpmsolver] all have an input to be connected to this node. This can optionally be done with a dependency link in the __MPM Container__ parameter on these nodes. If you choose to do this, make sure you have __Show for Selected Nodes__ turned on in the __Dependency Link__ section of the __View__ menu in the network editor.
+
+The parameters in the __Resolution__ section are very important, because this is where you set the global particle separation used to drive the resolution of the whole simulation. The __Particle Separation__ parameter not only sets the level of detail for the source, but also the collider. The __Grid Scale__ parameter multiplies the __Particle Separation__ to define the voxel width `dx` of the background grid. The default of `2` will pack `8` particles per voxel on average.
+
+You can optionally add boundaries to the simulation container. By default the container is unbounded, but it can be useful to define some limits where material particles are bounced or deleted on contact. You can do this in the __Boundaries__ section of the node.
+        
+== MPM Solver ==
+   
+The [MPM Solver|Node:sop/mpmsolver] does the actual work of solving the scene based on the sources and colliders passed to its first and second inputs respectively. 
+
+There are two types of substeps on this node: __Global Substeps__ and __Substeps Min/Max__. The __Global Substeps__ are the number of DOP substeps for each simulated frame. This should generally be kept to `1` for performance reasons, but could be increased to achieve smooth continuous emission. The __Substeps Min/Max__ set limits on the minimum and maximum number of substeps. The solver dynamically picks the lowest substep count based on the type and speed of the material. Although the max value is set at 10,000 by default, it doesn't mean 10,000 are necessarily being used. You can see the actual substep count on the outputted geometry as a detail attribute. The high default value is to account for stiffer materials, like concrete or metal, that will require more substeps and are expected to be slow.
+
+    TIP:
+        When facing instability, it is recommended to look at the [MPM Solver|Node:sop/mpmsolver]'s detail attributes to find the number substeps actually being computed on each frame. Using this information, it is often easy to raise the minimum substeps or reduce the __CFL__ / __Material Condition__ to prevent it from dipping below a certain number which will often solve the issue.
+
+    NOTE:
+        Both the __CFL__ and __Material Conditions__ impose their own independent constraint on the maximum timestep allowed. The most strict constraint will drive the timestep while the more permissive one will have little impact. This means that, when simulating very stiff materials (bounded by the __Material Condition__ like metal or concrete), objects will be allowed to move relatively fast without noticeable changes on the number of substeps required by the __CFL Condition__.
+        
+You can optionally apply forces like gravity, air resistance, and wind in the __Forces__ section. You can also turn on a ground plane that have extra parameters to control friction and stickiness, which is useful if you want to simulate something like snow sliding down a slope. 
+
+The parameters on the __Visualize__ tab let you see the container, colliders, ground plane, and background grid.
+
+You can also dive inside the The [MPM Solver|Node:sop/mpmsolver] and add custom forces. This network will be evaluated once per frame. When possible, using Gas OpenCL nodes should lead to better performance than VEX nodes as it will prevent unnecessary copies from the host to the OpenL device.
+
+For more information, see the [Troubleshooting|/mpm/troubleshooting] page.

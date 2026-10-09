@@ -1,0 +1,51 @@
+# PCG 道路包（RoadTypes）详细参考
+# 道路包负责道路的程序化生成，拆分为模型生成和地形影响两个阶段
+
+## ==============================
+## 道路包概述
+## ==============================
+
+道路包（RoadTypes）负责道路的程序化生成。
+道路算法拆分为两个阶段：模型生成（mesh）和地形影响（terrain）。
+配置根目录：ArtData/RoadTypes/
+
+道路包目录结构示例：
+RoadTypes/
+├── SharePrj/
+│   ├── RoadTemplate01/   ← 道路模板包 1
+│   └── RoadTemplate02/   ← 道路模板包 2
+├── AIWorldMaker/
+│   └── DesertChihuahuanRoad/
+
+## ==============================
+## 道路包 road_info.json 算法信息
+## ==============================
+
+道路包的算法信息文件为 road_info.json，将算法拆分为两个阶段：
+{
+    "mesh": {
+        "hda_name": "/ArtHDAs/SharePrj/otls/kt_roadsys_mesh_template.hda",
+        "hda_parm": "/RoadTypes/SharePrj/RoadTemplate01/kt_roadsys_mesh_template.json"
+    },
+    "terrain": {
+        "hda_name": "/ArtHDAs/SharePrj/otls/kt_roadsys_terrain_template.hda",
+        "hda_parm": "/RoadTypes/SharePrj/RoadTemplate01/kt_roadsys_terrain_template.json"
+    }
+}
+
+字段说明：
+- mesh: 道路模型生成阶段 —— 生成道路的几何模型（路面、护栏等）
+- terrain: 地形影响阶段 —— 道路对地形的切割、混合、平整等效果
+
+## ==============================
+## 道路包配置文件清单
+## ==============================
+
+道路包目录下的完整文件列表：
+- road_info.json —— 算法信息（含 mesh 和 terrain 两阶段 HDA）
+- road_asset.json —— 道路资产入库
+- kt_roadsys_mesh_template.json —— mesh 阶段 HDA 参数
+- kt_roadsys_terrain_template.json —— terrain 阶段 HDA 参数
+- subsys_info.json —— 渲染层映射信息
+- subsys_layers.json —— 渲染层详细定义
+- package_baseinfo.json —— 包元信息

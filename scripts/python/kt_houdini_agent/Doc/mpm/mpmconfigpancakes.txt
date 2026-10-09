@@ -1,0 +1,38 @@
+= MPM Configure Pancakes =
+
+There are several MPM Configure examples available through the [tab menu|/basics/tabmenu]. These are similar to [shelf tools|/shelf/index] that put down networks of nodes for learning purposes. The __MPM Configure Landslide__ example illustrates the use of the "viscous" __Honey__ material type. It puts down a simple network of nodes to simulate a stack of pancakes that's drizzled in syrup (honey) and then cut.
+
+:video:
+    #src: /videos/mpm/mpmhoney.mp4
+    
+== Important nodes ==
+
+`pancakes`:
+    This is the [MPM Source|Node:sop/mpmsource] that uses the __Rubber__ material preset and __Chunky__ behavior.
+
+`syrup`:
+    This is the [MPM Source|Node:sop/mpmsource] that uses the __Honey__ material preset with __Continuous__ emission, which starts to emit at frame 10. The default __Viscosity__ is also reduced to make the syrup more runny.
+
+`cutter`:
+    This is the [MPM Collider|Node:sop/mpmcollider], which uses the __Animated (Rigid)__ collider type. It allows for very precise interpolation of the collider by the solver, as it keeps only one VDB and interpolates between the transforms resulting in very accurate collisions and stickiness on the collider. The __Voxel Size__ is refined to `0.0025` so that it can cut through the rubber material more accurately. 
+
+`mpmcontainer`:
+    This is the [MPM Container|Node:sop/mpmcontainer], which defines the resolution of the simulation using the __Particle Separation__ parameter.
+
+`mpmsolver`:
+    This is the [MPM Solver|Node:sop/mpmsolver], which does the work of solving the scene. __Assume Unchanging Material Properties__ is turned off because the syrup doesn't start emitting until frame 10. This means that a different number of substeps may be needed than initially determined at frame 1 when the solver is only processing the pancakes. Turning this off allows the solver to reevaluate the __Material Condition__ on every frame which keeps things stable.
+
+`pancake_mesh`:
+    This [MPM Surface|Node:sop/mpmsurface] generates the polysoup representation of the material that is suitable for rendering. It is using the default __Method__ of __VDB from Particles__ along with some __Filtering___ to make the surface smooth. The pancakes are moved in space before surfacing to prevent them from being connected as a single mesh. The color `Cd` and `name` attributes are transferred to the mesh from the MPM particles. The third input uses the original model at rest to transfer UVs onto the dynamic mesh. The __Adaptivity__ parameter has been set to `0` to prevent frame-to-frame flickering in the UVs.
+
+`syrup_mesh`:
+    This [MPM Surface|Node:sop/mpmsurface] generates the polysoup representation of the material that is suitable for rendering. The surface is generated using the [Neural Point Surface|Node:sop/neuralpointsurface] with the __Neural Model__ set to __Liquid__. The `Cd` attribute is transferred to the mesh from the MPM particles.
+
+== Learning from this example ==
+
+* If you have the __Emission Type__ set to __Continuous__ on the [MPM Source|Node:sop/mpmsource], make sure to turn on __Global Substeps__ on the [MPM Solver|Node:sop/mpmsolver]. Otherwise, your simulation could have stepping. Increasing __Global Substeps__ will create a smoother emission stream.
+
+    :col:
+        [Image:/images/mpm/stepping.jpg]
+    :col:
+        [Image:/images/mpm/no_stepping.jpg]

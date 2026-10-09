@@ -1,0 +1,101 @@
+= Distortion =
+
+"""Shape your terrains and make them look natural."""
+
+Houdini's distortion methods for heightfields let you add complex patterns to a terrain. This way you can mimic geological formations like lava fields, fluvatile sediments or dried-out plains, but also different types of eroded structures and abstract landscapes. Distortion is a very effective means to enhance and randomize the look of a terrain, but also for adding variation or detail.
+
+Basically you differentiate between four fundamental distortion methods: warping, noise, layer-based distortion and pattern distortion.
+
+NOTE:
+    All explanations and examples use a very basic terrain, consisting of a [HeightField SOP|Node:sop/heightfield] and a [HeightField Noise SOP|Node:sop/heightfield_noise] to get some mountains and rocky structures. To get enough detail, set the heightfield node's __Grid Spacing__ to `1`.
+
+    For more information on how to work with this fundamental setup, please read the [Generating a height field from scratch|index#basehf] introduction.
+
+== Lattice Warp ==
+
+Warping is part of the HeightField Noise SOP and you can find parameters for two fundamental methods in the __Distortion__ section. Let's start with __Lattice Warp__. To get a better impression of how __Lattice Warp__ changes the look of your terrain, set __Amplitude__ to `100`. 
+
+* Turn on __Enable Lattice Warp__. The effect on the terrain is very subtle and hardly visible.
+* Turn off __Accumulate Lattice Warp__.
+* Increase __Lattice Warp__ to `2`.
+* When you change __Freq__ to `6`, you get crater-like surface structures.
+
+:compare_images:
+    #image1: /images/heightfields/distortion_lattice1.jpg
+    #image2: /images/heightfields/distortion_lattice2.jpg
+
+Lattice warp adds a swirly look to the terrain and this effect becomes very obvious when you turn on __Accumulate Lattice Warp__. Now you can see a folded and kneaded terrain. When you decrease __Freq__, e.g. to `0.6`, the surface starts to look natural again and reminds of a landscape that was formed by water.
+
+[Image:/images/heightfields/distortion_lattice3.jpg]
+
+== Gradient Warp ==
+
+The __Gradient Warp__ function widens the peaks and valleys of the noise and you can get completely different looks with positive and negative values. As with lattice warp, the gradient method strongly depends on the __Accumulate Gradient Warp__ option. This function emphasizes the distortion effect and creates distinctive patterns. 
+
+To see the effect of the settings, described below, turn _off_ __Enable Lattice Warp__ and reset __Amplitude__ and __Element Size__ to `500` each.
+
+* With negative values you get a terrain with sharp crests. Try a value of `-0.1` to get the result shown in the image comparison below.
+* When you enter a positive value around `0.2`, you get landscapes with rounded, almost pillow-shaped structures.
+* Of course it's possible to combine both distortion methods and create hybrid heightfields.
+
+:compare_images:
+    #image1: /images/heightfields/distortion_gradient1.jpg
+    #image2: /images/heightfields/distortion_gradient2.jpg
+
+== Noise-based distortion == (noise)
+
+This type of distortion is available with the [HeightField Distort by Noise SOP|Node:sop/heightfield_distort]. The node provides a __Noise Type__ dropdown menu with two methods: __Curl__ and __Simplex__. The parameters for controlling the noise are identical for both types.
+
+When you work with the node's noise types, consider the ratio between __Amplitude__ and __Element Size__. High __Amplitude__ values create lots of noise and spikes. To "stretch" the noise pattern and get usable patterns, increase __Element Size__. Another parameter you can use to flatten extreme spikes and reduce the amount of small details is __Roughness__. Another interesting parameter is __Substeps__ for balancing extreme differences in the noise function.
+
+* __Curl__ is the node's default noise type to distort your heightfield. You can use this method to create "flowing"´structures, e.g. for riverbeds, glaciers, solidified lava fields or even organic effects. The noise also adds a terracing effect to the mountains' cliffs.
+* __Simplex__ is a noise type similar to Perlin noise, but creates smoother results. With __Simplex__ it's also possible to achieve a moderate terracing effect and "flowing" structures.
+
+In conjunction with the HeightField Noise SOP's __Worley F1__ __Noise Type__, you can create realistic mountain ranges with sharp crests.
+
+[Image:/images/heightfields/distortion_noise.jpg]
+
+== Layer-based distortion ==
+
+The [HeightField Distort by Layer SOP|Node:sop/heightfield_distortbylayer].
+
+* __Layers__ defines the layer(s) you want to distort. Usually you want to distort `height` or `mask` or both.
+* __Control Layer__ expects a scalar or vector field. This can be the same or another heightfield, but also any other volumetric field.
+* You can also use a __Scale Field__ to drive the node's __Displacement Scale__.
+
+You can connect a mask or even another heightfield network to the _second_ input and a layer to __Control Layer__. However, the results are hard to predict, because the parameter combinations are nearly endless. In many cases you need rather high __Displace Scale__ values to get a visible effect. __Substeps__ also have a strong impact on the terrain's look.
+
+TIP:
+    To get usable results you should consider adding [erosion|erosion]. A terminating HeightField Distort by Noise SOP (see [above|#noise]) will also help to achieve a realistic look as shown in the image below.
+
+[Image:/images/heightfields/distortion_layer.jpg]
+
+== Pattern distortion ==
+
+Another method to create interesting shapes and perhaps more abstract terrains, is pattern-based distortion. When you use the [HeightField Pattern SOP|Node:sop/heightfield_pattern], it's a good idea to start with a plain HeightField SOP without noise or any other distortion/elevation. Then connect the pattern node's _first_ input with the output of the base grid and you're good to go.
+
+The node provides a __Pattern__ dropdown menu with six entries you can choose from. The default is __Start__, but the most versatile and customizable pattern is __Ramp__, because here you can define a custom curve. The image shows a distorted ramp pattern combined with a HeightField Noise SOP. Erosion and noise distortion give the terrain its final look. 
+
+[Image:/images/heightfields/distortion_pattern1.jpg]
+
+To get the terrain's base wave pattern follow the steps below.
+
+# On the Heightfield Pattern SOP, choose __Ramp__ and you will see a saw tooth pattern.
+# On the __Pattern > Position__ section, go to __Remap Remapping__ and click the [Smallicon:BUTTONS/gear] __Presets__ button. From the menu, choose __Hill__ to create rounded stripes. This pattern is also suited for dunes.
+# On the same section, set __Size__ to `200` to decrease the number of waves.
+# The bands are also very high. Decrease __Scale__ to `20`.
+# Go to the __Distortion__ section and turn on __Distort Pattern__. The pattern is now slightly displaced.
+# Now play with the __Amplitude__ and __Element Size__ parameters to add a curly noise pattern to the stripes. For the image below, the values are `600` and `500`.
+# The terrain is now extremely distorted. To fix this, decrease __Roughness__ to `0.2`. This parameter is responsible for the noise's coarseness and higher values add more high-frequency spikes.
+
+[Image:/images/heightfields/distortion_pattern2.jpg]
+
+You can also try different presets from __Ramp Remapping__ or define a custom curve. Another interesting approach is to set __Pattern > Position > Mode__ to __Concentric__. This mode creates a very organic pattern with a SciFi touch. Also consider changing __Center__ to shift the "eye" of the pattern.
+
+== Mask distortion ==
+
+The distortion methods, describes above, also work in conjunction with masks. For example, the [HeightField Mask Noise SOP|Node:sop/heightfield_noise] is just a regular [HeightField Noise SOP|Node:sop/heightfield_noise] with the __Noise Layer__ parameter set to `mask`. You can still turn on the __Lattice Warp__ and __Gradient Warp__ methods and apply them to a mask.
+
+This also applies to the HeightField Distort by Noise and HeightField Distort by Layer SOPs. Below you can see various distorted masks in a side-by-side comparison.
+
+[Image:/images/heightfields/distortion_masks.jpg]

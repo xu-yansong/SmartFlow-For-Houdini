@@ -1,0 +1,245 @@
+= Scattering: Removing points =
+
+"""Get full control over scatter points."""
+
+The [HeightField Scatter SOP|Node:sop/heightfield_scatter] creates points on the entire surface according to your settings. And sometimes, there are points and places where you don't need them. Of course, you can create [masks|masking] to remove points, but in some cases it's not so easy to create an appropriate mask. A good example is the area outside a camera frustum. There might also be occasions where you want the scatter points to fade out towards the terrain's borders.
+
+This page is part two of a four-pages guide to heightfield scattering:
+
+* [Scattering: SOP|scattersop] illustrates how to prepare your scene.
+* Scattering: Removing points shows methods for controlling the number of scatter points.
+* [Scattering: Attributes|scatterattribs] creates attributes like `pscale` and `orient`.
+* [Scattering: Solaris|scattersolaris] shows how to render your terrain.
+
+For the some examples, VEX scripting is a convenient way to remove unwanted points.
+
+TIP:
+    If you're interested in VEX scripting for heightfields in general, please also take a look at the [VEX scripts for heightfields|vexsnippets] page.
+
+== Masking ==
+
+NOTE:
+    There's already a description on the [Scattering: SOP|scattersop#masking] page. This chapter is for your convenience so you don't have to switch between different pages.
+
+Masking with scatter points on heightfields works in the exact same way as masking in general. To be precise: masks don't delete points, but instead you define areas where points will appear. Here's a very basic setup for a scatter mask, assuming that you've already created a [HeightField SOP|Node:sop/heightfield].
+
+# Lay down a [HeightField Mask Noise SOP|Node:sop/heightfield_noise] (or any other mask node) and connect its _first_ input to the output of the heightfield.
+# Add a HeightField Scatter SOP. Connect its _first_ input with the output of the heightfield. Then, link the _second_ input with with output of the noise mask.
+# Turn on the scatter node's blue __Display/Render__ flag to see the result.
+
+With the mask node's default values you will notice a blank spot, while the rest of the terrain is covered with points. A closer look reveals areas of varying density. You can influence point density directly with the noise node's __Amplitude__ parameter. With
+
+* values, smaller than `1`, you'll enlarge the blank areas
+* a value of `2`, for example, you'll get a very dense structure.
+
+Now, change __Element Size__. This parameter controls the size of the noise pattern. Smaller values create more noise and also more detail. The image below uses an __Amplitude__ of `1.5` and an __Element Size__ of `200`. The result is a realistic point distribution.
+
+[Image:/images/heightfields/scattering_maskremove.jpg]
+
+NOTE:
+    You can also apply all the scripts, presented below, to a masked heightfield to further decrease the number of scatter points and create interesting effects.
+
+=== Scatter Method ===
+
+The HeightField Scatter node provides a __Scatter Method__ dropdown menu. The first three entries also support a __Mask Layer__ to control the number of points. The default choice is __By Coverage using Mask Layer__ and you can see the result in the image directly above. When you change __Coverage__, you can remove or add points.
+
+__By Density using Mask Layer__ works in the same way as the "by coverage" method, but here you have a __Density__ parameter.
+
+Finally, there's __Total Point Count using Mask Layer__. Here you set a fixed number of points. Your mask can cover the entire terrain or just a small area of 10%: the number of points will always be the same.
+
+== Preparing the nodes == (prepartion)
+
+Since we're dealing with points here, you'll apply the scripts through a [Point Wrangle SOP|Node:sop/attribwrangle] instead of a [HeightField Wrangle SOP|Node:sop/volumewrangle]. The steps to create the appropriate nodes and add the scripts are always the same.
+
+# Add a Point Wrangle SOP and connect its input with the output of the last upstream node.
+# Use copy ((Ctrl + C)) and paste ((Ctrl + V)) to add the code to the __VEXpression__ field.
+# Click the [Smallicon:BUTTONS/create_parm_from_ch.svg] button to create the custom parameters.
+
+== Border points == (border)
+
+The first script removes points from a terrain's borders within a customizable area. You can also choose, whether you want to create a soft or a hard transition. The points aren't deleted here, but stored inside a separate group. Just in case you need them again somewhere else. The script
+
+* adds custom parameters to define the scatter area's limits in X and Y direction
+* adds a random `offset` to quickly create a smooth transition towards the edges
+* compares a point's position against the borders of the scatter area
+* removes the points within the seam.
+
+Here is the VEX code. As always, this is just one method to write such a script.
+
+{{{
+#!vex
+float limit_x = chf("limit_x");
+float limit_z = chf("limit_z");
+float offset = chf("offset");
+float seam = fit01(random(@ptnum), -offset, 0);
+float border_x = limit_x + seam;
+float border_z = limit_z + seam;
+
+if (@P.x > border_x || @P.x < -border_x || 
+    @P.z > border_z || @P.z < -border_z) {
+        removepoint(geoself(), @ptnum);
+}
+}}}
+
+To apply the above code and delete the border points, do the following.
+
+# For __Limit X__ and __Limit Z__ enter, for example, `480`. This creates a frame with a width of 20 m around a standard heightfield of 1000 m x 1000 m.
+# Set __Offset__ to `100` to get a smooth transition of scatter points towards the terrain's borders.
+
+[Image:/images/heightfields/scattering_borderremove.jpg]
+
+== Camera frustum == (frustum)
+
+A very common method for saving resources is to delete points outside a camera frustum. The concept is basically the same as in the [Border points|#border] example above. The main difference is that you need a special vector that transforms a position to the normal device coordinates ("NDC") for a camera. Houdini's VEX has a built-in function to perform this transformation automatically: `toNDC`. You can also use this function with a light source instead of a camera. The script
+
+* takes a custom camera to calculate the transformation
+* lets you define a seam to create a safety buffer around the visible area
+* compares a point's position against the X and Z components of the NDC vector to identify points outside the frustum
+* deletes the points directly.
+
+The good thing with this script is that it works with animated cameras, because the per-point attributes will be maintained. This avoids that scales or the instance objects themselves change with each new frame. 
+
+The problem, however, is that the entire heightfield is removed at a certain position. When you open the [Geometry Spreadsheet|/ref/panes/geosheet] pane's [Smallicon:TOOLS/select_points] __Points__ mode, you'll see that the first two entries have several attributes with a value of `0`. These two entries belong to the heightfield.
+
+To avoid that the script deletes the heightfield by accident, go to the scatter node's __Relaxation__ section. There, turn off __Keep Incoming Terrain__. Later you can use a [Merge SOP|Node:sop/merge] to bring points and terrain together again.
+
+For this feature you should use two Attribute Wrangles, because you must read a camera path and doing this for every scatter point is not very efficient. It's better to fetch the camera with a Detail Attribute Wrangle. For convenience reasons you'll also create a __Seam__ parameter here. Add it to the network _before_ the point wrangle that removes the points!
+
+This is the VEX code for the _detail wrangle_:
+
+{{{
+#!vex
+s@campath = chs("camera_path");
+f@seam = chf("seam");
+}}}
+
+Click the [Smallicon:BUTTONS/create_parm_from_ch.svg] __Creates spare parameters for each unique call of ch()__ button to create the parameters.
+
+# In the viewport, find a nice view of the terrain.
+# In the upper right corner of the viewport, you can see two menus. Open the __No cam__ menu and choose __New Camera__. This will create a `cam1` camera object on the _obj_ level.
+# For __Camera Path__, enter `/obj/cam1`. This is the location of the newly created camera from step 2.
+# Change __Seam__. With `0`, you can delete points exactly along the outlines of the frustum. With values, greater than `0`, you create a safety buffer outside the frustum.
+
+On the _point wrangle_, enter the following VEX script:
+
+{{{
+#!vex
+vector camera_ndc = toNDC(s@campath, @P);
+
+float border_min = 0.5 - f@seam; 
+float border_max = 0.5 + f@seam;
+
+if (camera_ndc.x + seam < 0 || camera_ndc.x - f@seam > 1 ||
+    camera_ndc.y + seam < 0 || camera_ndc.y - f@seam > 1) {
+        removepoint(geoself(), @ptnum);
+}
+}}}
+
+In the image below, the particles outside the camera frustum are displayed in red to make the result more obvious.
+
+[Image:/images/heightfields/scattering_frustumremove.jpg]
+
+TIP:
+    You can also store the particles outside the frustum to a group instead of deleting them. 
+
+    Replace `removepoint(geoself(), @ptnum)` with `@group_outsidepoints = 1`;
+
+== Camera distance == (distance)
+
+You can also remove points based on a point's distance from a camera. Instead of drawing a mask, you can just increase distance with a slider and get rid of unwanted points. Note that you'll get a circular or arc-shaped border. The script
+
+* lets you define a custom distance threshold
+* queries the camera's position in world space
+* calculates the distance between the camera and the scatter points
+* removes the points beyond the given threshold
+* uses the custom __Seam__ parameter to create a soft transition.
+
+Since we're again dealing with positions, it can happen that the heightfield itself disappears. To avoid this, turn off the heightfield node's __Keep Incoming Terrain__ option.
+
+As with the camera frustum you also need a _detail wrangle_ to initialize some parameters an values. Here's the script that also includes all relevant parameters. The `4@camera_matrix` calculates a 4x4 matrix. Doing this for every scatter point would drastically slow down the process. By defining `@camera_matrix` as a one-time detail attribute, the distance calculation becomes really fast.
+
+The script calculates the camera matrix with the help of the [optransform|/vex/functions/optransform] function. This, more advanced approach is necessary to compensate for a camera-specific offset.
+
+{{{
+#!vex
+// Calculate a 4x4 transformation matrix
+4@camera_matrix = optransform(chs("camera_path"));
+
+f@dist_threshold = chf("distance_threshold");
+f@seam = chf("seam");
+}}}
+
+Click the [Smallicon:BUTTONS/create_parm_from_ch.svg] __Creates spare parameters for each unique call of ch()__ button to create the parameters.
+When you create a camera from the viewport in a fresh scene, __Camera Path__ is `/obj/cam1`. The __Dist Threshold__ value for the image below is `800` and __Seam__ was set to `200` to achieve a smooth transition.
+
+And here's the script for the _point wrangle_:
+
+{{{
+#!vex
+vector camera_position = set(0,0,0) * 4@camera_matrix;
+
+float seam = fit01(random(@ptnum), f@seam, 0);
+float point_distance = distance(@P, camera_position);
+
+
+if (point_distance > f@dist_threshold - seam) {
+    removepoint(geoself(), @ptnum);
+}
+}}}
+
+
+In this image, the points outside __Dist Threshold__ are displayed in orange.
+
+[Image:/images/heightfields/scattering_distanceremove.jpg]
+
+
+== Occluded points ==
+
+The [Camera distance|#distance] script lets you delete points based on their distance to a camera. This is helpful, but not always effective. A more selective method can delete occluded points. The script sends out a ray from the camera to test for intersections with the terrain. Points that are are occluded by mountains or other geometry will be deleted. 
+
+NOTE:
+    For this method you need a [HeightField Noise SOP|Node:sop/heightfield_noise] that creates mountains.
+
+The script
+
+* lets you choose a camera object
+* queries the camera's position in world space
+* calculates the camera's direction
+* calculates a point's distance from the camera
+* sends out rays based on the distance and direction to find occluded points
+* uses the `tag` attribute to prevent the heightfield itself from disappearing.
+
+As before, you need a _detail wrangle_ and a _point wrangle_. Here's the detail code:
+
+{{{
+#!vex
+// Calculate a 4x4 transformation matrix
+4@camera_matrix = optransform(chs("camera_path"));
+}}}
+
+Click the [Smallicon:BUTTONS/create_parm_from_ch.svg] __Creates spare parameters for each unique call of ch()__ button to create the parameters.
+In a fresh scene, the default __Camera Path__ is `/obj/cam1`.
+
+To make the frustum and distance point removal scripts work correctly, you've deleted the terrain. For this method, the heightfield is essential, because you need the "geometry" to calculate the occluded areas. This means that you must exclude the two points that define the heightfield. One method is to use the `tag` attribute that's created by the scatter node. The heightfield points don't carry this attribute and you can check if it's empty.
+
+{{{
+#!vex
+vector camera_position = set(0,0,0) * 4@camera_matrix;
+vector camera_direction = normalize(camera_position - @P);
+float camera_distance = distance(@P, camera_position);
+
+vector pos, uvw;
+
+int hit_test = intersect(0, @P, camera_direction * camera_distance, pos, uvw);
+if (hit_test != -1 && s@tag != "") {
+    removepoint(geoself(), @ptnum);
+}
+
+if (hit_test != -1) {
+    removepoint(geoself(), @ptnum);
+}
+}}}
+
+Here you can see a terrain with occluded points removed.
+
+[Image:/images/heightfields/scattering_occlusionremove.jpg]

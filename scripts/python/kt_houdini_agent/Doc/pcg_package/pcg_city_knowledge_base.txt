@@ -1,0 +1,56 @@
+# PCG 城市包（CityTypes）详细参考
+# 城市包负责城市/建筑群的程序化生成
+
+## ==============================
+## 城市包概述
+## ==============================
+
+城市包（CityTypes）负责城市和建筑群的程序化生成。
+配置根目录：ArtData/CityTypes/
+
+城市包目录结构示例：
+CityTypes/
+├── ModernCity/
+│   └── Matrix/          ← 现代城市矩阵包
+├── SharePrj/
+│   ├── OSM_Import/      ← OSM 数据导入包
+│   └── Village_Pack/    ← 村庄建筑包
+
+## ==============================
+## 城市包 city_info.json 算法信息
+## ==============================
+
+城市包的算法信息文件为 city_info.json，结构简单：
+{
+    "hda_name": "/ArtHDAs/SharePrj/otls/kt_city_matrix.hda",
+    "hda_parm": "/CityTypes/ModernCity/Matrix/kt_city_matrix.json"
+}
+
+字段说明：
+- hda_name: 城市生成 HDA 路径（相对于 ArtData）
+- hda_parm: HDA 参数 JSON 路径（相对于 ArtData）
+
+## ==============================
+## 城市包特殊配置文件
+## ==============================
+
+城市包除通用配置外，部分包还包含额外的城市特有配置：
+- block_info.json —— 街区信息
+- building_info.json —— 建筑信息
+这些额外配置的具体结构取决于城市生成算法的需求。
+
+## ==============================
+## 城市包配置文件清单
+## ==============================
+
+城市包目录下的完整文件列表：
+- city_info.json —— 算法信息（HDA + 参数）
+- city_options.json —— 资产分类列表
+- city_asset.json —— 资产入库
+- kt_city_xxx.json —— HDA 参数配置
+- subsys_info.json —— 渲染层映射信息
+- subsys_layers.json —— 渲染层详细定义
+
+部分城市包还包含：
+- block_info.json —— 街区信息
+- building_info.json —— 建筑信息

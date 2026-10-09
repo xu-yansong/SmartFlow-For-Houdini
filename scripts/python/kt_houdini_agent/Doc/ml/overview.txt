@@ -1,0 +1,13 @@
+= Overview =
+
+Houdini offers a variety of nodes that support the various stages of machine learning (ML).
+These stages include synthetic data generation, data preprocessing, neural network training, exporting models, and applying neural networks (inference).
+
+Houdini provides two types of nodes for ML: 
+
+* [low-level ML nodes|lowlevelnodes]
+* more specialized [example-based ML nodes|examplebasednodes].
+
+The low-level ML nodes allow you to output raw files, import raw files, perform inference using ONNX, and train using external PyTorch scripts. These nodes are powerful and exist at a relatively low level of abstraction. See [Low-level ML nodes|lowlevelnodes] for more information.
+
+The example-based ML nodes support supervised ML applications, including regression. They make it easy to create and pre-process a data set consisting of labeled examples. A specialized regression training node allows you to train a model on the data set without having to write a PyTorch script. A specialized inference node makes it easy to apply the resulting ML model in SOPs. See [Example-based ML nodes|examplebasednodes] for more information.

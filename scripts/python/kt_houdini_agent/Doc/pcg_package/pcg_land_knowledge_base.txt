@@ -1,0 +1,127 @@
+# PCG 地貌包（LandTypes）详细参考
+# 地貌包是 PCG 八大模块中的主包，可组合引用其他所有子系统
+
+## ==============================
+## 地貌包概述
+## ==============================
+
+地貌包（LandTypes）是 PCG 八大模块中的主包，负责地形生成。
+它的特殊之处在于可以通过一系列 xxxsys_info.json 文件引用和组合其他模块的包。
+配置根目录：ArtData/LandTypes/
+
+地貌包的目录结构示例：
+LandTypes/
+├── SharePrj/
+│   ├── Desert/          ← 一个具体的地貌包
+│   ├── GreenGrassland/
+│   └── Snowmountains/
+├── AIWorldMaker/
+│   ├── DesertChihuahuan/
+│   └── GreenForestGrassland/
+
+## ==============================
+## 地貌包 basesys_info.json 算法信息
+## ==============================
+
+地貌包的算法信息文件名为 basesys_info.json（等价于其他模块的 xxx_info.json）。
+除基础的 hda_name 和 hda_parm 外，还包含额外字段：
+
+{
+    "hda_name": "/ArtHDAs/SharePrj/otls/kt_desert_jsontest.hda",
+    "hda_parm": "/LandTypes/SharePrj/Desert/kt_desert_jsontest_aaa.json",
+    "blur": 70.00,
+    "layerblur": 0.00,
+    "material": "UE Landscape 材质路径",
+    "material_alpha": "UE Landscape Alpha 材质路径",
+    "material_order": 1,
+    "edit_subsys_info": false,
+    "terraincolor_hda_name": "地形着色 HDA 路径",
+    "terraincolor_hda_parm": "地形着色 HDA 参数路径"
+}
+
+额外字段说明：
+- blur: 地形模糊度
+- layerblur: 层模糊度
+- material / material_alpha: UE Landscape 材质路径
+- material_order: 材质排序
+- edit_subsys_info: 是否编辑子系统信息
+- terraincolor_hda_name / terraincolor_hda_parm: 地形着色 HDA
+
+## ==============================
+## 地貌包的子系统引用机制
+## ==============================
+
+地貌包通过一系列 xxxsys_info.json 文件引用其他模块的包：
+
+- basesys_info.json —— 地貌包自身的基础算法信息
+- biomesys_info.json —— 引用植被包的配置
+- cliffsys_info.json —— 引用岩石包的配置
+- hillsys_info.json —— 引用山丘包的配置
+- roadsys_info.json —— 引用道路包的配置
+- watersys_info.json —— 引用水系包的配置
+- stagesys_info.json —— 引用平台包的配置
+
+这些 xxxsys_info.json 的结构与 subsys_info.json 类似，额外包含 layers_from 字段。
+layers_from 标记渲染层配置来源于哪个子系统包（仅在地貌包中有意义）。
+
+## ==============================
+## 地貌包子系统引用示例（roadsys_info.json）
+## ==============================
+
+roadsys_info.json 示例（引用道路包）：
+{
+    "OverEnable": false,
+    "layers_base": ["H5_RoadMid1", "H6_RoadMid2", "I3_RoadSide1", ...],
+    "layers_order": ["SharePrj_Desert_Grass", "SharePrj_Desert_Soil", ...],
+    "layers_from": ["/RoadTypes/SharePrj/RoadTemplate02", ...]
+}
+
+layers_from 数组与 layers_base/layers_order 按下标一一对应，
+表示每个渲染层的定义来源于哪个子系统包。
+
+## ==============================
+## 地貌包子系统引用示例（biomesys_info.json）
+## ==============================
+
+biomesys_info.json 示例（引用植被包）：
+{
+    "OverEnable": true,
+    "layers_base": ["P0_BiomeSoil", "Q0_BiomeSoil_Mix", "P1_BiomeSoil", "Q1_BiomeSoil_Mix"],
+    "layers_order": ["SharePrj_Hill_Road_Leaves2", "SharePrj_Hill_Road_common_a2", ...],
+    "layers_from": ["/BiomeTypes/SharePrj/greenhill", "/BiomeTypes/SharePrj/greenhill",
+                    "/BiomeTypes/SharePrj/hill", "/BiomeTypes/SharePrj/hill"]
+}
+
+## ==============================
+## 地貌包 all_layers.json
+## ==============================
+
+all_layers.json 是地貌包独有的文件，汇总了地貌包及其引用的所有子系统的渲染层定义。
+结构与 subsys_layers.json 相同：{ "渲染层名": { "AssetPath": "...", "Attr": { ... } } }
+包含完整的材质参数（BlendType、贴图路径、法线、粗糙度等）。
+
+## ==============================
+## 地貌包的 subsys_info.json
+## ==============================
+
+地貌包自身的 subsys_info.json 定义地貌包基础算法产出的渲染层映射：
+{
+    "layers_base": ["B1_Slope_Rock_01", "B0_Slope_Cliff_01", "A1_Base_Sand_01", "A0_Base_Sand_02"],
+    "layers_order": ["SharePrj_Rock_common_a", "SharePrj_Cliff_common_a", "SharePrj_Sand_common_d", "SharePrj_Sand_common_d"],
+    "landtype_biomesys": ["/BiomeTypes/SharePrj/yardang", "none", "none", "", ""]
+}
+
+其中 landtype_biomesys 可指定该层关联的植被子系统。
+
+## ==============================
+## 地貌包 subsys_info 待补充字段
+## ==============================
+
+以下字段已存在于配置中，具体含义待补充：
+- OverEnable: （待补充）
+- SubsysType: （待补充）
+- SubsysHda: （待补充）
+- SubsysParm: （待补充）
+- TargetLayouts: （待补充）
+- layers_biomesys: （待补充）
+- landtype_biomesys: （待补充）

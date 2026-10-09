@@ -1,0 +1,47 @@
+# PCG 山丘包（HillTypes）详细参考
+# 山丘包负责山丘地形的程序化生成
+
+## ==============================
+## 山丘包概述
+## ==============================
+
+山丘包（HillTypes）负责山丘地形的程序化生成。
+配置根目录：ArtData/HillTypes/
+
+山丘包目录结构示例：
+HillTypes/
+├── SharePrj/
+│   └── hill_test01/   ← 一个具体的山丘包
+
+## ==============================
+## 山丘包 hill_info.json 算法信息
+## ==============================
+
+山丘包的算法信息文件为 hill_info.json，将算法拆分为两个阶段：
+{
+    "terrain": {
+        "hda_name": "/ArtHDAs/SharePrj/otls/kt_hillsys_parm.hda",
+        "hda_parm": "/HillTypes/SharePrj/hill_test01/hillsys_parms.json"
+    },
+    "subcore_terrain": {
+        "hda_name": "/KaiTian/hda/Hillsys/otls/kt_hillsys_terrain.hda",
+        "hda_parm": "/HillTypes/SharePrj/hill_test01/hillsys_defualt.json"
+    }
+}
+
+字段说明：
+- terrain: 山丘参数 HDA（控制山丘形态参数）
+- subcore_terrain: 山丘地形核心 HDA（实际地形生成算法）
+
+## ==============================
+## 山丘包配置文件清单
+## ==============================
+
+山丘包目录下的完整文件列表：
+- hill_info.json —— 算法信息（包含 terrain 和 subcore_terrain 两阶段）
+- hill_options.json —— 资产分类列表
+- hill_asset.json —— 资产入库
+- hillsys_parms.json —— 山丘参数配置
+- hillsys_defualt.json —— 山丘地形默认参数
+- subsys_info.json —— 渲染层映射信息
+- subsys_layers.json —— 渲染层详细定义

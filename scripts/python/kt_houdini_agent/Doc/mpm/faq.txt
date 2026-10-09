@@ -1,0 +1,29 @@
+= FAQ =
+
+See the following for questions about when to use [MPM vs other solvers|/mpm/mpmvsothers].
+
+What license to do need to use MPM?:
+
+    Although MPM is in SOPs, you need DOP level permissions to use it. This means that MPM is available in Houdini FX, Houdini Apprentice, Houdini Indie, and Houdini Education. It is not available in Houdini Core.
+ 
+Why is the metal and concrete preset so slow?:
+
+    Metal and concrete are both very stiff materials, compared to other MPM material types. These require a very high number of substeps, which leads to slow simulation times. MPM wasn't designed to simulate these types of materials, but they are included as presets since it is possible.
+
+How is `pscale` impacting the simulation?:
+
+    It has no impact. The `pscale` attribute is only used for visualization of the spheres in the viewport and the post-simulation meshing.
+
+Is it possible to use MPM at DOP level?:
+
+    Although it is technically possible to do so, since MPM was developed as a DOP Solver, it is intended to be used in SOPs only. If you need DOP-level control outside of what is provided by the Dive Target, you will need to unlock the SOP-level MPM Solver.
+    
+Can I apply forces to MPM?:
+
+    Yes, you can dive inside the [MPM Solver|Node:sop/mpmsolver] and apply POP forces to your MPM simulation.
+    
+
+    
+            
+
+    

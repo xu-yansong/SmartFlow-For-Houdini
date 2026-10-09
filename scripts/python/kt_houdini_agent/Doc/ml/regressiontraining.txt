@@ -1,0 +1,44 @@
+= Regression training =
+
+The basic training node [ML Train Regression|Node:top/ml_trainregression] supports regression problems where you model functions from a fixed number of continuous variables to another tuple of continuous variables. It serves as an example to create your own more specific training nodes. 
+
+This node trains the parameters (weights and biases) of a feed-forward neural network that consists of fully connected layers. The depth of the network is controlled by choosing the number of hidden layers. You can control the width of each hidden layer as well.
+
+== Activation Functions ==
+
+[ML Train Regression|Node:top/ml_trainregression] uses the mean squared error as its cost function for training. This makes the identity function the choice of activation function for the output layer. There are no nonlinearities directly before the output units.
+
+For each hidden layer, the nonlinear activation function is the hyperbolic tangent function (`tanh`). This means choosing zero hidden layers turns the neural network into a linear transformation.
+
+== Weight Initialization ==
+
+The parameters of the neural network are initialized using pseudo-random numbers, based on the specified random seed. Choosing a different random seed gives you a different initialization of the weights.
+
+Training doesn't always lead to a global minimum of the cost function; the training may terminate at a local minimum. Even in cases where each local minimum is a global minimum, there are usually many equivalent minima due to weight-space symmetries. Different initial parameters may lead to a different trained network with a different cost. It may be useful to train multiple networks, each using a different random seed, to see which one gives the best result. You can set this up in TOPs using a [Wedge|Node:top/wedge].
+
+== Regularization ==
+
+If the data set's size is small, there are some basic regularization techniques available that prevent overfitting. These techniques can limit the effective complexity of a trained model, improving its generalization to unseen inputs.
+
+[ML Train Regression|Node:top/ml_trainregression] supports two regularization techniques: weight decay and early stopping.
+
+Weight decay includes a term in the cost function aimed at keeping the weights (but not the biases) small. 
+
+Early stopping divides the data set up into two separate portions: a training portion and a validation portion. The training portion optimizes the parameters of the neural network. The validation portion determines when training should stop; it should stop as soon as the network's performance stops improving on the unseen examples of the validation portion.
+
+== Limitations of ML Train Regression ==
+The basic [ML Train Regression|Node:top/ml_trainregression] cannot possibly cover all existing deep-learning approaches for regression problems. It provides enough flexibility to allow a variety of experiments with regression ML in Houdini without having to write a PyTorch script. It is also used by the 20.5 version of the ML Deformer.
+
+However, as you experiment more with ML approaches in Houdini, you may find that you need functionality not supported by this basic training node. For example, you may want to incorporate a sparser network architecture, skip-layer connections, other activation functions, an alternative cost function, a more complex regularization approach, latent inputs for an auto-decoder approach, or weight normalization.
+
+If this is the case, the training script PyTorch training script that underlies [ML Train Regression|Node:top/ml_trainregression] may still be a useful starting point. The training script is found in the folder $HHP/hutil/ml/regression. If you are familiar with Python and PyTorch, you can modify and extend this script and then use it in combination with the [Python Virtual Environment|Node:top/pythonvenv] and [Python Script|Node:top/pythonscript]. 
+
+You look inside of the [ML Train Regression|Node:top/ml_trainregression] asset to see how your training script can be invoked. If you modify the script or create a script of your own, you will need to refer to its module on the [Python Virtual Environment|Node:top/pythonvenv], otherwise the script will not be found by [Python Script|Node:top/pythonscript].
+
+ 
+
+
+
+
+
+

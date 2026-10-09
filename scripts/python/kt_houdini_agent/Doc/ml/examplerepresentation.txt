@@ -1,0 +1,12 @@
+= Example Representation =
+
+The example-based ML nodes use packed primitives to represent examples. A geometry consisting entirely of packed primitives represents a collection of examples. This is convenient for processing collections of examples and multiple collections of examples can be joined together by merging their geometries. Individual examples can be extracted from a collection of examples by primitive index. The packed primitive representation helps avoid unnecessary copying of geometry.
+
+== Types of Examples ==
+There are two types of examples: unlabeled examples and labeled examples. An unlabeled example contains a single geometry. A labeled example contains two geometries: an input component and a target component.
+
+An unlabeled example is formed by using packing a geometry using [Pack|Node:sop/pack] or [ML Example|Node:sop/ml_example] with only the first input connected to a geometry.
+
+A labeled example is formed by using [ML Example|Node:sop/ml_example], where both inputs are connected. A geometry containing labeled examples must have a primitive group called `labeledexamples` and all labeled-example primitives must be members of that group. Any packed primitive that is not part of a geometry or a member of the `labeledexamples` primitive group is treated as an unlabeled example, even if it contains two packed primitives. 
+
+

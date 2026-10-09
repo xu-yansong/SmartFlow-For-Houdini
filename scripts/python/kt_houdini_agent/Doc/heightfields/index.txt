@@ -1,0 +1,169 @@
+= Heightfields and terrains =
+
+"""How to use Houdini's heightfield tools to generate realistic terrains."""
+
+#billboard: /images/heightfields/billboard.jpg
+#headerheight: 20vh
+
+== Overview ==
+
+Houdini provides a wide range of nodes and tools for generating realistic terrains through heightfields. A heightfield doesn't consist of traditional geometry like vertices and polygons. You can think of a heightfield as 2-dimensional grid with cells. The intersecting points of that grid contain the terrain's height information.
+
+This approach lets you combine and stack different types of terrain, e.g. a bedrock with a layer of soil on top. These elements are called _height layers_, while the base layer - here it's the bedrock - is always named `height`. Layers play an important role with heightfields in general and it's all about stacking and manipulating layers to achieve the results you're looking for. The advantage with this technique is that you keep full artistic control, because you can turn on and off layers temporarily, work on each layer individually or add new layers at any point of your network.
+
+Most terrain nodes take a second input that can contain a mask layer to control, which parts of the terrain the node will modify. The default mask layer is named `mask`. As with height layers, it's possible to have multiple, differently named mask layers in a geometry stream. Then you can specify which mask layer you want to use, e.g. for applying erosion or terraces.
+
+The Houdini viewport is capable of visualizing the 2D `height` field as a 3D surface, and the `mask` field as a red tint on the surface. Heightfields aren't limited to huge terrains, but you can also create smaller landscapes, riverbeds, seabeds, deserts, and many other geological structures. It's also possible to paint your own map and use it as a basis for a complex and highly-detailed terrain. The perhaps most realistic approach is to load a displacement map from a real landscape and turn it into a heightfield.
+
+NOTE:
+    A special form of heightfield is the [Shallow Water Solver|/ocean/swsintro] that lets you quickly flood large areas or make water run over rocks and cracks.
+
+== Limitations == (limits)
+
+As mentioned before, heightfields are flat 2D grids and all height information is stored in the grid's points. For this reason it's not possible to work on a terrain's vertical areas. A good example are the vertical parts you get from a [HeightField Project SOP|Node:sop/heightfield_project]. This nodes takes regular geometry and projects it onto the 2D grid. Masks can also create very similar effects. The image below shows a sphere that is [projected|projection] onto an empty heightfield. The vertical parts are just stretched along the Y axis.
+
+[Image:/images/heightfields/limitations.jpg]
+
+If you want to add detail to the vertical parts, you can [erode|erosion] the terrain or [convert|workflows#conversion] the heightfield into actual geometry. Another possibility is to [scatter|scattersop] objects over those areas to create structures.
+
+Of course, Houdini's [Karma CPU|/solaris/karma] and [Karma XPU|/solaris/karma_xpu] render engines support heightfields. Anyway, before you can render a heightfield you should [convert|workflows#convert] it into polygons. This step is not absolutely necessary, because Houdini will convert the terrain automatically when you import it to Solaris. However, you have more control over the resulting geometry with manual conversion, for example if you want to you bake colors and layers to the terrain.
+
+== Noise types ==
+
+Different noise types are one of the centerpieces in conjunction with heightfields and you can find them everywhere: terrain creation, masking, distortion, patterns, etc. Especially the various noise types on the [HeightField Noise SOP|Node:sop/heightfield_noise] are perfectly suited to quickly change the characteristics of a terrain. You can create landscapes with smooth hills or mountains with sharp ridges and steep slopes.
+
+On the first look, some noise types like __Chebyshev Cellular F2-F1__ might create strange patterns. With appropriate [distortion|distortion] and stacked noise types you can create highly-detailed terrains. Then you apply [erosion|erosion] to the mountains to get a realistic look.
+
+[Image:/images/heightfields/noise_evolving.jpg]
+
+The noise settings of different nodes also share several common parameters. The most important are probably __Amplitude__ and __Element Size__. __Amplitude__ defines the maximum height of the terrain. __Element Size__, however, refers to the noise pattern. In terms of heightfields you add more spikes and irregularities with small values, while higher settings create a smoother surface.
+
+The ratio between __Amplitude__ and __Element Size__ is also relevant. 
+
+* When __Element Size__ is small, you normally decrease __Amplitude__. 
+* With large __Element Size__, the terrain becomes flatter and you'll most probably increase __Amplitude__.
+
+The image below shows that you can achieve different types of terrain just by varying __Element Size__ and __Amplitude__.
+
+[Image:/images/heightfields/noise_patterns.jpg]
+
+== Generating a height field from scratch == (basehf)
+
+To create a basic heightfield, you need only a couple of nodes. The nodes' parameters let you precisely shape the landscape and you can create distant hills with a reduced level of detail or high-resolution ground object for scattering. You normally only have to alter very few parameters to get a completely different look.
+
+Heightfields are created through geometry SOP nodes, so everything starts on Houdini's _obj_ level, where you press ((Tab)) to open the tab menu. From there, create a [Geometry OBJ|Node:obj/geo] that will serve as container for your landscape. Double-click the node to dive inside.
+
+[Image:/images/heightfields/basehf_default.jpg]
+
+=== Heightfield base === (base)
+
+* Lay down a [HeightField SOP|Node:sop/heightfield]. This node generates a large, flat plane in __ZX__ direction that is centered to the scene's origin.
+
+The most important parameters are __Size__ and __Grid Spacing__. The first parameters determines the terrain's global scale.
+
+The default size is `1000` by `1000` meters - that's one square kilometer. __Grid Spacing__, however, defines the heightfield's resolution. You can also think of this value as a voxel's size. With the standard value of `2`, the distance between two grid points is two meters. This results in 500 by 500 voxels for a base heightfield.
+
+You can also change __Division Mode__ to __By Axis__ and directly set the number of grid points.
+
+=== Heightfield noise === (noise)
+
+A HeightField node followed by a [HeightField Noise SOP|Node:sop/heightfield_noise] is the primary way to start with some random terrain. From the tab menu, add a HeightField Noise SOP and connect its _first_ input with the output of the HeightField SOP. What you can see now is a rocky terrain with several hills. If you need more detail, you can decrease the aforementioned __Grid Spacing__ parameter on the HeightField SOP. On the noise node, you change the look of the landscape.
+
+NOTE:
+    The noise parameters, described below, are an important part of Houdini's heightfield technology in general. You'll therefore see most of the settings in other nodes and their mode of operation is always the same.
+
+With __Amplitude__ you change the maximum height of the terrain. Note that the value is *not* given in meters and the standard value of `500` doesn't create hills with an appropriate height. __Amplitude__ is a scale factor that's applied to each grid point's displacement value. When __Center Noise__ is turned on, the factor will be applied in both positive and negative Y direction (assuming that the heightfield is oriented along the XZ plane).
+
+__Element Size__ determines the size of the noise pattern. With smaller values you'll get a more noisy surface with lots of spikes. Higher settings, however, create a smoother surface with less detail. __Element Size__ is the inverse of the noise's frequency.
+
+The __Scale__ parameters let you stretch the noise along its orientation: in most cases this is probably X and Z. The height axis, however isn't considered, because height is controlled through __Amplitude__.
+
+It's also interesting to experiment with different __Combine Mode__ settings. __Maximum__, for example, clips all values below 0 and creates a sea level with islands and coast lines. __Minimum__, on the other hand, can create eroded, canyon-like structures.
+
+The __Noise Settings__ section provides the __Roughness__ parameter. With higher settings you create more micro-spikes and this results in a more noisy surface. You should change __Roughness__ in small steps of `0.05`, because it's very sensitive.
+
+There also many different __Noise Types__ available. The Perlin, sparse and simplex types add detail to the terrain. The cellular types and Alligator, however, are perfectly suited for defining a terrain's main structure. Then you refine those with sparse noise and/or [distortion|distortion]. If you need more detail and finer structures on your terrain, plase consider increasing the __Lacunarity__ value.
+
+== Heightfield mask ==
+
+A mask restricts an effect to a certain area. In conjunction with heightfields you can define, where the terrain should appear, while areas outside the mask will remain flat. When you press ((Tab)) to open the tab menu and enter `hfmask`, you'll see a long list of nodes for the creation and manipulation of masks. To illustrate the basic concept, lets start with a noise mask.
+
+TIP:
+    For more information on masks, please read the [HeightField masking|masking] page.
+
+If you've already created a basic heightfield, you can proceed with the existing network. Scale and look of your heightfield don't matter. Here's a preview of the network you're going to create.
+
+[Image:/images/heightfields/basehf_network.png]
+
+# From the tab menu, put down a [HeightField Mask Noise SOP|Node:sop/heightfield_noise].
+# You must place the new node between the already existing HeightField SOP and HeightField Noise SOP nodes to see an effect. Connect the mask node's
+
+    * _first_ input with the output of the heightfield
+    * output with the _second_ input of the heightfield noise.
+
+# When you look at the mask node's parameters, you'll recognize the same parameters as with the HeightField Noise SOP: __Amplitude__, __Element Size__, and the __Noise Settings__ section. Play with the parameters to achieve different looks.  __Amplitude__, by the way, acts like a like a multiplier for the height values.
+
+[Image:/images/heightfields/basehf_mask.jpg]
+
+To control the mask's actual look, turn on the mask node's blue __Display/Render__ flag. Now you'll see a red and white pattern, and mountains are only created in the _red_ areas.
+
+== Tips and notes ==
+
+* The Terrain [desktop|/basics/panes#layouts] has a specialized shelf set, a [radial menu|/basics/radialmenus], and its own pane layout designed for your work with terrains.
+
+* You can take advantage of the ((Tab)) menu's smart completion when type `height` or just `hf` instead of `height field` when searching for appropriate nodes. For example, you can type `hfnoise` to get a list of all available heightfield noise nodes.
+
+* Heightfields and masks are regular Houdini volumes and you can use any geometry (SOP) node that works with volumes to edit heightfields and masks.
+
+@subtopics
+
+== Creation ==
+
+::[creation]
+::[maps]
+::[hills]
+::[layers]
+::[terracing] 
+::[distortion]
+::[painting]
+::[projection]
+::[patching]
+::[patterns]
+::[resampling]
+::[workflows]
+
+== Scattering ==
+
+::[scattersop]
+::[scatterptremove]
+::[scatterattribs]
+::[scattersolaris]
+
+== Masking ==
+
+::[masking]
+::[lightmask]
+
+== Natural effects ==
+
+::[erosion]
+::[slump]
+::[flowfields]
+
+== VEX ==
+
+::[vexsnippets]
+::[sandtransport]
+::[mandelbrot]
+
+== Texturing ==
+
+::[texturebasics]
+::[texturelayers]
+
+== Shallow Water Solver ==
+
+::[shallowintro]
+::[shallowfields]
+::[shallowtrouble]
+::[shallowoutput]

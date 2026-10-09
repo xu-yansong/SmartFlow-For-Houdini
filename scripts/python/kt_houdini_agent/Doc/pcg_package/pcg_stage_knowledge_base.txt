@@ -1,0 +1,46 @@
+# PCG 平台包（StageTypes）详细参考
+# 平台包负责平台/人工地形结构的程序化生成
+
+## ==============================
+## 平台包概述
+## ==============================
+
+平台包（StageTypes）负责平台和人工地形结构的程序化生成。
+配置根目录：ArtData/StageTypes/
+
+平台包目录结构示例：
+StageTypes/
+├── SharePrj/
+│   ├── RockDerbris/    ← 岩石碎片平台包
+│   ├── Stairs01/       ← 阶梯平台包
+│   ├── TreeDerbris/    ← 树木碎片平台包
+│   └── Village/        ← 村庄平台包
+
+## ==============================
+## 平台包 stage_info.json 算法信息
+## ==============================
+
+平台包的算法信息文件为 stage_info.json，结构简单：
+{
+    "hda_name": "/ArtHDAs/SharePrj/otls/kt_stage_template.hda",
+    "hda_parm": "/StageTypes/SharePrj/RockDerbris/kt_stage_RockDerbris.json"
+}
+
+字段说明：
+- hda_name: 平台生成 HDA 路径（相对于 ArtData）
+- hda_parm: HDA 参数 JSON 路径（相对于 ArtData）
+
+## ==============================
+## 平台包配置文件清单
+## ==============================
+
+平台包目录下的完整文件列表：
+- stage_info.json —— 算法信息（HDA + 参数）
+- stage_options.json —— 资产分类列表
+- stage_asset.json —— 资产入库
+- kt_stage_xxx.json —— HDA 参数配置
+- subsys_info.json —— 渲染层映射信息
+- subsys_layers.json —— 渲染层详细定义
+
+部分平台包还包含：
+- stage_parm.json —— 额外平台参数

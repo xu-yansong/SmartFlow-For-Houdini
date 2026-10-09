@@ -1,0 +1,14 @@
+= Data set generation =
+
+For regression problems, you train ML on a collection of labeled examples. Here, the targets of the labeled examples depend on the inputs in a continuous fashion. This differs from classification problems, where the outputs are discrete rather than continuous.
+
+You may want to learn to approximate a procedural network in Houdini. In that case, an input would be the geometry that you send into the procedural network. The corresponding target would be what comes out at the end of the procedural network for that input. Each input-target component pair is bundled as a labeled example, using [ML Example|Node:sop/ml_example]. Each labeled example is a packed primitive which contains two more packed primitives. By merging geometries that contain labeled examples, you can form a single geometry that represents the entire collection of labeled examples. With this data set geometry, you may inspect each labeled example using [ML Example Extract|Node:sop/ml_extractexample].
+
+[Example Decompose|Node:sop/ml_exampledecompose] allows you to obtain the separate input component and target component of a labeled example.
+
+Before you can create a data set that can be passed onto the training script, you need to turn both the `input component` and `target component` of each labeled example into a geometry that has point attributes and volumes which encode the data. To do this, you can use a separate for-loop in SOPs or using TOPs. The `input component` and `target component` can be represented entirely using a geometry that has point attributes and volumes, preserving the exact data, or you can pre-process it to reduce its dimension. An example is to use the [Principal Component Analysis|Node:sop/pca].
+
+Once the inputs and targets are in the form of geometries that hold data in point attributes and/or volumes, you can write out the data set using [ROP ML Example Raw Output|Node:sop/rop_ml_exampleraw], so you can use it with [ML Train Regression|Node:top/ml_trainregression].
+
+
+

@@ -1,0 +1,112 @@
+= Painting terrains =
+
+"""Be an artist and paint your landscapes."""
+
+You can create a basic heightfield and use other nodes to refine its look. Then you can also import [displacement map|maps] and elevate the base grid. Another method is to draw and paint heightfields directly inside Houdini. Heightfield painting is perfectly suited for creating trenches, riverbeds, and elevations in particular areas. Instead of height information you can also paint masks to spare out certain areas from being modified. This way you can, for example, draw streets.
+
+When you paint a heightfield, you normally don't draw each and every tiny detail. Instead you paint a basic shape and then you start working on the heightfield through noise, erosion, etc. to make your landscape look natural.
+
+[Image:/images/heightfields/painting_banner.jpg]
+
+== Example: Riverbed ==
+
+The following basic example illustrates how to paint a dry riverbed and blend it with various nodes to add surface detail. In this scene you'll make use of Houdini's drawing features to paint the terrain and a mask that defines where terraces will appear. You'll also reuse the mask to drive erosion.
+
+Let's start with the terrain.
+
+# On the _obj_ level, press ((Tab)) to open the tab menu. From there, create a [Geometry OBJ|Node:obj/geo]. Double-click the node to dive inside it.
+# Lay down a [HeightField SOP|Node:sop/heightfield] and change its __Grid Spacing__ to `1` to get enough detail.
+# Add a [HeightField Paint SOP|Node:sop/heightfield_paint] and connect its input with the output of the heightfield node.
+# Go to __Layer__. By default, the node lets you paint a mask, but here we want to create a riverbed. From the parameter's associated dropdown, choose `height` to replace the default entry.
+# For __FG Value__, enter `-60` to create an impression. Positive values, however, let you paint hills and elevations.
+# Hover the mouse cursor over the viewport. Press ((Enter)) to turn on the paint mode and to see a spherical brush. You can change the size of the brush interactively by scrolling the ((mouse_wheel)) up (bigger) or down (smaller).
+# Press ((Esc)) to leave the drawing mode.
+
+You'll immediately see the result of your action and a canyon-like structure. You can add as many strokes as you want, change the brush size with each new stroke or alter parameters like __Opacity__. 
+
+[Image:/images/heightfields/painting_canyon.jpg]
+
+=== Blurring ===
+
+A closer look at the riverbed reveals a flat area at the bottom, although __Soft Edge__ is already set to `1`. 
+
+# To fix the edges, add a [HeightField Blur SOP|Node:sop/heightfield_blur]. Connect its _first_ input with the output of the paint node.
+# Change __Method__ to __Box Blur__. This mode creates slightly better results, esp. along the hard edges at the bottom.
+# Drag the __Radius__ slider to the right to increase the value until the edges are completely smooth.
+
+=== Adding structures ===
+
+Right now, the terrain completely lacks surface structures. The advantage with procedural node-based systems is that you can add nodes anywhere in the network. Heightfields are no exception and you can chain as many nodes as required to create complex landscapes. The layer system in heightfields also allows for the manipulation of selected parts through masks.
+
+In this example, you'll add distortion, terraces, noise and erosion. A mask will help you to apply the erosion effect only to the hillsides of the trenches.
+
+==== Noise and distortion ====
+
+Noise is the most [fundamental method|index#noise] to create a terrain. In this example, noise should be moderate to keep the look of the trenches. With high settings you will distort the trenches and destroy the impression of a riverbed that dug its way through a large mesa.
+
+# Add a [HeightField Noise SOP|Node:sop/heightfield_noise] and connect its _first_ input with the output of the terrace node.
+# To roughen the terrain, set __Amplitude__ to `40` and __Element Size__ to `75`.
+# Then, lay down a [HeightField Distort SOP|Node:sop/heightfield_distort] and connect its _first_ input with the noise node's output.
+# The goal is to add more structure to the terrain, but keep its character. A moderate __Amplitude__ of `4` and an __Element Size__ of `50` create nice results.
+
+[Image:/images/heightfields/painting_structure.jpg]
+
+==== Masking ====
+
+In this step you'll paint one common mask to drive terracing and erosion. The process of painting a mask is almost identical with terrain painting.
+
+# Lay down another HeightField Paint SOP and connect its input with the output of the HeightField Distort SOP. The difference to the first draw node is that you'll be drawing on the `mask` layer instead of the `height` layer.
+# Hover the mouse over the viewport, press ((Enter)) and start drawing as before. Press ((Esc)) to confirm your work.
+# Add a [HeightField Mask Blur SOP|Node:sop/heightfield_blur] and connect its _first_ input to the new paint node. Change __Radius__ if necessary to get a smoother mask.
+
+Below you can see a possible result. You might have noticed that the mesa parts are completely spared out to prevent them from becoming eroded.
+
+[Image:/images/heightfields/painting_masking.jpg]
+
+==== Terracing ==== (terracing)
+
+The next structures you're adding, are terraces. In nature, rocks from lower layers are compressed through overlaying layers and therefore harder. The softer upper layers are eroded faster and create terraces. You can mimic this effect in Houdini.
+
+# Add a [HeightField Terrace SOP|Node:sop/heightfield_terrace] and connect its _first_ input with the output of the upstream HeightField Noise SOP node. Link the _second_ input to the output of the mask blur node. Now, the terraces will only appear inside the red areas.
+# Click __Compute Range__. This button calculates the height range where the terraces will occur to give you an idea about the terrain's vertical dimensions. Use __Min Height__ and __Max Height__ to determine, where you want to create terraces.
+# __Max Step Size__ changes the number of terraces. With smaller values you create more steps.
+# To get rid of the hard edges, increase __Smooth Edges__, but don't overdo the effect: later, when you apply erosion, the terraces will become smoother as well.
+# There's also a hard transition from the terraces to the terrain. To get a smooth transition, open the __Terracing__ tab and go to __Fade Ramp__. Click the [Smallicon:BUTTONS/gear] __Presets__ button to see a list of predefined curves. For this terrain the __Valley__ preset is perfectly suited. The curve smooths the bottom and top terraces, but maintains the look of the inner layers.
+
+[Image:/images/heightfields/painting_terracing.jpg]
+
+==== Erosion masking ====
+
+Erosion is the result of external influences like water, wind and temperature. Wind and water carry away the debris. The movement makes the stones smaller and smaller and finally they become sand. In riverbeds you can often observe accumulations of sand near boulders or ditches, because the sand is heavier than water. This difference lets the sand sink and settle. On the land, however, sand is transported by wind and comes to rest when there's an obstacle. This can results in dunes.
+
+In this scene, erosion will be limited to the slopes of the trenches through the already existing mask.
+
+# Add a Heightfield Mask Expand tool from the tab menu. This tool is a preconfigured HeightField Blur SOP, where __Method__ is set to __Expand__. Connect its _first_ input with the output of the terrace node.
+
+    When you go to __Blur Layer__, you will see that the default entry is `mask`. Leave the default, because it already specifies the mask from the terrace node.
+
+# Increase __Radius__ to control the mask's expansion. The mask can also cover small parts of the mesa. This scene uses a value of `15`.
+# Lay down a [HeightField Erode SOP|Node:sop/heightfield_erode] and connect _both_ inputs with the output of the blur node. Adjustments will be made directly below.
+
+==== Controlling erosion ====
+
+The new HeightField Erode SOP in Houdini 21 provides a wide range of parameters that let you precisely control this process. Here, we're going to make only a few changes, because we don't want to erode all the nice terraces.
+
+# Select the HeightField Erode SOP and make sure that the __Solver__ tab is open.
+# Decrease __Erosion Feature Size__ to `3`. This value is measured in meters and creates rather narrow drains. Higher settings would wash away all fine structures.
+# For __Flow Force__, enter a value of `0.5`. This is the force of erosion that's induced by water. With values, smaller than `1`, the drains won't be so deep.
+
+As you can see, the terraces "survived" the erosion process, but not completely, and you can still guess their shape.
+
+[Image:/images/heightfields/painting_erosion.jpg]
+
+==== Adding details ====
+
+# Put down a [HeightField Mask Clear SOP|Node:sop/heightfield_layerclear] and connect its input with the output of the erode node to set all `mask` values to zero.
+# Add another HeightField Distort SOP and connect its _first_ input with the output of the mask clear node.
+# Set __Amplitude__ to a moderate value of around `6`.
+# Increase __Element Size__ to create slightly bigger noise patterns. Values around `120` should give good results.
+
+You can also add another erode node to make it slightly smoother, and give your terrain an even more natural look as in the image below.
+
+[Image:/images/heightfields/painting_result.jpg]

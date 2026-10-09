@@ -1,0 +1,155 @@
+= Shallow Water Solver: Fields =
+
+"""Create mesmerizing effects with the Shallow Water Solver."""
+
+NOTE:
+    This guide requires a basic knowledge about heightfields and the Shallow Water Solver. Some of the examples in this chapter are also based on the heightfield and solver settings from the introduction to the [Shallow Water Solver|shallowintro] to become familiar with fundamental setups and workflows.
+
+When you look at the [Shallow Water Solver SOP's|Node:sop/shallowwatersolver] __Output__ tab, you can see three parameters that let you store velocity, acceleration and vorticity data as layers. You can use the information for visualizing differences in speed or vorticity, but also for trailing effects. Another field of application is to use fields to drive simulations.
+
+== Velocity ==
+
+Velocity is turned on by default and you can directly map the different velocities to the simulation: From the __Visualization__ dropdown, choose __Color Water by Layer__. If you already went through the introduction to the Shallow Water Solver, you know that this option adds a turquoise-blue gradient that represents the water's velocities. The __Visualization__ parameters let you control the gradient's color distribution.
+
+For more information, open the [Geometry Spreadsheet|/ref/panes/geosheet] and click the [Smallicon:TOOLS/select_faces.svg] __Primitives__ button. There you'll see that there's no combined `velocity` layer, but you have individual `vel.x`, `vel.y` and `vel.z` layers instead. It's also important to know that `vel.y` is always zero, because heightfields are 2D grids without a physical height.
+
+== Vorticity ==
+
+The `vorticity` layer stores the local rotational motion at each point, with larger absolute values indicating faster spinning. Positive vorticity values signal that rotation is in the counter-clockwise direction when viewed from above; negative values indicate a clockwise rotation.
+
+The Shallow Water Solver does not provide any built-in features to visualize vorticity and you need a [custom solution|#visualize].
+
+== Acceleration ==
+
+Acceleration is the rate at which an object's velocity changes over time. It can mean speeding up, slowing down, or changing direction. Like `velcoity`, the `acceleration` layer consists of three components: `accel.x`, `accel.y` and `accel.z`, but again, only the X and Z components are relevant. There's no out-of-the-box feature for displaying this layer and you need a [custom solution|#visualize].
+
+== Force ==
+
+The solver's __Binding__ tab provides an empty __Force Mask Layer__. You can create a custom, animated mask and connect it to the slot. The solver will use the mask values to push and displace the water.
+
+TIP:
+    There's an [example|#radforce] further down that explains how to create a pulsating radial `force` layer.
+
+== Visualization: Layers ==
+
+Houdini's heightfields provide a [HeightField Visualize SOP|Node:sop/heightfield_visualize] that lets you define custom colors for up to nine layers. A common application with this node is [texturing|/heightfields/texturebasics#visualization].
+
+The visualize node is typically the last node of your network, because only then you can be sure that all layers will be available. The node's usage is straightforward:
+
+* On the __Material__ section you can see a __Height Ramp__. The gradient tints the terrain according to the values of the `height` layer. You can click __Compute Range__ to map the entire range of gradient colors to the terrain. When you click the [Smallicon:BUTTONS/gear] __Presets__ button, you choose from various predefined color ramps.
+* Each of the nine __Layer__ parameters has an associated dropdown menu that list the entire range of existing layers. Choose a layer or type its name to an empty parameter field. Then, define a __Color__. The layer will be displayed with the chosen color.
+
+[Image:/images/heightfields/shallow_fieldsvisualize.jpg]
+
+NOTE:
+    The layer numbers also indicate how layers are stacked. Imagine the floowing example where assign `vel.x` and `vel.z` to __Layer 1__ and __Layer 2__, but `water` to __Layer 3__. In this scenario, the `water` layer will cover the velocity layer and they're no longer visible. To get a correct result, assing `water` to __Layer 1__.
+
+== Visualization: Trails ==
+
+You can visualize the information from the solver's layers to create trails with mesmerizing swirling and curling effects. As the name indicates, the node was made to show volumes, but a heightfield is a 2D grid. The Y coordinate is always zero and this is the reason why you will also only see a flat representation.
+
+[Image:/images/heightfields/shallow_fieldstrails.jpg]
+
+# Add a [Volume Trail SOP|Node:sop/volumetrail] to the network and connect its _second_ input with the output of the solver.
+# Lay down a [Grid SOP|Node:sop/grid] and connect its output with _fist_ input of the solver.
+# Adjust the grid's __Size__ parameters so that they match the __Size__ values of the [HeightField SOP|Node:sop/heightfield]. For example, if the heightfield is 100 m by 100 m, the __Size__ values for _both_ nodes are `100` as well.
+# The grid's __Rows__ and __Columns__ parameters define the resolution of the trails. It's not possible to give exact values here, because they depend on several factors.
+# On the trail node, go to __Velocity Volumes__ and enter the name of the field you want to visualize. You can also choose an entry from the parameter's associated dropdown menu.
+# Then, adjust __Trail Length__. Longer trails take longer to be drawn and will also create a denser "map".
+
+If the shallow water simulation is [cached|shallowoutput], you can move the [Playbar head|/anim/playbar#timeline] or press the [Smallicon:PLAYBAR/play_forward] __Play__ button to see the trails in motion.
+
+== Creating a force field == (radforce)
+
+Houdini offers a wide range of methods to create custom fields. However, the various techniques have one thing in common if you want to use them with the Shallow Water Solver: The force must be converted into a mask. The following example illustrates how to draw an animated radial mask that pushes the water away from the mask's center.
+
+=== Terrain ===
+
+To get a better view of the force, you should make the terrain smaller. For the HeightField SOP's __Size__ parameters, enter `100, 100`. To get more detail, set __Grid Spacing__ to `0.5` - this will also be the value for the solver's __Voxel Size Scale__ parameter. Most probably you have to decrease the __Amplitude__ and __Element Size__ parameters of the [HeightField Noise SOP|Node:sop/heightfield_noise] to get more surface detail.
+
+* You can modify the terrain to your liking, but don't make it too high, because the water should be able to propagate over the landscape.
+* You also need a `source` layer to determine where the water will be created. The steps to create this layer are explained on the [Shallow Water Solver|shallowintro#source] page.
+
+
+=== VEX script ===
+
+The idea is to use a VEX script that creates propagating concentric rings and converts them into a mask. Several custom parameters give you full control over the resulting force. To apply a script to a terrain you need a [HeightField Wrangle SOP|Node:sop/volumewrangle]. In your network, place the wrangle directly _before_ the solver and connect its _first_ input.
+
+[Image:/images/heightfields/shallow_fields_forcemask.jpg]
+
+Then use ((Ctrl + C)) to copy the script below and paste it with ((Ctrl + V)) to the wrangle's __VEXpression__ field. Click the [Smallicon:BUTTONS/create_parm_from_ch] __Creates spare parameter for each unique call of ch()__ button to add the custom parameters to the wrangle's parameter set.
+
+{{{
+#!vex
+
+// Parameter section
+vector center = chv("center");       // Custom parameter: Wave center
+float speed = chf("speed");          // Custom parameter: Wave speed
+float frequency = chf("frequency");  // Custom parameter: Wave frequency
+float amplitude = chf("amplitude");  // Custom parameter: Mask strength (= force strength)
+float falloff = chf("falloff");      // Custom parameter: Strength attenuation factor
+float time = @Time;                  // Current simulation time
+
+// Current heightfield position
+vector pos = @P;
+
+// Distance of the current position to the wave center
+float dist = distance(pos, center);
+
+// Wave creation
+float wave = sin(dist * frequency - time * speed);
+
+// Remap wave to a [0,1] range and scale the result with the waves' strength
+float mask = fit(wave, -1, 1, 0, 1) * amplitude;
+
+// Optional: Wave strength decreases with increasing distance from the center
+mask *= exp(-dist * falloff);
+
+// Write the result to the heightfield's @mask layer
+@mask = mask;
+}}}
+
+=== Parameters ===
+
+The following table gives you an idea what the custom parameters do. The actual values strongly depend on the size of the terrain. The settings below were tested for a terrain size of 100 m by 100 m. To see the effect of your changes, turn on the wrangle's blue __Display/Render__ flag.
+
+table width="100%">>
+    th width="15%">>Parameter
+    th width="50">>Description
+
+    tr>>
+        td>>Center
+        td>>Defines the center of the waves. Consider that heightfields are 2D and you'll only need the X and Z values. Place the center near or inside the painted `source` mask. This makes sure that waves can influence the water. You can use positive and negative values. For example, in a 100 m by 100 m terrain, the _left_ edge is at `X = -50`, the _lower_ edge is at `Z = 50`.
+    tr>>
+        td>>Speed
+        td>>The propagation speed of the waves. Start with values between `2` and `5`.
+    tr>>
+        td>>Frequency
+        td>>This parameter defines the number of waves/rings. With smaller values you'll get a denser pattern. Higher settings create thicker rings. Try to stay between `0.2` and `1`.
+    tr>>
+        td>>Amplitude
+        td>>This is the strength of the mask. The mask values are then converted into a force. For this example scene start with values between `1` and `5`. Very high __Amplitude__ values might lead to instabilities.
+    tr>>
+        td>>Falloff
+        td>>You can make the waves fade out with increasing distance from the center. This parameter is very sensitive and you should start with small values around `0.02`.
+
+=== Layer creation ===
+
+The next step is to convert the `mask` into a `force` layer you can use to drive simulation. As with the `source` layer, you also need a [HeightField Copy Layer SOP|Node:sop/heightfield_copylayer]. Place the node between wrangle and solver to connect it and set its __Destination__ to `force`.
+
+A [HeightField Mask Clear SOP|Node:sop/heightfield_layerclear] downstream of the copy node resets the circle mask. For __Layer 1__, enter `mask`.
+
+=== Solver adjustments ===
+
+You also need some adjustments on the solver. While most parameters on the __Setup__ tab strongly depend on the shape and size of your terrain, there are a few settings you must consider:
+
+* On the __Setup__ tab, go to the __Constraint Updates__ section. From the __Forces Frequency__ dropdown menu, choose __Every Substep__. This option will apply the values of the `force` layer with every simulation substep. You can also apply the force at every frame, but substeps tend to create a smoother result - even if this method takes longer to simulate.
+* On the __Bindings__ tab, go to __Force Mask Layer__ and enter `force` to establish a connection between the solver and the new layer.
+
+On the __Simulation__ tab, adjust __Voxel Size Scale__. For this example with a 100 m by 100 m terrain, a value of `0.5` was used, but you might want to enter a different value. Also on the __Simulation__ tab, you can increase __Cache Memory (MB)__ to cache the result to your computer's RAM for fast playback.
+
+When you simulate, you should see how the force pushes the water and creates bow-shaped waves as in the time-lapse video below.
+
+:video:
+    #src: /videos/heightfields_radforce.mp4
+    #loop: true

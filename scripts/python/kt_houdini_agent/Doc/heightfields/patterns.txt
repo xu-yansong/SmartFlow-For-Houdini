@@ -1,0 +1,132 @@
+= Patterns =
+
+"""Create realism from basic geometric patterns."""
+
+Patterns are a convenient way to create exotic landscapes, but also realistic terrains like dunes. Furthermore, you can [patch|patching] patterns to other heightfields, or use a certain structure as a starting point for something more complex.
+
+You can apply patterns through the [Heightfield Pattern SOP|Node:sop/heightfield_pattern] and choose from six different modes. The following examples show you how to use patterns to create certain terrain structures.
+
+NOTE:
+    All examples start with a [HeightField SOP|Node:sop/heightfield] on Houdini's _obj_ level. Create the node and double-click it to dive inside. This will be the basis for your networks.
+
+[Image:/images/heightfields/patterns_banner.jpg]
+
+== Example: Desert field ==
+
+The HeightField Pattern SOP provides modes that are suited for the creation of a typical desert field with eroded hills, ripples and rocks that stand out from the sand. This example combines two patterns to get structures of different size.
+
+=== Hills ===
+
+The first "layer" creates the large hill structures and a mask will break the pattern. The mask cares for a more natural look, because wind is often shielded by obstacles like rocks and this results in height differences.
+
+# Set the HeightField SOP's __Grid Spacing__ to `1` for a higher resolution.
+# Add a HeightField Pattern SOP and connect its _first_ input with the output of the HeightField SOP.
+# Open the __Pattern__ section's __Pattern__ dropdown menu. From there, choose __Ramp__ to generate a saw tooth pattern.
+# Decrease __Height__ to `30`. This will flatten the pattern.
+# On the __Position__ section, change __Size__ to `190`. Instead of nine steps you'll now see just five edges.
+# On the __Ramp Remapping__ ramp, click the [Smallicon:BUTTONS/gear] __Presets__ button. From there, choose __Hill__. 
+
+The pattern is now a smooth and wavy surface.
+
+[Image:/images/heightfields/patterns_desert_hills.jpg]
+
+=== Shaping the hills ===
+
+The hills should be formed by wind, similar to dunes. Dunes also have a specific profile: there's a steep slope on the windward side. On the wind shadow side, however, you can see how the sand is blown away and forms a stretched trail. You can recreate this characteristic shape when you modify the __Ramp Remapping__ curve.
+
+Click the little triangle below the [Smallicon:BUTTONS/remove] icon to expand the parameter section. Now you can enter an exact __Position__ for each control point to shape the curve.
+
+# Click the left slider. For __Position__, enter `0.15`. This will shift the slider to right.
+# For the slider in the middle enter __Position__ value of `0.3`.
+# Finally, click the right slider. Here, __Position__ will be `0.7`. Now, the waves follow the new profile. Your curve should look as in the image below.
+
+    [Image:/images/heightfields/patterns_desert_dunes.jpg]
+
+# On the __Distortion__ section, turn on __Distort Pattern__. You'll immediately see a change, but the pattern is still too regular.
+# To create strongly curved structures, set __Amplitude__ to `850`. This value results in a noisy surface, because the noise pattern is quite small.
+# To get rid of the spikes, increase __Element Size__ to `700`. The hills look better now, but they're still too irregular.
+# Decrease __Roughness__ to `0.2` to smooth the edges and create a regular structure.
+
+=== Masking ===
+
+# Lay down a [HeightField Mask Noise SOP|Node:sop/heightfield_noise] and connect its _first_ input with the output of the heightfield. Link the output with the _second_ input of the pattern node. The node will now sit between the heightfield and the pattern nodes. The mask flattens the hills and creates irregularities.
+# To create more noise, decrease __Element Size__ to `140`.
+# For more contrast, open the __Post Processing__ section and set __Gain__ to `0.98`.
+
+[Image:/images/heightfields/patterns_desert_mask.jpg]
+
+=== Ripples ===
+
+The ripples overlap the hills and you can reuse the noise mask to create height differences. The ripples also add extra detail to the hills and later you'll see how the ripples create nice structures in conjunction with erosion.
+
+# Add another HeightField Pattern SOP and connect its _first_ input with the output of the already existing pattern node. Link the _second_ input with the output of the mask node.
+# From the __Combine with__ dropdown menu, choose __Add__ to merge the ripples.
+# Set __Pattern__ to __Stripes__.
+# The ripples should only support the dunes and some more structure. Therefore, decrease __Height__ to `7`. You can now see parallel bands that cover the hills.
+# On the __Position__ section, change __Size__ to `20` and create more ripples.
+# Go to the __Distortion__ section and turn on __Distort Pattern__.
+# Set __Amplitude__ to `25` to get higher "waves".
+# With an __Element Size__ of `125` you can remove the high-frequency noise.
+
+
+=== Blurring ===
+
+The terrain in its current state pretty jagged and ripples also show rather hard edges. Some moderate blur will help to remove artifacts, but keep the overall impression.
+
+# Put down a [HeightField Blur SOP|Node:sop/heightfield_blur] and connect its _first_ input with the output of the last pattern node.
+# Change __Radius__ to `3.5`.
+
+=== Noise ===
+
+Right now the terrain's base is entirely flat, but it'd be nice to have some more structure. The [HeightField Noise SOP|Node:sop/heightfield_noise] adds an irregular rock surface with highly customizable peaks and hills. This fundamental node is part of almost any heightfield network.
+
+# Add a HeightField Noise SOP and connect its _first_ input with the output of the blur node.
+# The terrain shouldn't be too high, so set __Amplitude__ to `200`.
+# For __Element Size__, enter `300` to get more noise.
+
+[Image:/images/heightfields/patterns_desert_noise.jpg]
+
+=== Erosion and distortion ===
+
+The [HeightField Erode SOP|Node:sop/heightfield_erode] brings everything together and creates a realistic terrain. The default settings, however, create rather disappointing results. 
+
+# Lay down an erosion and connect its _first_ input with the output of the noise node.
+# To get stronger erosion, increase __Freeze at Frame__ to `60`.
+# The erosion channels are very wide and there's hardly any detail. For smaller structures, set __Erosion Feature Size__ to `3`.
+# With __Spread Iterations__ you can control the material transport. With `80`, for example, you'll get bigger sediment areas that fill the space between the hills.
+# On the __Hydro__ tab, decrease __Flow Force__ to `0.5` to get less erosion from water.
+
+A [Heightfield Distort by Noise SOP|Node:sop/heightfield_distort] breaks the erosion pattern and gives everything a more rocky appearance.
+
+[Image:/images/heightfields/patterns_desert_result.jpg]
+
+== Example: Trench ==
+
+You can use the HeightField Pattern SOP to create a trench with debris and sediment, flowing down its slopes.
+
+# Add a HeightField Pattern SOP and connect its _first_ input with the output of a HeightField SOP.
+# Go to the __Pattern__ section's __Pattern__ dropdown and choose __Ramp__.
+# On the __Position__ section, go to __Size__ and enter `500`. You'll now see a surface with a single "saw tooth". Then, turn off __Repeat__.
+# On the __Ramp Remapping__ ramp, click the [Smallicon:BUTTONS/gear] __Presets__ button. From there, choose __Valley__.
+# To move the deepest point of the trench to the grid's midpoint, go to the __Position__ section and set __Phase__ to `0.5`.
+# Change __Height__ to `300` and get a really deep canyon.
+
+You might have noticed that the new height shifted the grid along the positive Y axis. If you want to level the surface again, set __Base Height__ to `-300`.
+
+[Image:/images/heightfields/patterns_trench_ramp.jpg]
+
+=== Shaping the terrain ===
+
+Lay down a HeightField Noise SOP and connect its _first_ input with the output of the pattern node. You can proceed with the default values or apply a different look. This is totally up to you.
+
+The next steps create the usual noise to get peaks and the rough structures of a rocky terrain. The terrain from the image uses four alternating nodes: erosion -> distortion -> erosion -> distortion. The first erosion node adds large structures with an __Erosion Feature Size__ of `30`. Distortion breaks the pattern, while the second erosion node adds the detailed trenches with a feature size of `10`. Another distortion node is responsible for the small structures on the smooth erosion area.
+
+The result is a canyon with nicely shaped and feature-rich cliffs.
+
+[Image:/images/heightfields/patterns_trench_final.jpg]
+
+== Example: Adding slope == (slope)
+
+The HeightField Pattern SOP is perfectly suited to create inclined terrains. From the node's __Pattern__, choose __Steps__. Then, set __Step Height__ to `0`.
+
+With __Rise over Run__ you can control the slop's inclination, while __Rotate__ lets you tilt the terrain. A value of `1` creates a grid with an inclination of 45 degrees.

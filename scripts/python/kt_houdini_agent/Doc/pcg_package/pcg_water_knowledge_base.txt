@@ -1,0 +1,55 @@
+# PCG 水系包（WaterTypes）详细参考
+# 水系包负责水体/河流的程序化生成
+
+## ==============================
+## 水系包概述
+## ==============================
+
+水系包（WaterTypes）负责水体和河流的程序化生成。
+水系算法拆分为三个部分：curve、whole、parts。
+配置根目录：ArtData/WaterTypes/
+
+水系包目录结构示例：
+WaterTypes/
+├── SharePrj/
+│   └── WaterTemplate01/   ← 水系模板包
+
+## ==============================
+## 水系包 water_info.json 算法信息
+## ==============================
+
+水系包的算法信息文件为 water_info.json，将算法拆分为三个部分：
+{
+    "curve": {
+        "hda_name": "",
+        "hda_parm": ""
+    },
+    "whole": {
+        "hda_name": "/ArtHDAs/SharePrj/otls/kt_watersys_mesh_template.hda",
+        "hda_parm": "/WaterTypes/SharePrj/WaterTemplate01/kt_watersys_mesh_template.json"
+    },
+    "parts": {
+        "hda_name": "/ArtHDAs/SharePrj/otls/kt_watersys_terrain_template.hda",
+        "hda_parm": "/WaterTypes/SharePrj/WaterTemplate01/kt_watersys_terrain_template.json"
+    }
+}
+
+字段说明：
+- curve: （待补充具体含义）
+- whole: （待补充具体含义）
+- parts: （待补充具体含义）
+
+注意：各阶段的 hda_name/hda_parm 可以为空字符串，表示该阶段未启用。
+
+## ==============================
+## 水系包配置文件清单
+## ==============================
+
+水系包目录下的完整文件列表：
+- water_info.json —— 算法信息（含 curve / whole / parts 三部分 HDA）
+- water_options.json —— 资产分类列表
+- water_asset.json —— 资产入库
+- kt_watersys_mesh_template.json —— mesh HDA 参数
+- kt_watersys_terrain_template.json —— terrain HDA 参数
+- subsys_info.json —— 渲染层映射信息
+- subsys_layers.json —— 渲染层详细定义
